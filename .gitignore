@@ -7,6 +7,9 @@
 *.swp
 *.swo
 
+# Git worktrees（SDD 隔离工作区）
+.worktrees/
+
 # Python
 __pycache__/
 *.py[cod]
