@@ -1,5 +1,6 @@
 from app.models.authorization_code import AuthorizationCode
 from app.models.base import Base
+from app.models.client_user_block import ClientUserBlock
 from app.models.oauth_client import OAuthClient
 from app.models.otp import Otp, OtpPurpose
 from app.models.session import Session
@@ -9,6 +10,7 @@ from app.models.user_consent import UserConsent
 __all__ = [
     "AuthorizationCode",
     "Base",
+    "ClientUserBlock",
     "OAuthClient",
     "Otp",
     "OtpPurpose",
