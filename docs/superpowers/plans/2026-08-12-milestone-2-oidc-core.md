@@ -1549,6 +1549,7 @@ git commit -m "feat: 实现授权确认 API（同意/拒绝与同意记录）"
 **Files:**
 - Modify: `backend/app/api/routes/oidc.py`
 - Modify: `backend/app/services/oidc.py`（追加 `_as_utc`）
+- Modify: `backend/requirements.txt`（追加 `python-multipart==0.0.20`，token 端点使用 Form 必须）
 - Create: `backend/tests/test_oidc_token.py`
 
 **Interfaces:**
