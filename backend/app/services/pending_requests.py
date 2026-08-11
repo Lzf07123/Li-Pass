@@ -81,9 +81,16 @@ class RedisPendingRequestStore(PendingRequestStore):
 def get_pending_request_store() -> PendingRequestStore:
     settings = get_settings()
     if settings.pending_request_store == "memory":
-        return InMemoryPendingRequestStore()
+        return _memory_store
     if settings.pending_request_store == "redis":
-        return RedisPendingRequestStore(
-            redis.Redis.from_url(settings.redis_url, decode_responses=True)
-        )
+        global _redis_store
+        if _redis_store is None:
+            _redis_store = RedisPendingRequestStore(
+                redis.Redis.from_url(settings.redis_url, decode_responses=True)
+            )
+        return _redis_store
     raise ValueError(f"Unsupported pending request store: {settings.pending_request_store}")
+
+
+_memory_store = InMemoryPendingRequestStore()
+_redis_store: RedisPendingRequestStore | None = None

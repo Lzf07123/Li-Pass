@@ -621,13 +621,22 @@ class RedisPendingRequestStore(PendingRequestStore):
 def get_pending_request_store() -> PendingRequestStore:
     settings = get_settings()
     if settings.pending_request_store == "memory":
-        return InMemoryPendingRequestStore()
+        return _memory_store
     if settings.pending_request_store == "redis":
-        return RedisPendingRequestStore(
-            redis.Redis.from_url(settings.redis_url, decode_responses=True)
-        )
+        global _redis_store
+        if _redis_store is None:
+            _redis_store = RedisPendingRequestStore(
+                redis.Redis.from_url(settings.redis_url, decode_responses=True)
+            )
+        return _redis_store
     raise ValueError(f"Unsupported pending request store: {settings.pending_request_store}")
+
+
+_memory_store = InMemoryPendingRequestStore()
+_redis_store: RedisPendingRequestStore | None = None
 ```
+
+说明：`get_pending_request_store()` 必须返回进程内单例，否则每次调用新建内存存储会导致 authorize 写入的待授权请求在 consent 读取时丢失（Task 5 与 Task 6 之间跨请求共享状态）。
 
 - [ ] **Step 4: 运行测试确认通过**
 
