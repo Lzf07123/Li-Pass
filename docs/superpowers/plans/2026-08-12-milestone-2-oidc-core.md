@@ -1294,8 +1294,10 @@ def authorize(
 
     user = get_optional_user(request, db)
     if user is None:
-        next_url = f"/oauth2/authorize?{request.url.query}"
-        return RedirectResponse(f"/login?next={quote(next_url, safe='')}", status_code=302)
+        settings = get_settings()
+        next_url = f"{settings.jwt_issuer}/oauth2/authorize?{request.url.query}"
+        login_url = f"{settings.frontend_base_url}/login?next={quote(next_url, safe='')}"
+        return RedirectResponse(login_url, status_code=302)
 
     consent = db.scalar(
         select(UserConsent).where(
@@ -1331,7 +1333,7 @@ def authorize(
     return RedirectResponse(f"/consent?request_id={request_id}", status_code=302)
 ```
 
-注意：所有 OIDC 重定向显式使用 `status_code=302`（新版 Starlette 的 `RedirectResponse` 默认 307）；conftest 的 `client` 夹具使用 `follow_redirects=False`，测试直接断言 302。
+注意：所有 OIDC 重定向显式使用 `status_code=302`（新版 Starlette 的 `RedirectResponse` 默认 307）；conftest 的 `client` 夹具使用 `follow_redirects=False`，测试直接断言 302。未登录跳转必须是**前端绝对地址**（`frontend_base_url`），`next` 必须是**后端绝对地址**（`jwt_issuer` + authorize 查询串），否则浏览器会停留在后端端口得到 404。
 
 `backend/app/main.py` 注册：
 

@@ -10,7 +10,9 @@ def test_authorize_without_session_redirects_to_login(client, db_session) -> Non
     create_client(db_session)
     response = client.get("/oauth2/authorize", params=authorize_params())
     assert response.status_code == 302
-    assert response.headers["location"].startswith("/login?next=")
+    location = response.headers["location"]
+    assert location.startswith("http://localhost:5173/login?next=")
+    assert "%2Foauth2%2Fauthorize%3F" in location
 
 
 def test_authorize_with_session_redirects_to_consent(client, db_session, captured_email) -> None:

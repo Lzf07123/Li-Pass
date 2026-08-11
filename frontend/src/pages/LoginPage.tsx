@@ -9,14 +9,18 @@ export function LoginPage() {
   const [error, setError] = useState("");
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const next = searchParams.get("next") ?? "/";
+  const next = searchParams.get("next");
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError("");
     try {
       await authApi.login({ email, password });
-      navigate(next);
+      if (next && next.startsWith("http")) {
+        window.location.href = next;
+      } else {
+        navigate(next || "/");
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "登录失败");
     }

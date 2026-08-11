@@ -68,8 +68,10 @@ def authorize(
 
     user = get_optional_user(request, db)
     if user is None:
-        next_url = f"/oauth2/authorize?{request.url.query}"
-        return RedirectResponse(f"/login?next={quote(next_url, safe='')}", status_code=302)
+        settings = get_settings()
+        next_url = f"{settings.jwt_issuer}/oauth2/authorize?{request.url.query}"
+        login_url = f"{settings.frontend_base_url}/login?next={quote(next_url, safe='')}"
+        return RedirectResponse(login_url, status_code=302)
 
     consent = db.scalar(
         select(UserConsent).where(
