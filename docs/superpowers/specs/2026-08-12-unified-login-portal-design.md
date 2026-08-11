@@ -27,7 +27,7 @@
 | 密码哈希 | Argon2id | 通过 argon2-cffi 或 passlib 接入 |
 | TOTP | pyotp + qrcode | 认证器二次验证 |
 | 邮件 | 抽象层：开发环境控制台/Mailpit，生产 SMTP（可替换为 Resend/SendGrid） | 不绑定单一供应商 |
-| 部署 | Docker Compose + Caddy | 前端 Nginx/Caddy 托管静态文件，自动 HTTPS |
+| 部署 | Docker Compose（不含反向代理） | 前端与后端独立暴露；HTTPS 与路由由部署环境（K8s Ingress / 云负载均衡 / 外部网关）负责 |
 | 测试 | pytest + httpx（后端）、Vitest + React Testing Library（前端） | 含完整 OIDC 流程集成测试 |
 
 ## 3. 整体架构与项目结构
@@ -54,10 +54,10 @@ portal-oss/
 │   └── tests/
 ├── examples/demo-site/      # 示例授权网站（演示 OIDC 接入）
 ├── docs/                    # 对接文档与设计文档
-└── docker-compose.yml       # frontend + backend + postgres + redis + caddy
+└── docker-compose.yml       # frontend + backend + postgres + redis（不含反向代理）
 ```
 
-部署时前端和后端同域（如 `portal.example.com`），Caddy/Nginx 将 `/api` 与 `/oauth2` 反代到后端，其余路径服务前端静态文件。门户会话 Cookie 只存在于门户域名，授权网站只持有标准令牌，凭据边界清晰。
+本仓库不内置反向代理：前端与后端作为独立服务直接暴露，生产环境的 HTTPS、域名路由与反代由部署环境（K8s Ingress、云负载均衡或外部网关）负责。因此门户会话 Cookie 使用 `SameSite=None; Secure`，前后端通过 CORS 白名单互信；Cookie 只存在于门户后端域名，授权网站只持有标准令牌，凭据边界依然清晰。
 
 ## 4. 功能范围（第一版 MVP）
 
@@ -306,7 +306,7 @@ erDiagram
 
 ### 会话与令牌
 
-- 门户会话：HttpOnly + Secure + SameSite=Lax Cookie，SPA 无法读取。
+- 门户会话：HttpOnly + Secure + SameSite=None Cookie（前后端跨域直连所需），SPA 无法读取；生产环境强制 HTTPS，否则该 Cookie 不生效。
 - 刷新令牌强制轮换，检测到旧令牌重放即撤销整条会话链。
 - 授权码一次性、绑定 redirect_uri + PKCE code_challenge。
 
@@ -327,14 +327,15 @@ erDiagram
 ## 9. 部署方案
 
 ```
-浏览器 → Caddy（HTTPS 自动证书）
-          ├── /           → 前端静态文件
-          └── /api /oauth2 → 后端 FastAPI（Uvicorn）
+浏览器 → [部署环境的 HTTPS / 反向代理，不属于本仓库]
+          ├── 前端服务（React 静态资源，独立域名）
+          └── 后端服务（FastAPI，独立域名，直接暴露 /api 与 /oauth2）
 后端 → PostgreSQL 16 + Redis 7
 ```
 
-- Docker Compose 服务：frontend、backend、postgres、redis、caddy。
-- 生产配置通过环境变量注入：数据库地址、Redis 地址、JWT 私钥、TOTP 加密密钥、邮件配置、Cookie 域名等。
+- Docker Compose 服务：frontend、backend、postgres、redis，不包含任何反代组件。
+- 前端通过环境变量 `VITE_API_BASE_URL` 指向后端地址；后端通过环境变量配置 CORS 白名单。
+- 生产配置通过环境变量注入：数据库地址、Redis 地址、JWT 私钥、TOTP 加密密钥、邮件配置、CORS 白名单、Cookie 域名等。
 - `/healthz` 健康检查供 Docker 探活；结构化 JSON 日志。
 - 提供数据备份说明（PostgreSQL 定时备份、恢复步骤）。
 - 示例授权网站通过环境变量指向门户地址，一条命令起全套演示。
@@ -376,7 +377,7 @@ erDiagram
 
 ### 里程碑 5：生产部署 + 对接文档
 
-- 生产 Docker Compose（Caddy HTTPS、健康检查、环境变量、密钥注入）、数据备份说明。
+- 生产 Docker Compose（健康检查、环境变量、密钥注入）、数据备份说明；HTTPS 与反代由部署环境负责。
 - 完整的网站对接文档（OIDC 端点、示例代码）、README、演示数据。
 - 验收：新机器一条命令启动全栈；示例网站在生产形态下完成完整登录闭环。
 

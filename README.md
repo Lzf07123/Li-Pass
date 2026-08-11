@@ -22,7 +22,7 @@
 | 前端 | React + Vite + TypeScript + Tailwind CSS |
 | 数据 | PostgreSQL 16 + Redis 7 |
 | 安全 | Argon2id、RS256 JWT、TOTP、PKCE、限流与审计 |
-| 部署 | Docker Compose + Caddy（HTTPS） |
+| 部署 | Docker Compose（不含反向代理）；HTTPS 与路由由部署环境负责 |
 
 ## 项目结构
 
@@ -46,7 +46,7 @@ portal-oss/
 │   └── tests/
 ├── examples/demo-site/      # 示例授权网站
 ├── docs/                    # 设计文档与对接文档
-└── docker-compose.yml       # frontend + backend + postgres + redis + caddy
+└── docker-compose.yml       # frontend + backend + postgres + redis（不含反向代理）
 ```
 
 ## 快速开始（开发环境）
@@ -71,10 +71,11 @@ portal-oss/
    uvicorn app.main:app --reload
    ```
 
-3. 启动前端：
+3. 启动前端（通过 `VITE_API_BASE_URL` 直连后端，不内置代理）：
 
    ```bash
    cd frontend
+   export VITE_API_BASE_URL=http://localhost:8000
    npm install
    npm run dev
    ```
