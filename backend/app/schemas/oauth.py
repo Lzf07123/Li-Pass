@@ -44,6 +44,20 @@ class ClientSecretOut(BaseModel):
     client_secret: str | None
 
 
+class ClientBlockCreate(BaseModel):
+    email: str | None = Field(default=None, max_length=320)
+    user_id: str | None = None
+    reason: str = Field(default="", max_length=500)
+
+
+class ClientBlockOut(BaseModel):
+    id: str
+    user_id: str | None
+    email: str | None
+    reason: str
+    created_at: datetime
+
+
 def serialize_client(client) -> dict:
     return {
         "id": str(client.id),
