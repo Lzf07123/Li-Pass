@@ -22,6 +22,7 @@ from app.security.jwt import (
     public_jwks,
 )
 from app.security.tokens import hash_token
+from app.services.blocks import find_block
 from app.services.oidc import (
     _as_utc,
     build_authorize_redirect,
@@ -72,6 +73,16 @@ def authorize(
         next_url = f"{settings.jwt_issuer}/oauth2/authorize?{request.url.query}"
         login_url = f"{settings.frontend_base_url}/login?next={quote(next_url, safe='')}"
         return RedirectResponse(login_url, status_code=302)
+    if find_block(db, client.id, user) is not None:
+        return RedirectResponse(
+            redirect_error(
+                redirect_uri,
+                "access_denied",
+                state,
+                "account_blocked",
+            ),
+            status_code=302,
+        )
 
     consent = db.scalar(
         select(UserConsent).where(
@@ -175,6 +186,8 @@ def token(
     user = db.get(User, record.user_id)
     if user is None or user.status != UserStatus.active:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "invalid_grant")
+    if find_block(db, client.id, user) is not None:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "该账号已被此网站限制访问")
 
     settings = get_settings()
     return {
@@ -199,6 +212,11 @@ def userinfo(
     user = db.get(User, uuid.UUID(claims["sub"]))
     if user is None or user.status != UserStatus.active:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "invalid_token")
+    client = db.scalar(
+        select(OAuthClient).where(OAuthClient.client_id == claims["client_id"])
+    )
+    if client is not None and find_block(db, client.id, user) is not None:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "该账号已被此网站限制访问")
     return {
         "sub": str(user.id),
         "email": user.email,

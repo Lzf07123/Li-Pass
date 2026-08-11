@@ -7,6 +7,7 @@ from app.core.db import get_db
 from app.models.oauth_client import OAuthClient
 from app.models.user import User
 from app.models.user_consent import UserConsent
+from app.services.blocks import find_block
 from app.services.oidc import (
     build_authorize_redirect,
     create_authorization_code,
@@ -62,6 +63,8 @@ def approve(
     )
     if client is None:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "应用不存在或已停用")
+    if find_block(db, client.id, user) is not None:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "该账号已被此网站限制访问")
 
     code = create_authorization_code(
         db,

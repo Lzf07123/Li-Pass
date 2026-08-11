@@ -17,10 +17,17 @@ def _as_utc(dt: datetime) -> datetime:
     return dt.astimezone(timezone.utc)
 
 
-def redirect_error(redirect_uri: str, error: str, state: str | None = None) -> str:
+def redirect_error(
+    redirect_uri: str,
+    error: str,
+    state: str | None = None,
+    error_description: str | None = None,
+) -> str:
     params = {"error": error}
     if state:
         params["state"] = state
+    if error_description:
+        params["error_description"] = error_description
     return f"{redirect_uri}?{urlencode(params)}"
 
 
