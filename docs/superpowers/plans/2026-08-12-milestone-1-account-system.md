@@ -791,7 +791,12 @@ git commit -m "feat: 添加密码哈希、令牌/验证码工具、邮件与 OTP
 `backend/tests/test_auth_register.py`：
 
 ```python
-def test_register_verify_and_me(client, captured_email) -> None:
+from sqlalchemy import select
+
+from app.models.user import User
+
+
+def test_register_verify_updates_user(client, db_session, captured_email) -> None:
     response = client.post(
         "/api/v1/auth/register",
         json={"email": "A@Example.com", "password": "password123", "nickname": "Alice"},
@@ -808,9 +813,9 @@ def test_register_verify_and_me(client, captured_email) -> None:
     )
     assert response.status_code == 200
 
-    response = client.get("/api/v1/me")
-    assert response.status_code == 200
-    assert response.json()["email_verified"] is True
+    user = db_session.scalar(select(User).where(User.email == "a@example.com"))
+    assert user is not None
+    assert user.email_verified_at is not None
 
 
 def test_register_duplicate_email(client, captured_email) -> None:
