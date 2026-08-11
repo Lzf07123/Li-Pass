@@ -1,0 +1,48 @@
+# macOS
+.DS_Store
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+env/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+build/
+dist/
+
+# Node
+node_modules/
+dist-ssr/
+*.local
+coverage/
+.vite/
+
+# 环境变量与密钥（保留 .env.example）
+.env
+.env.*
+!.env.example
+
+# 日志
+*.log
+logs/
+
+# Docker 数据卷
+postgres-data/
+redis-data/
+
+# 临时与备份
+*.tmp
+*.bak
+*.sql.gz
