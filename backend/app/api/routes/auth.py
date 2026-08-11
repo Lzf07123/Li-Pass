@@ -10,8 +10,10 @@ from app.models.otp import OtpPurpose
 from app.models.session import Session as SessionModel
 from app.models.user import User, UserStatus
 from app.schemas.auth import (
+    ConfirmPasswordResetRequest,
     EmailVerifyRequest,
     LoginRequest,
+    PasswordResetRequest,
     RegisterRequest,
     UserOut,
     serialize_user,
@@ -109,3 +111,28 @@ def logout(request: Request, response: Response, db: Session = Depends(get_db)) 
             session.revoked_at = datetime.now(timezone.utc)
             db.commit()
     response.delete_cookie(settings.session_cookie_name)
+
+
+@router.post("/password/reset", status_code=status.HTTP_202_ACCEPTED)
+def request_password_reset(
+    payload: PasswordResetRequest, db: Session = Depends(get_db)
+) -> dict:
+    email = payload.email.lower()
+    user = db.scalar(select(User).where(User.email == email))
+    if user is not None:
+        code = create_otp(db, OtpPurpose.reset_password, email)
+        get_email_service().send_password_reset(email, code)
+    return {"message": "如果该邮箱已注册，重置验证码已发送"}
+
+
+@router.post("/password/reset/confirm")
+def confirm_password_reset(
+    payload: ConfirmPasswordResetRequest, db: Session = Depends(get_db)
+) -> dict:
+    email = payload.email.lower()
+    user = db.scalar(select(User).where(User.email == email))
+    if user is None or not verify_otp(db, OtpPurpose.reset_password, email, payload.code):
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "验证码无效或已过期")
+    user.password_hash = hash_password(payload.new_password)
+    db.commit()
+    return {"message": "密码已重置"}
