@@ -51,7 +51,15 @@ portal-oss/
 
 ## 快速开始（开发环境）
 
-项目仍处于设计完成、实施规划阶段，以下为规划中的启动方式：
+里程碑 1（项目骨架 + 基础账号体系）已完成。最快捷的方式是一键启动全栈（含前端、后端与基础设施）：
+
+```bash
+docker compose up -d --build
+```
+
+启动后前端位于 http://localhost:5173 ，后端 API 位于 http://localhost:8000 （健康检查 `GET /healthz`）。开发环境邮件验证码默认打印到后端容器日志（`docker compose logs backend | grep "code="`）。
+
+如需在宿主机上分别运行各服务，按以下步骤执行：
 
 1. 启动基础设施：
 
