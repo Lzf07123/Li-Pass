@@ -401,19 +401,21 @@ class User(Base):
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     email: Mapped[str] = mapped_column(String(320), unique=True, index=True)
-    email_verified_at: Mapped[datetime | None]
+    email_verified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     password_hash: Mapped[str] = mapped_column(String(255))
     nickname: Mapped[str] = mapped_column(String(80), default="")
     avatar_url: Mapped[str | None] = mapped_column(String(500))
     phone: Mapped[str | None] = mapped_column(String(32), unique=True)
-    phone_verified_at: Mapped[datetime | None]
+    phone_verified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     role: Mapped[UserRole] = mapped_column(Enum(UserRole), default=UserRole.user)
     status: Mapped[UserStatus] = mapped_column(Enum(UserStatus), default=UserStatus.active)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
-    last_login_at: Mapped[datetime | None]
+    last_login_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     last_login_ip: Mapped[str | None] = mapped_column(String(64))
 ```
 
@@ -441,10 +443,14 @@ class Session(Base):
     device_name: Mapped[str] = mapped_column(String(120), default="")
     ip: Mapped[str] = mapped_column(String(64), default="")
     user_agent: Mapped[str] = mapped_column(String(300), default="")
-    expires_at: Mapped[datetime]
-    revoked_at: Mapped[datetime | None]
-    last_used_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    last_used_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
 ```
 
 `backend/app/models/otp.py`：
@@ -474,10 +480,12 @@ class Otp(Base):
     purpose: Mapped[OtpPurpose] = mapped_column(Enum(OtpPurpose), index=True)
     target: Mapped[str] = mapped_column(String(320), index=True)
     code_hash: Mapped[str] = mapped_column(String(64))
-    expires_at: Mapped[datetime]
-    consumed_at: Mapped[datetime | None]
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    consumed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     attempts: Mapped[int] = mapped_column(Integer, default=0)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
 ```
 
 `backend/app/models/__init__.py`：
