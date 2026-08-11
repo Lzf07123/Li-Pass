@@ -18,6 +18,12 @@ class Settings(BaseSettings):
     session_ttl_days: int = 30
     cors_origins: list[str] = ["http://localhost:5173"]
     email_backend: str = "console"
+    jwt_issuer: str = "http://localhost:8000"
+    jwt_private_key_path: str = "jwt_private.pem"
+    oauth_access_token_ttl_minutes: int = 15
+    oauth_id_token_ttl_minutes: int = 5
+    oauth_code_ttl_minutes: int = 10
+    pending_request_store: str = "memory"
 
 
 @lru_cache

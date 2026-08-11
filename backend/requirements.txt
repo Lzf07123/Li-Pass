@@ -7,3 +7,6 @@ sqlalchemy==2.0.36
 psycopg[binary]==3.2.3
 alembic==1.14.0
 argon2-cffi==23.1.0
+PyJWT==2.10.1
+cryptography==44.0.0
+redis==5.2.1

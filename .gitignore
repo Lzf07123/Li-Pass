@@ -49,3 +49,6 @@ redis-data/
 *.tmp
 *.bak
 *.sql.gz
+
+# JWT 私钥
+jwt_private.pem

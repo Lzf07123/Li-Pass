@@ -1,3 +1,10 @@
+import os
+import tempfile
+
+os.environ.setdefault(
+    "JWT_PRIVATE_KEY_PATH", os.path.join(tempfile.gettempdir(), "portal-test-jwt.pem")
+)
+
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
