@@ -11,6 +11,13 @@ from app.models.user import User, UserStatus
 from app.security.tokens import hash_token
 
 
+def _as_utc(dt: datetime) -> datetime:
+    """Normalize a possibly naive datetime to UTC for comparison."""
+    if dt.tzinfo is None:
+        return dt.replace(tzinfo=timezone.utc)
+    return dt.astimezone(timezone.utc)
+
+
 def get_current_user(request: Request, db: Session = Depends(get_db)) -> User:
     settings = get_settings()
     token = request.cookies.get(settings.session_cookie_name)
@@ -24,7 +31,7 @@ def get_current_user(request: Request, db: Session = Depends(get_db)) -> User:
     if (
         session is None
         or session.revoked_at is not None
-        or session.expires_at < now
+        or _as_utc(session.expires_at) < now
     ):
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Session expired")
 
