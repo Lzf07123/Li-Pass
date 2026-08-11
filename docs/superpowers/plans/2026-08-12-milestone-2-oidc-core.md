@@ -2431,9 +2431,67 @@ git commit -m "feat: 示例授权网站、种子脚本与端到端验证"
 
 ---
 
+### Task 10: 测试产物清理与 .gitignore 审计
+
+**Files:**
+- Modify: `.gitignore`
+
+**Interfaces:**
+- Consumes: 里程碑 1-2 全部实现产物。
+- Produces: 仓库内测试/构建产物不被跟踪；`git status` 干净。
+
+- [ ] **Step 1: 审计当前忽略规则**
+
+Run: `git status --short --ignored | grep '^!!' | head -50`
+
+Expected: 至少出现 `backend/.venv/`、`backend/.pytest_cache/`、`backend/app/**/__pycache__/`、`frontend/node_modules/`、`frontend/dist/` 等忽略项；发现未忽略的测试产物时记下路径。
+
+- [ ] **Step 2: 补齐测试产物忽略规则**
+
+确认 `.gitignore` 包含以下全部模式（缺失则补上）：
+
+```text
+# 测试与构建产物
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+node_modules/
+dist/
+coverage/
+.vite/
+.oxlintcache/
+*.log
+logs/
+*.pem
+*.sqlite3
+```
+
+注意：`*.pem` 覆盖 JWT 私钥及任何测试密钥；`*.sqlite3` 覆盖本地测试数据库文件。若某项已存在（如根目录已有 `__pycache__/`、`node_modules/`），无需重复。
+
+- [ ] **Step 3: 验证工作区干净并提交**
+
+Run:
+
+```bash
+git status --short
+git add .gitignore
+git commit -m "chore: 忽略测试与构建产物"
+```
+
+Expected: `git status --short` 只显示 `.gitignore` 的修改（或全空）；提交成功。
+
+---
+
 ## 里程碑 2 完成标准
 
 - 应用可通过管理 API 注册（公开客户端或含 client_secret 的机密客户端），非管理员访问返回 403。
 - 从示例网站点“通过门户登录” → 门户已有会话时自动进入授权确认页 → 同意后跳回示例网站并显示用户信息；第二次访问不再询问。
 - `authorize / token / userinfo / jwks / discovery` 全部可用；PKCE 校验、授权码一次性、redirect_uri 白名单、scope 校验生效。
 - 后端 `pytest` 全绿；前端 `npm run test` 全绿且 `npm run build` 成功；端到端脚本跑通。
+- 测试/构建产物全部被 `.gitignore` 覆盖，`git status` 干净。
