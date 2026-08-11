@@ -2209,6 +2209,7 @@ import requests
 from flask import Flask, redirect, render_template_string, request, session, url_for
 
 ISSUER = os.environ.get("PORTAL_ISSUER", "http://localhost:8000")
+API_BASE = os.environ.get("PORTAL_API_BASE", ISSUER)
 CLIENT_ID = os.environ.get("PORTAL_CLIENT_ID", "demo-site")
 REDIRECT_URI = os.environ.get("DEMO_REDIRECT_URI", "http://localhost:3001/callback")
 
@@ -2216,8 +2217,8 @@ app = Flask(__name__)
 app.secret_key = os.environ.get("DEMO_SECRET_KEY", "demo-secret-key")
 
 AUTHORIZE_URL = f"{ISSUER}/oauth2/authorize"
-TOKEN_URL = f"{ISSUER}/oauth2/token"
-USERINFO_URL = f"{ISSUER}/oauth2/userinfo"
+TOKEN_URL = f"{API_BASE}/oauth2/token"
+USERINFO_URL = f"{API_BASE}/oauth2/userinfo"
 
 INDEX_HTML = """
 <!doctype html>
@@ -2383,6 +2384,7 @@ if __name__ == "__main__":
     build: ./examples/demo-site
     environment:
       PORTAL_ISSUER: http://localhost:8000
+      PORTAL_API_BASE: http://backend:8000
       PORTAL_CLIENT_ID: demo-site
     ports:
       - "3001:3001"
@@ -2406,6 +2408,8 @@ docker compose up -d --build demo-site
 cd backend && .venv/bin/python -m scripts.seed_demo_client
 打开 http://localhost:3001 点击“通过门户登录”
 ```
+
+说明：`PORTAL_ISSUER` 是浏览器跳转用的门户地址；`PORTAL_API_BASE` 是示例容器内服务端调用用的地址（compose 内为 `http://backend:8000`，本地直接运行示例时默认与 ISSUER 相同）。
 
 - [ ] **Step 4: 端到端验证**
 

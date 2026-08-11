@@ -98,6 +98,15 @@ docker compose up -d --build
 
 开发环境邮件验证码默认打印到后端控制台（或本地 Mailpit），无需真实邮件服务。
 
+示例授权网站（OIDC 演示，端口 3001）：
+
+```bash
+docker compose up -d --build demo-site
+cd backend && .venv/bin/python -m scripts.seed_demo_client
+```
+
+打开 http://localhost:3001 点击“通过门户登录”，即可体验从第三方网站跳转到门户授权确认并登录的完整闭环。
+
 ## 设计文档
 
 完整设计见 [docs/superpowers/specs/2026-08-12-unified-login-portal-design.md](docs/superpowers/specs/2026-08-12-unified-login-portal-design.md)。
