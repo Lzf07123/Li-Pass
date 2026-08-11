@@ -51,4 +51,8 @@ redis-data/
 *.sql.gz
 
 # JWT 私钥
-jwt_private.pem
+*.pem
+
+# 测试数据库与前端 lint 缓存
+*.sqlite3
+.oxlintcache/
