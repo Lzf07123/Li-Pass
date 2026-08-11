@@ -1,4 +1,10 @@
-import type { UserOut } from "./types";
+import type {
+  ClientCreate,
+  ClientOut,
+  ClientSecretOut,
+  ConsentInfo,
+  UserOut,
+} from "./types";
 
 const BASE_URL: string = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000";
 
@@ -40,6 +46,27 @@ export const authApi = {
     }),
   confirmPasswordReset: (data: { email: string; code: string; new_password: string }) =>
     api<{ message: string }>("/api/v1/auth/password/reset/confirm", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+};
+
+export const consentApi = {
+  info: (requestId: string) => api<ConsentInfo>(`/api/v1/consent/${requestId}`),
+  approve: (requestId: string) =>
+    api<{ redirect_url: string }>(`/api/v1/consent/${requestId}/approve`, {
+      method: "POST",
+    }),
+  deny: (requestId: string) =>
+    api<{ redirect_url: string }>(`/api/v1/consent/${requestId}/deny`, {
+      method: "POST",
+    }),
+};
+
+export const adminClientsApi = {
+  list: () => api<ClientOut[]>("/api/v1/admin/clients"),
+  create: (data: ClientCreate) =>
+    api<ClientSecretOut>("/api/v1/admin/clients", {
       method: "POST",
       body: JSON.stringify(data),
     }),
