@@ -20,8 +20,6 @@ def test_otp_wrong_code_increments_attempts(db_session) -> None:
 
 
 def test_otp_expired(db_session) -> None:
-    from app.models.base import Base
-
     otp = Otp(
         purpose=OtpPurpose.register,
         target="a@example.com",
