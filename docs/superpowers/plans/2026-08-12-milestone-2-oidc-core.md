@@ -999,6 +999,7 @@ git commit -m "feat: 应用管理 API 与管理员脚本"
 
 **Files:**
 - Modify: `backend/app/api/deps.py`（追加 `get_optional_user`）
+- Modify: `backend/tests/conftest.py`（`TestClient(app, follow_redirects=False)`，避免 302 被自动跟随）
 - Create: `backend/app/services/oidc.py`
 - Create: `backend/app/api/routes/oidc.py`
 - Create: `backend/tests/helpers.py`
@@ -1264,24 +1265,28 @@ def authorize(
     db: Session = Depends(get_db),
 ):
     if response_type != "code":
-        return RedirectResponse("/?error=unsupported_response_type")
+        return RedirectResponse("/?error=unsupported_response_type", status_code=302)
 
     client = db.scalar(select(OAuthClient).where(OAuthClient.client_id == client_id))
     if client is None or not client.is_active:
-        return RedirectResponse("/?error=unauthorized_client")
+        return RedirectResponse("/?error=unauthorized_client", status_code=302)
     if redirect_uri not in client.redirect_uris:
-        return RedirectResponse("/?error=invalid_redirect_uri")
+        return RedirectResponse("/?error=invalid_redirect_uri", status_code=302)
 
     requested = scope.split() if scope else list(client.scopes)
     if "openid" not in requested or not set(requested).issubset(set(client.scopes)):
-        return RedirectResponse(redirect_error(redirect_uri, "invalid_scope", state))
+        return RedirectResponse(
+            redirect_error(redirect_uri, "invalid_scope", state), status_code=302
+        )
     if not code_challenge or code_challenge_method != "S256":
-        return RedirectResponse(redirect_error(redirect_uri, "invalid_request", state))
+        return RedirectResponse(
+            redirect_error(redirect_uri, "invalid_request", state), status_code=302
+        )
 
     user = get_optional_user(request, db)
     if user is None:
         next_url = f"/oauth2/authorize?{request.url.query}"
-        return RedirectResponse(f"/login?next={quote(next_url, safe='')}")
+        return RedirectResponse(f"/login?next={quote(next_url, safe='')}", status_code=302)
 
     consent = db.scalar(
         select(UserConsent).where(
@@ -1300,7 +1305,9 @@ def authorize(
             code_challenge,
             code_challenge_method,
         )
-        return RedirectResponse(build_authorize_redirect(redirect_uri, code, state))
+        return RedirectResponse(
+            build_authorize_redirect(redirect_uri, code, state), status_code=302
+        )
 
     pending = PendingAuthRequest(
         client_id=client.client_id,
@@ -1312,8 +1319,10 @@ def authorize(
         code_challenge_method=code_challenge_method,
     )
     request_id = get_pending_request_store().create(pending)
-    return RedirectResponse(f"/consent?request_id={request_id}")
+    return RedirectResponse(f"/consent?request_id={request_id}", status_code=302)
 ```
+
+注意：所有 OIDC 重定向显式使用 `status_code=302`（新版 Starlette 的 `RedirectResponse` 默认 307）；conftest 的 `client` 夹具使用 `follow_redirects=False`，测试直接断言 302。
 
 `backend/app/main.py` 注册：
 

@@ -48,3 +48,10 @@ def get_current_admin(user: User = Depends(get_current_user)) -> User:
     if user.role != UserRole.admin:
         raise HTTPException(status.HTTP_403_FORBIDDEN, "需要管理员权限")
     return user
+
+
+def get_optional_user(request: Request, db: Session = Depends(get_db)) -> User | None:
+    try:
+        return get_current_user(request, db)
+    except HTTPException:
+        return None
