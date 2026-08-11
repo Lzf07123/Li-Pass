@@ -22,7 +22,7 @@ class Otp(Base):
     purpose: Mapped[OtpPurpose] = mapped_column(Enum(OtpPurpose), index=True)
     target: Mapped[str] = mapped_column(String(320), index=True)
     code_hash: Mapped[str] = mapped_column(String(64))
-    expires_at: Mapped[datetime]
-    consumed_at: Mapped[datetime | None]
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    consumed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     attempts: Mapped[int] = mapped_column(Integer, default=0)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
