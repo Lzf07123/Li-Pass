@@ -16,3 +16,11 @@ def generate_otp_code() -> str:
 
 def hash_otp_code(code: str) -> str:
     return hashlib.sha256(code.encode()).hexdigest()
+
+
+def generate_client_id() -> str:
+    return "cli_" + secrets.token_urlsafe(24)
+
+
+def generate_client_secret() -> str:
+    return secrets.token_urlsafe(48)

@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 from app.core.config import get_settings
 from app.core.db import get_db
 from app.models.session import Session as SessionModel
-from app.models.user import User, UserStatus
+from app.models.user import User, UserRole, UserStatus
 from app.security.tokens import hash_token
 
 
@@ -41,4 +41,10 @@ def get_current_user(request: Request, db: Session = Depends(get_db)) -> User:
 
     session.last_used_at = now
     db.commit()
+    return user
+
+
+def get_current_admin(user: User = Depends(get_current_user)) -> User:
+    if user.role != UserRole.admin:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "需要管理员权限")
     return user
