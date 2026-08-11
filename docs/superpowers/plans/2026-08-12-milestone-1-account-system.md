@@ -285,6 +285,24 @@ def client(engine):
     app.dependency_overrides[get_db] = override_get_db
     with TestClient(app) as test_client:
         yield test_client
+
+
+class CapturingEmailService:
+    def __init__(self) -> None:
+        self.messages: list[tuple[str, str, str]] = []
+
+    def send_verification(self, to: str, code: str) -> None:
+        self.messages.append(("verification", to, code))
+
+    def send_password_reset(self, to: str, code: str) -> None:
+        self.messages.append(("reset", to, code))
+
+
+@pytest.fixture()
+def captured_email(monkeypatch):
+    service = CapturingEmailService()
+    monkeypatch.setattr("app.api.routes.auth.get_email_service", lambda: service)
+    return service
 ```
 
 `backend/tests/test_models.py`：
@@ -773,27 +791,6 @@ git commit -m "feat: 添加密码哈希、令牌/验证码工具、邮件与 OTP
 `backend/tests/test_auth_register.py`：
 
 ```python
-import pytest
-
-
-class CapturingEmailService:
-    def __init__(self) -> None:
-        self.messages: list[tuple[str, str, str]] = []
-
-    def send_verification(self, to: str, code: str) -> None:
-        self.messages.append(("verification", to, code))
-
-    def send_password_reset(self, to: str, code: str) -> None:
-        self.messages.append(("reset", to, code))
-
-
-@pytest.fixture()
-def captured_email(monkeypatch):
-    service = CapturingEmailService()
-    monkeypatch.setattr("app.api.routes.auth.get_email_service", lambda: service)
-    return service
-
-
 def test_register_verify_and_me(client, captured_email) -> None:
     response = client.post(
         "/api/v1/auth/register",
@@ -1055,19 +1052,9 @@ git commit -m "feat: 实现注册、邮箱激活与当前用户接口"
 `backend/tests/test_auth_login.py`：
 
 ```python
-import pytest
 from sqlalchemy import select
 
 from app.models.user import User, UserStatus
-
-from test_auth_register import CapturingEmailService
-
-
-@pytest.fixture()
-def captured_email(monkeypatch):
-    service = CapturingEmailService()
-    monkeypatch.setattr("app.api.routes.auth.get_email_service", lambda: service)
-    return service
 
 
 def register_and_verify(client, captured_email) -> None:
@@ -1232,18 +1219,6 @@ git commit -m "feat: 实现登录/退出与门户会话 Cookie"
 `backend/tests/test_auth_password_reset.py`：
 
 ```python
-import pytest
-
-from test_auth_register import CapturingEmailService
-
-
-@pytest.fixture()
-def captured_email(monkeypatch):
-    service = CapturingEmailService()
-    monkeypatch.setattr("app.api.routes.auth.get_email_service", lambda: service)
-    return service
-
-
 def test_password_reset_flow(client, captured_email) -> None:
     client.post(
         "/api/v1/auth/register",
