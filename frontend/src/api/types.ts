@@ -124,6 +124,10 @@ export interface BatchDeleteResult {
   deleted: { id: string; email: string }[];
 }
 
+export interface SiteSettings {
+  public_registration_enabled: boolean;
+}
+
 export interface AuditLogOut {
   id: string;
   actor_type: string;

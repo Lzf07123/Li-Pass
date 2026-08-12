@@ -36,6 +36,10 @@ from app.services.email import get_email_service
 from app.services.otps import create_otp, otp_attempts_exhausted, verify_otp
 from app.services.audit import log_audit
 from app.services.rate_limit import get_rate_limiter
+from app.services.site_settings import (
+    PUBLIC_REGISTRATION_ENABLED_KEY,
+    get_site_setting_bool,
+)
 from app.services.twofa import (
     consume_recovery_code,
     create_challenge,
@@ -100,7 +104,12 @@ def register(
     request: Request,
     db: Session = Depends(get_db),
 ) -> dict:
-    if not settings.public_registration_enabled:
+    public_registration_enabled = get_site_setting_bool(
+        db,
+        PUBLIC_REGISTRATION_ENABLED_KEY,
+        settings.public_registration_enabled,
+    )
+    if not public_registration_enabled:
         raise HTTPException(
             status.HTTP_403_FORBIDDEN,
             "注册渠道暂时关闭，只接收邀请注册",
@@ -142,9 +151,15 @@ def register(
 
 
 @router.get("/register/status", response_model=dict)
-def register_status() -> dict:
+def register_status(db: Session = Depends(get_db)) -> dict:
     """公开的注册状态接口：前端据此决定是否展示注册表单。"""
-    return {"public_registration_enabled": settings.public_registration_enabled}
+    return {
+        "public_registration_enabled": get_site_setting_bool(
+            db,
+            PUBLIC_REGISTRATION_ENABLED_KEY,
+            settings.public_registration_enabled,
+        )
+    }
 
 
 @router.post("/email/verify")

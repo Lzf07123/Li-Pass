@@ -383,6 +383,30 @@ def resend_invite(
     return {"message": "邀请已重新发送"}
 
 
+@router.post("/users/invites/{invite_id:uuid}/delete")
+def delete_invite(
+    invite_id: uuid.UUID,
+    actor: User = Depends(get_current_admin),
+    db: Session = Depends(get_db),
+) -> dict:
+    invite = db.get(AccountInvite, invite_id)
+    if invite is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "邀请不存在")
+    email = invite.email
+    db.delete(invite)
+    db.commit()
+    log_audit(
+        db,
+        "admin",
+        str(actor.id),
+        "admin_delete_invite",
+        target_type="invite",
+        target_id=str(invite_id),
+        detail={"email": email},
+    )
+    return {"message": "邀请记录已删除"}
+
+
 @router.post("/users/batch/invite")
 def batch_invite_users(
     payload: AdminBatchInviteUser,

@@ -11,6 +11,7 @@ import type {
   ClientUpdate,
   ConsentInfo,
   SessionOut,
+  SiteSettings,
   TotpSetup,
   TwoFaStatus,
   UserOut,
@@ -138,6 +139,15 @@ export const adminClientsApi = {
   resetSecret: (id: string) =>
     api<ClientSecretOut>(`/api/v1/admin/clients/${id}/reset-secret`, {
       method: "POST",
+    }),
+};
+
+export const adminSettingsApi = {
+  get: () => api<SiteSettings>("/api/v1/admin/settings"),
+  update: (data: SiteSettings) =>
+    api<SiteSettings>("/api/v1/admin/settings", {
+      method: "PUT",
+      body: JSON.stringify(data),
     }),
 };
 
@@ -271,6 +281,10 @@ export const adminUsersApi = {
     }),
   resendInvite: (id: string) =>
     api<{ message: string }>(`/api/v1/admin/users/invites/${id}/resend`, {
+      method: "POST",
+    }),
+  deleteInvite: (id: string) =>
+    api<{ message: string }>(`/api/v1/admin/users/invites/${id}/delete`, {
       method: "POST",
     }),
   batchInvite: (emails: string[]) =>

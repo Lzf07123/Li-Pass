@@ -15,7 +15,7 @@ export function AdminUsersPanel({ currentAdminId }: { currentAdminId: string }) 
   const [newPassword, setNewPassword] = useState("");
   const [confirmTarget, setConfirmTarget] = useState<{
     user: AdminUserOut;
-    action: "toggle" | "reset2fa" | "cancelInvite";
+    action: "toggle" | "reset2fa" | "cancelInvite" | "removeInvite";
   } | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<AdminUserOut | null>(null);
   const [deletePassword, setDeletePassword] = useState("");
@@ -122,6 +122,10 @@ export function AdminUsersPanel({ currentAdminId }: { currentAdminId: string }) 
     setConfirmTarget({ user, action: "cancelInvite" });
   }
 
+  function startRemoveInvite(user: AdminUserOut) {
+    setConfirmTarget({ user, action: "removeInvite" });
+  }
+
   async function runReset2fa(user: AdminUserOut) {
     try {
       const result = await adminUsersApi.reset2fa(user.id);
@@ -140,6 +144,17 @@ export function AdminUsersPanel({ currentAdminId }: { currentAdminId: string }) 
       toast.success(result.message);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "取消邀请失败");
+    }
+  }
+
+  async function runRemoveInvite(user: AdminUserOut) {
+    try {
+      const result = await adminUsersApi.deleteInvite(user.id);
+      setConfirmTarget(null);
+      await load(query, statusFilter, roleFilter);
+      toast.success(result.message);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "删除邀请失败");
     }
   }
 
@@ -163,8 +178,10 @@ export function AdminUsersPanel({ currentAdminId }: { currentAdminId: string }) 
       void runToggle(confirmTarget.user);
     } else if (confirmTarget.action === "reset2fa") {
       void runReset2fa(confirmTarget.user);
-    } else {
+    } else if (confirmTarget.action === "cancelInvite") {
       void runCancelInvite(confirmTarget.user);
+    } else {
+      void runRemoveInvite(confirmTarget.user);
     }
   }
 
@@ -547,6 +564,13 @@ export function AdminUsersPanel({ currentAdminId }: { currentAdminId: string }) 
                       >
                         {inviteBusyId === user.id ? "发送中…" : "重发邀请"}
                       </button>
+                      <button
+                        onClick={() => startRemoveInvite(user)}
+                        disabled={inviteBusyId !== null}
+                        className="btn btn-danger px-2.5 py-1.5 text-xs"
+                      >
+                        删除
+                      </button>
                     </div>
                   ) : (
                     <div className="flex justify-end gap-1.5">
@@ -610,7 +634,9 @@ export function AdminUsersPanel({ currentAdminId }: { currentAdminId: string }) 
             ? "禁用/启用用户"
             : confirmTarget?.action === "cancelInvite"
               ? "取消邀请"
-              : "重置 2FA"
+              : confirmTarget?.action === "removeInvite"
+                ? "删除邀请记录"
+                : "重置 2FA"
         }
         message={
           confirmTarget && (
@@ -619,6 +645,11 @@ export function AdminUsersPanel({ currentAdminId }: { currentAdminId: string }) 
                 <>
                   确定取消 {confirmTarget.user.email} 的邀请吗？
                   取消后原邀请链接立即失效。
+                </>
+              ) : confirmTarget.action === "removeInvite" ? (
+                <>
+                  确定删除 {confirmTarget.user.email} 的邀请记录吗？
+                  删除后原邀请链接立即失效，此操作不可恢复。
                 </>
               ) : (
                 <>
@@ -636,7 +667,9 @@ export function AdminUsersPanel({ currentAdminId }: { currentAdminId: string }) 
             ? "确认"
             : confirmTarget?.action === "cancelInvite"
               ? "确认取消"
-              : "确认重置"
+              : confirmTarget?.action === "removeInvite"
+                ? "确认删除"
+                : "确认重置"
         }
         onConfirm={runConfirm}
         onCancel={() => setConfirmTarget(null)}

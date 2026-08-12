@@ -7,6 +7,7 @@ from app.models.oauth_client import OAuthClient
 from app.models.otp import Otp, OtpPurpose
 from app.models.recovery_code import RecoveryCode
 from app.models.session import Session
+from app.models.site_setting import SiteSetting
 from app.models.user import User, UserRole, UserStatus
 from app.models.user_consent import UserConsent
 
@@ -21,6 +22,7 @@ __all__ = [
     "OtpPurpose",
     "RecoveryCode",
     "Session",
+    "SiteSetting",
     "User",
     "UserConsent",
     "UserRole",
