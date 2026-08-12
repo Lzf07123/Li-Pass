@@ -132,7 +132,7 @@ def create_challenge(store, user_id: str, methods: list[str]) -> str:
 
 
 def build_otpauth_uri(secret: str, email: str) -> str:
-    return pyotp.TOTP(secret).provisioning_uri(name=email, issuer_name="Portal OSS")
+    return pyotp.TOTP(secret).provisioning_uri(name=email, issuer_name="LinPass SSO")
 
 
 def qr_data_url(uri: str) -> str:

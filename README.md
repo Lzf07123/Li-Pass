@@ -1,6 +1,6 @@
-# Portal OSS — 统一登录门户
+# LinPass SSO — 统一登录门户
 
-一次注册，通行所有授权网站。Portal OSS 是一个基于 Python（FastAPI）和 React 的统一身份提供商（SSO），授权网站通过标准 OIDC/OAuth2 协议接入，用户使用一个账号即可登录所有被授权的网站。
+一次注册，通行所有授权网站。LinPass SSO 是一个基于 Python（FastAPI）和 React 的统一身份提供商（SSO），授权网站通过标准 OIDC/OAuth2 协议接入，用户使用一个账号即可登录所有被授权的网站。
 
 ## 功能特性
 
@@ -49,8 +49,9 @@ portal-oss/
 │   │   └── hooks/           # 自定义 Hook
 │   └── 测试目录（本地）      # __tests__/ 与 test/ 仅保留本地，不入库
 ├── examples/demo-site/      # 示例授权网站（OIDC 演示，demo profile）
+├── gateway/                 # 单域名 nginx 网关（/ 前端、/api 后端、/demo 演示站）
 ├── docs/                    # 设计文档与对接文档
-└── docker-compose.yaml      # frontend + backend + postgres + redis（不含反向代理）
+└── docker-compose.yaml      # gateway + frontend + backend + postgres + redis
 ```
 
 ## 快速开始（开发环境）
@@ -61,7 +62,7 @@ portal-oss/
 docker compose up -d --build
 ```
 
-启动后前端位于 http://localhost:5173 ，后端 API 位于 http://localhost:8000 （存活检查 `GET /healthz`，就绪检查 `GET /readyz`）。开发环境邮件验证码默认打印到后端容器日志（`docker compose logs backend | grep "code="`）。
+启动后通过单域名网关访问 http://localhost （前端 `/`、后端 API `/api`、OIDC `/oauth2`、演示站 `/demo`）；开发直连地址仍保留：前端 http://localhost:5173 、后端 API http://localhost:8000 （存活检查 `GET /healthz`，就绪检查 `GET /readyz`）。开发环境邮件验证码默认打印到后端容器日志（`docker compose logs backend | grep "code="`）。
 
 如需在宿主机上分别运行各服务，按以下步骤执行：
 
@@ -121,7 +122,7 @@ docker compose --profile demo up -d --build demo-site
 docker compose exec backend python -m scripts.seed_demo_client
 ```
 
-打开 http://localhost:3001 点击“通过门户登录”，即可体验从第三方网站跳转到门户授权确认并登录的完整闭环。
+打开 http://localhost/demo/ 点击“通过门户登录”，即可体验从第三方网站跳转到门户授权确认并登录的完整闭环。
 
 > 示例授权网站位于 `demo` profile，默认 `docker compose up -d` 不会启动它，生产栈不会携带演示应用。
 

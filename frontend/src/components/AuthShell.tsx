@@ -1,6 +1,8 @@
 import type { ReactNode } from "react";
 
+import { APP_TAGLINE } from "../lib/brand";
 import { Brand } from "./Brand";
+import { SiteFooter } from "./SiteFooter";
 import { ThemeToggle } from "./ThemeToggle";
 
 export function AuthShell({
@@ -36,9 +38,10 @@ export function AuthShell({
           <div className="card p-6 sm:p-8">{children}</div>
         </div>
 
-        <p className="animate-fade-in mt-6 text-center text-xs text-muted [animation-delay:140ms]">
-          一次注册，通行所有授权网站
-        </p>
+        <div className="animate-fade-in mt-6 space-y-2 text-center [animation-delay:140ms]">
+          <p className="text-xs text-muted">{APP_TAGLINE}</p>
+          <SiteFooter compact />
+        </div>
       </div>
 
       <ThemeToggle className="animate-fade-in absolute right-4 top-4 sm:right-6 sm:top-6 [animation-delay:180ms]" />

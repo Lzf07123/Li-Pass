@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 
 import { authApi } from "../api/client";
 import { AuthShell } from "../components/AuthShell";
+import { APP_NAME } from "../lib/brand";
 
 export function RegisterPage() {
   const [email, setEmail] = useState("");
@@ -23,7 +24,7 @@ export function RegisterPage() {
   }
 
   return (
-    <AuthShell title="注册 Portal OSS 账号" subtitle="一个账号，登录所有授权网站">
+    <AuthShell title={`注册 ${APP_NAME} 账号`} subtitle="一个账号，登录所有授权网站">
       <form onSubmit={handleSubmit} className="space-y-4">
         <label className="block">
           <span className="label">邮箱</span>

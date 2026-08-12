@@ -10,7 +10,7 @@ class Settings(BaseSettings):
         env_file=".env", env_file_encoding="utf-8", extra="ignore"
     )
 
-    app_name: str = "Portal OSS"
+    app_name: str = "LinPass SSO"
     environment: str = "development"
     database_url: str = "postgresql+psycopg://portal:portal@localhost:5432/portal"
     redis_url: str = "redis://localhost:6379/0"
@@ -26,7 +26,7 @@ class Settings(BaseSettings):
     smtp_username: str = ""
     smtp_password: str = ""
     smtp_from: str = ""
-    smtp_from_name: str = "Portal OSS"
+    smtp_from_name: str = "LinPass SSO"
     smtp_use_tls: bool = True
     frontend_base_url: str = "http://localhost:5173"
     jwt_issuer: str = "http://localhost:8000"

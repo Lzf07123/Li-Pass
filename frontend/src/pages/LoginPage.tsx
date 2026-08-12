@@ -3,6 +3,7 @@ import { Link, useNavigate, useSearchParams } from "react-router-dom";
 
 import { API_BASE_URL, auth2faApi, authApi } from "../api/client";
 import { AuthShell } from "../components/AuthShell";
+import { APP_NAME } from "../lib/brand";
 
 const METHOD_LABELS: Record<string, string> = {
   email_otp: "邮箱验证码",
@@ -155,7 +156,7 @@ export function LoginPage() {
   }
 
   return (
-    <AuthShell title="登录 Portal OSS" subtitle="一次注册，通行所有授权网站">
+    <AuthShell title={`登录 ${APP_NAME}`} subtitle="一次注册，通行所有授权网站">
       <form key="login" onSubmit={handleSubmit} className="animate-fade-up space-y-4">
         <label className="block">
           <span className="label">邮箱</span>

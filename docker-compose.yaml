@@ -62,25 +62,30 @@ services:
     environment:
       DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-portal}:${POSTGRES_PASSWORD:-portal}@postgres:5432/${POSTGRES_DB:-portal}
       REDIS_URL: redis://:${REDIS_PASSWORD:-portal-dev-redis}@redis:6379/0
-      CORS_ORIGINS: "${CORS_ORIGINS:-[\"http://localhost:5173\"]}"
-      ALLOWED_HOSTS: "${ALLOWED_HOSTS:-[\"localhost\"]}"
+      CORS_ORIGINS: "${CORS_ORIGINS:-[\"http://localhost\",\"http://localhost:5173\"]}"
+      ALLOWED_HOSTS: "${ALLOWED_HOSTS:-[\"localhost\",\"127.0.0.1\",\"backend\"]}"
+      ENVIRONMENT: ${ENVIRONMENT:-development}
+      SESSION_COOKIE_NAME: ${SESSION_COOKIE_NAME:-portal_session}
+      SESSION_TTL_DAYS: ${SESSION_TTL_DAYS:-30}
       SESSION_COOKIE_SECURE: ${SESSION_COOKIE_SECURE:-false}
       SESSION_COOKIE_SAMESITE: ${SESSION_COOKIE_SAMESITE:-lax}
       PENDING_REQUEST_STORE: ${PENDING_REQUEST_STORE:-redis}
       TWOFA_STORE: ${TWOFA_STORE:-redis}
       RATE_LIMITER: ${RATE_LIMITER:-redis}
       FORWARDED_ALLOW_IPS: ${FORWARDED_ALLOW_IPS:-127.0.0.1}
-      FRONTEND_BASE_URL: ${FRONTEND_BASE_URL:-http://localhost:5173}
-      JWT_ISSUER: ${JWT_ISSUER:-http://localhost:8000}
+      FRONTEND_BASE_URL: ${PUBLIC_BASE_URL:-http://localhost:5173}
+      JWT_ISSUER: ${PUBLIC_BASE_URL:-http://localhost:8000}
       JWT_PRIVATE_KEY_PATH: ${JWT_PRIVATE_KEY_PATH:-/app/keys/jwt_private.pem}
       ENCRYPTION_KEY_PATH: ${ENCRYPTION_KEY_PATH:-/app/keys/encryption.key}
+      DEMO_HOME_URL: ${DEMO_HOME_URL:-http://localhost/demo/}
+      DEMO_LOGOUT_URI: ${DEMO_LOGOUT_URI:-http://localhost/demo/logout}
       EMAIL_BACKEND: ${EMAIL_BACKEND:-console}
       SMTP_HOST: ${SMTP_HOST:-}
       SMTP_PORT: ${SMTP_PORT:-587}
       SMTP_USERNAME: ${SMTP_USERNAME:-}
       SMTP_PASSWORD: ${SMTP_PASSWORD:-}
       SMTP_FROM: ${SMTP_FROM:-}
-      SMTP_FROM_NAME: ${SMTP_FROM_NAME:-Portal OSS}
+      SMTP_FROM_NAME: ${SMTP_FROM_NAME:-LinPass SSO}
       SMTP_USE_TLS: ${SMTP_USE_TLS:-true}
     ports:
       - "8000:8000"
@@ -113,13 +118,13 @@ services:
     build:
       context: ./frontend
       args:
-        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://localhost:8000}
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL-http://localhost:8000}
         IMAGE_REGISTRY: ${IMAGE_REGISTRY:-}
     restart: unless-stopped
     security_opt:
       - no-new-privileges:true
     environment:
-      CONNECT_SRC: ${VITE_API_BASE_URL:-http://localhost:8000}
+      CONNECT_SRC: ${VITE_API_BASE_URL-http://localhost:8000}
     ports:
       - "5173:5173"
     depends_on:
@@ -129,6 +134,30 @@ services:
     cpus: "0.25"
     healthcheck:
       test: ["CMD", "wget", "-q", "-O", "-", "http://127.0.0.1:5173/"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
+
+  # 单域名网关：http://<域名>/ → 前端，/api、/oauth2 等 → 后端，/demo → 演示站
+  gateway:
+    image: nginx:1.27-alpine
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    ports:
+      - "80:80"
+    volumes:
+      - ./gateway/nginx.conf.template:/etc/nginx/templates/default.conf.template:ro
+    depends_on:
+      backend:
+        condition: service_healthy
+      frontend:
+        condition: service_healthy
+    mem_limit: 64m
+    cpus: "0.25"
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "-", "http://127.0.0.1/readyz"]
       interval: 10s
       timeout: 3s
       retries: 10
@@ -148,11 +177,12 @@ services:
     security_opt:
       - no-new-privileges:true
     environment:
-      PORTAL_ISSUER: ${JWT_ISSUER:-http://localhost:8000}
+      PORTAL_ISSUER: ${PUBLIC_BASE_URL:-http://localhost}
       PORTAL_API_BASE: http://backend:8000
       PORTAL_CLIENT_ID: ${DEMO_CLIENT_ID:-demo-site}
-      DEMO_REDIRECT_URI: ${DEMO_REDIRECT_URI:-http://localhost:3001/callback}
+      DEMO_REDIRECT_URI: ${DEMO_REDIRECT_URI:-http://localhost/demo/callback}
       DEMO_SECRET_KEY: ${DEMO_SECRET_KEY:-}
+      DEMO_PATH_PREFIX: /demo
     ports:
       - "3001:3001"
     depends_on:

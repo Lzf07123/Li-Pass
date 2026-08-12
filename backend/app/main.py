@@ -83,6 +83,19 @@ def create_app() -> FastAPI:
                 client.close()
         return {"status": "ready"}
 
+    @app.get("/", include_in_schema=False)
+    def root() -> dict[str, str | None]:
+        """服务入口：返回服务信息与关键端点，避免根路径 404。"""
+        return {
+            "service": settings.app_name,
+            "environment": settings.environment,
+            "frontend": settings.frontend_base_url,
+            "health": "/healthz",
+            "ready": "/readyz",
+            "docs": "/docs" if settings.environment != "production" else None,
+            "openapi": "/openapi.json" if settings.environment != "production" else None,
+        }
+
     @app.exception_handler(RequestValidationError)
     async def validation_exception_handler(request, exc: RequestValidationError):
         errors = exc.errors()

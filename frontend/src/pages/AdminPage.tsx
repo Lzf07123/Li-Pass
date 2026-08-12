@@ -4,6 +4,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { authApi } from "../api/client";
 import type { UserOut } from "../api/types";
 import { AppHeader } from "../components/AppHeader";
+import { SiteFooter } from "../components/SiteFooter";
 import { AdminAuditPanel } from "./AdminAuditPanel";
 import { AdminClientsPage } from "./AdminClientsPage";
 import { AdminUsersPanel } from "./AdminUsersPanel";
@@ -84,6 +85,7 @@ export function AdminPage() {
           {tab === "audit" && <AdminAuditPanel />}
         </div>
       </main>
+      <SiteFooter />
     </div>
   );
 }

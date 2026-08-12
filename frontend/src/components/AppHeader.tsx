@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { Link } from "react-router-dom";
 
+import { APP_NAME } from "../lib/brand";
 import { Brand } from "./Brand";
 import { ThemeToggle } from "./ThemeToggle";
 
@@ -17,11 +18,11 @@ export function AppHeader({
         <Link
           to="/"
           className="flex shrink-0 items-center gap-2.5 rounded-lg"
-          aria-label="Portal OSS 首页"
+          aria-label={`${APP_NAME} 首页`}
         >
           <Brand className="h-8 w-8" />
           <span className="text-[15px] font-semibold tracking-tight text-foreground">
-            Portal OSS
+            {APP_NAME}
           </span>
         </Link>
         <span className="hidden truncate text-sm text-muted sm:inline">{title}</span>

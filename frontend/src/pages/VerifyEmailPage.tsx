@@ -25,13 +25,7 @@ export function VerifyEmailPage() {
   return (
     <AuthShell title="验证邮箱" subtitle={`验证码已发送到 ${email || "你的邮箱"}`}>
       <form onSubmit={handleSubmit} className="space-y-4">
-        <p className="text-xs text-muted">
-          验证码 10 分钟内有效。开发环境会打印在后端控制台（
-          <code className="rounded bg-surface-2 px-1 py-0.5">
-            docker compose logs backend | grep "code="
-          </code>
-          ）。
-        </p>
+        <p className="text-xs text-muted">验证码 10 分钟内有效。</p>
         <label className="block">
           <span className="label">验证码</span>
           <input

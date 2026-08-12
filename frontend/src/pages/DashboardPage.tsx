@@ -11,6 +11,7 @@ import {
 } from "../api/client";
 import type { AppOut, SessionOut, TotpSetup, TwoFaStatus, UserOut } from "../api/types";
 import { AppHeader } from "../components/AppHeader";
+import { SiteFooter } from "../components/SiteFooter";
 
 export function DashboardPage() {
   const [user, setUser] = useState<UserOut | null>(null);
@@ -351,9 +352,7 @@ export function DashboardPage() {
         </section>
 
         <section className="card p-6">
-          <h2 className="mb-4 text-base font-semibold text-foreground">
-            绑定手机（演示模式）
-          </h2>
+          <h2 className="mb-4 text-base font-semibold text-foreground">绑定手机</h2>
           {phoneStep === "phone" ? (
             <form
               key="phone"
@@ -576,6 +575,7 @@ export function DashboardPage() {
           </div>
         </section>
       </main>
+      <SiteFooter />
     </div>
   );
 }

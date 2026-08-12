@@ -6,9 +6,11 @@ from app.core.db import SessionLocal
 from app.models.oauth_client import OAuthClient
 
 CLIENT_ID = os.environ.get("DEMO_CLIENT_ID", "demo-site")
-REDIRECT_URI = os.environ.get("DEMO_REDIRECT_URI", "http://localhost:3001/callback")
-HOME_URL = os.environ.get("DEMO_HOME_URL", "http://localhost:3001")
-LOGOUT_URI = os.environ.get("DEMO_LOGOUT_URI", "http://localhost:3001/logout")
+REDIRECT_URI = os.environ.get(
+    "DEMO_REDIRECT_URI", "http://localhost/demo/callback"
+)
+HOME_URL = os.environ.get("DEMO_HOME_URL", "http://localhost/demo/")
+LOGOUT_URI = os.environ.get("DEMO_LOGOUT_URI", "http://localhost/demo/logout")
 
 
 def main() -> None:

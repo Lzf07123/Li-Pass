@@ -60,10 +60,10 @@ class SMTPEmailService(EmailService):
             server.send_message(self._build_message(to, subject, body))
 
     def send_verification(self, to: str, code: str) -> None:
-        self._send(to, "Portal OSS 邮箱验证码", f"你的验证码是 {code}，10 分钟内有效。")
+        self._send(to, "LinPass SSO 邮箱验证码", f"你的验证码是 {code}，10 分钟内有效。")
 
     def send_password_reset(self, to: str, code: str) -> None:
-        self._send(to, "Portal OSS 重置密码", f"你的重置验证码是 {code}，10 分钟内有效。")
+        self._send(to, "LinPass SSO 重置密码", f"你的重置验证码是 {code}，10 分钟内有效。")
 
 
 def get_email_service() -> EmailService:

@@ -6,12 +6,13 @@ from urllib.parse import urlencode
 
 import requests
 import jwt as pyjwt
-from flask import Flask, redirect, render_template_string, request, session, url_for
+from flask import Flask, redirect, render_template_string, request, session
 
 ISSUER = os.environ["PORTAL_ISSUER"]
 API_BASE = os.environ.get("PORTAL_API_BASE", ISSUER)
 CLIENT_ID = os.environ["PORTAL_CLIENT_ID"]
 REDIRECT_URI = os.environ["DEMO_REDIRECT_URI"]
+DEMO_PATH_PREFIX = os.environ.get("DEMO_PATH_PREFIX", "").rstrip("/")
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("DEMO_SECRET_KEY") or secrets.token_urlsafe(32)
@@ -32,11 +33,11 @@ INDEX_HTML = """
         <li>昵称：{{ user.nickname }}</li>
         <li>邮箱已验证：{{ user.email_verified }}</li>
       </ul>
-      <form method="post" action="{{ url_for('logout') }}">
+      <form method="post" action="{{ prefix }}/logout">
         <button type="submit">退出登录</button>
       </form>
     {% else %}
-      <p><a href="{{ url_for('login') }}">通过门户登录</a></p>
+      <p><a href="{{ prefix }}/login">通过门户登录</a></p>
     {% endif %}
   </body>
 </html>
@@ -52,7 +53,9 @@ def pkce_pair() -> tuple[str, str]:
 
 @app.get("/")
 def index():
-    return render_template_string(INDEX_HTML, user=session.get("user"))
+    return render_template_string(
+        INDEX_HTML, user=session.get("user"), prefix=DEMO_PATH_PREFIX
+    )
 
 
 @app.get("/login")
@@ -109,7 +112,8 @@ def callback():
             issuer=ISSUER,
             options={"require": ["exp", "iat", "iss", "aud", "nonce"]},
         )
-    except pyjwt.PyJWTError:
+    except pyjwt.PyJWTError as exc:
+        app.logger.warning("id_token 校验失败: %s", exc)
         return "id_token 校验失败", 400
     if claims.get("nonce") != session.get("nonce"):
         return "nonce 校验失败", 400
@@ -121,16 +125,16 @@ def callback():
     if user_response.status_code != 200:
         return "获取用户信息失败", 400
     session["user"] = user_response.json()
-    return redirect(url_for("index"))
+    return redirect(f"{DEMO_PATH_PREFIX}/")
 
 
 @app.get("/logout")
 @app.post("/logout")
 def logout():
     session.clear()
-    next_url = request.args.get("next") or url_for("index")
+    next_url = request.args.get("next") or f"{DEMO_PATH_PREFIX}/"
     if not next_url.startswith("/") or next_url.startswith("//"):
-        next_url = url_for("index")
+        next_url = f"{DEMO_PATH_PREFIX}/"
     return redirect(next_url)
 
 
