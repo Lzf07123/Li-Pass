@@ -1,4 +1,4 @@
-import { lazy, Suspense } from "react";
+import { lazy, Suspense, useEffect, useRef } from "react";
 import { BrowserRouter, Navigate, Route, Routes, useLocation } from "react-router-dom";
 
 import { AuthSkeleton } from "./components/AuthSkeleton";
@@ -69,11 +69,19 @@ function PageFallback() {
   );
 }
 
-function AppRoutes() {
+export function AppRoutes() {
   const location = useLocation();
+  const firstRender = useRef(true);
+
+  useEffect(() => {
+    firstRender.current = false;
+  }, []);
 
   return (
-    <div key={location.pathname} className="page-enter min-h-screen">
+    <div
+      key={location.pathname}
+      className={firstRender.current ? "min-h-screen" : "page-enter min-h-screen"}
+    >
       <Suspense fallback={<PageFallback />}>
         <Routes>
           <Route path="/login" element={<GuestOnly><LoginPage /></GuestOnly>} />
