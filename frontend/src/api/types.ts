@@ -70,3 +70,15 @@ export interface ClientBlockOut {
   reason: string;
   created_at: string;
 }
+
+export interface TwoFaStatus {
+  email_otp_enabled: boolean;
+  totp_enabled: boolean;
+  recovery_codes_remaining: number;
+}
+
+export interface TotpSetup {
+  secret: string;
+  otpauth_uri: string;
+  qr_data_url: string;
+}

@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
-import { appsApi, authApi, meApi, sessionsApi } from "../api/client";
-import type { AppOut, SessionOut, UserOut } from "../api/types";
+import { appsApi, authApi, meApi, sessionsApi, twofaApi } from "../api/client";
+import type { AppOut, SessionOut, TotpSetup, TwoFaStatus, UserOut } from "../api/types";
 
 export function DashboardPage() {
   const [user, setUser] = useState<UserOut | null>(null);
@@ -12,6 +12,11 @@ export function DashboardPage() {
   const [phone, setPhone] = useState("");
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
+  const [twofa, setTwofa] = useState<TwoFaStatus | null>(null);
+  const [twofaPassword, setTwofaPassword] = useState("");
+  const [totpSetup, setTotpSetup] = useState<TotpSetup | null>(null);
+  const [totpCode, setTotpCode] = useState("");
+  const [recoveryCodes, setRecoveryCodes] = useState<string[] | null>(null);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const navigate = useNavigate();
@@ -26,6 +31,7 @@ export function DashboardPage() {
       .catch(() => navigate("/login"));
     appsApi.list().then(setApps).catch(() => undefined);
     sessionsApi.list().then(setSessions).catch(() => undefined);
+    twofaApi.status().then(setTwofa).catch(() => undefined);
   }, [navigate]);
 
   function showError(err: unknown, fallback: string) {
@@ -88,6 +94,64 @@ export function DashboardPage() {
   async function logout() {
     await authApi.logout();
     navigate("/login");
+  }
+
+  async function toggleEmailTwofa() {
+    setError("");
+    try {
+      if (twofa?.email_otp_enabled) {
+        if (!twofaPassword) {
+          setError("请输入当前密码以关闭邮箱二次验证");
+          return;
+        }
+        await twofaApi.disableEmail(twofaPassword);
+      } else {
+        await twofaApi.enableEmail();
+      }
+      setTwofa(await twofaApi.status());
+      setTwofaPassword("");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "操作失败");
+    }
+  }
+
+  async function startTotpSetup() {
+    setError("");
+    try {
+      setTotpSetup(await twofaApi.totpSetup());
+      setRecoveryCodes(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "启动失败");
+    }
+  }
+
+  async function enableTotp() {
+    if (!totpSetup) return;
+    setError("");
+    try {
+      const result = await twofaApi.totpEnable(totpCode, totpSetup.secret);
+      setRecoveryCodes(result.recovery_codes);
+      setTotpSetup(null);
+      setTotpCode("");
+      setTwofa(await twofaApi.status());
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "启用失败");
+    }
+  }
+
+  async function disableTotp() {
+    setError("");
+    if (!twofaPassword) {
+      setError("请输入当前密码以关闭 TOTP");
+      return;
+    }
+    try {
+      await twofaApi.totpDisable(twofaPassword);
+      setTwofa(await twofaApi.status());
+      setTwofaPassword("");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "关闭失败");
+    }
   }
 
   return (
@@ -168,6 +232,93 @@ export function DashboardPage() {
               绑定
             </button>
           </form>
+        </section>
+
+        <section className="rounded-xl bg-white p-6 shadow">
+          <h2 className="mb-3 font-semibold">安全设置</h2>
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p>邮箱二次验证</p>
+                <p className="text-sm text-gray-500">
+                  {twofa?.email_otp_enabled ? "已开启" : "未开启"}
+                </p>
+              </div>
+              <button
+                onClick={toggleEmailTwofa}
+                className="rounded bg-blue-600 p-2 text-white"
+              >
+                {twofa?.email_otp_enabled ? "关闭" : "开启"}
+              </button>
+            </div>
+
+            <div className="flex items-center justify-between">
+              <div>
+                <p>TOTP 认证器</p>
+                <p className="text-sm text-gray-500">
+                  {twofa?.totp_enabled
+                    ? `已开启（剩余恢复码 ${twofa.recovery_codes_remaining}）`
+                    : "未开启"}
+                </p>
+              </div>
+              {twofa?.totp_enabled ? (
+                <button onClick={disableTotp} className="rounded bg-red-600 p-2 text-white">
+                  关闭
+                </button>
+              ) : (
+                <button
+                  onClick={startTotpSetup}
+                  className="rounded bg-blue-600 p-2 text-white"
+                >
+                  开始设置
+                </button>
+              )}
+            </div>
+
+            {totpSetup && (
+              <div className="space-y-2 rounded border p-3">
+                <p className="text-sm">用认证器扫描二维码或手动输入密钥：</p>
+                {totpSetup.qr_data_url && (
+                  // eslint-disable-next-line jsx-a11y/alt-text
+                  <img src={totpSetup.qr_data_url} className="h-32 w-32" />
+                )}
+                <p className="break-all text-xs text-gray-500">{totpSetup.otpauth_uri}</p>
+                <input
+                  value={totpCode}
+                  onChange={(e) => setTotpCode(e.target.value)}
+                  placeholder="输入认证器动态码"
+                  className="w-full rounded border p-2"
+                />
+                <button
+                  onClick={enableTotp}
+                  className="rounded bg-blue-600 p-2 text-white"
+                >
+                  启用 TOTP
+                </button>
+              </div>
+            )}
+
+            {recoveryCodes && (
+              <div className="rounded border border-yellow-300 bg-yellow-50 p-3">
+                <p className="mb-2 text-sm font-semibold">
+                  请立即保存恢复码（只显示一次）：
+                </p>
+                <ul className="grid grid-cols-2 gap-1 text-sm">
+                  {recoveryCodes.map((code) => (
+                    <li key={code}>{code}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            <input
+              type="password"
+              value={twofaPassword}
+              onChange={(e) => setTwofaPassword(e.target.value)}
+              placeholder="关闭 2FA 时请输入当前密码"
+              className="w-full rounded border p-2"
+            />
+          </div>
         </section>
 
         <section className="rounded-xl bg-white p-6 shadow">

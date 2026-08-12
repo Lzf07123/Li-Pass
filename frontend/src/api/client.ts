@@ -6,6 +6,8 @@ import type {
   ClientSecretOut,
   ConsentInfo,
   SessionOut,
+  TotpSetup,
+  TwoFaStatus,
   UserOut,
 } from "./types";
 
@@ -39,7 +41,13 @@ export const authApi = {
       body: JSON.stringify(data),
     }),
   login: (data: { email: string; password: string }) =>
-    api<UserOut>("/api/v1/auth/login", { method: "POST", body: JSON.stringify(data) }),
+    api<
+      UserOut & {
+        requires_2fa?: boolean;
+        challenge_id?: string;
+        methods?: string[];
+      }
+    >("/api/v1/auth/login", { method: "POST", body: JSON.stringify(data) }),
   logout: () => api<void>("/api/v1/auth/logout", { method: "POST" }),
   me: () => api<UserOut>("/api/v1/me"),
   requestPasswordReset: (data: { email: string }) =>
@@ -110,5 +118,40 @@ export const adminBlocksApi = {
   remove: (clientId: string, blockId: string) =>
     api<void>(`/api/v1/admin/clients/${clientId}/blocks/${blockId}`, {
       method: "DELETE",
+  }),
+};
+
+export const auth2faApi = {
+  send: (challenge_id: string) =>
+    api<{ message: string }>("/api/v1/auth/2fa/send", {
+      method: "POST",
+      body: JSON.stringify({ challenge_id }),
+    }),
+  verify: (challenge_id: string, method: string, code: string) =>
+    api<UserOut>("/api/v1/auth/2fa/verify", {
+      method: "POST",
+      body: JSON.stringify({ challenge_id, method, code }),
+    }),
+};
+
+export const twofaApi = {
+  status: () => api<TwoFaStatus>("/api/v1/me/2fa/status"),
+  enableEmail: () =>
+    api<{ message: string }>("/api/v1/me/2fa/email/enable", { method: "POST" }),
+  disableEmail: (current_password: string) =>
+    api<{ message: string }>("/api/v1/me/2fa/email/disable", {
+      method: "POST",
+      body: JSON.stringify({ current_password }),
+    }),
+  totpSetup: () => api<TotpSetup>("/api/v1/me/2fa/totp/setup"),
+  totpEnable: (code: string, secret: string) =>
+    api<{ message: string; recovery_codes: string[] }>("/api/v1/me/2fa/totp/enable", {
+      method: "POST",
+      body: JSON.stringify({ code, secret }),
+    }),
+  totpDisable: (current_password: string) =>
+    api<{ message: string }>("/api/v1/me/2fa/totp/disable", {
+      method: "POST",
+      body: JSON.stringify({ current_password }),
     }),
 };

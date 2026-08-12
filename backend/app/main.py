@@ -27,6 +27,18 @@ def create_app() -> FastAPI:
     def healthz() -> dict[str, str]:
         return {"status": "ok"}
 
+    @app.middleware("http")
+    async def security_headers(request, call_next):
+        response = await call_next(request)
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["X-Frame-Options"] = "DENY"
+        response.headers["Referrer-Policy"] = "no-referrer"
+        response.headers["Content-Security-Policy"] = (
+            "default-src 'self'; connect-src 'self' http://localhost:8000; "
+            "img-src 'self' data:; style-src 'self' 'unsafe-inline'"
+        )
+        return response
+
     app.include_router(auth_routes.router)
     app.include_router(user_routes.router)
     app.include_router(twofa_routes.router)
