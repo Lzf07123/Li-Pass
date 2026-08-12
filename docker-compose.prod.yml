@@ -1,0 +1,76 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    env_file: .env.prod
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data-prod:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data-prod:/data
+
+  backend:
+    build: ./backend
+    env_file: .env.prod
+    ports:
+      - "8000:8000"
+    volumes:
+      - backend-keys:/app/keys
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8000/healthz >/dev/null || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        VITE_API_BASE_URL: "http://localhost:8000"
+    ports:
+      - "5173:5173"
+    depends_on:
+      - backend
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:5173/ >/dev/null || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+
+  demo-site:
+    build: ./examples/demo-site
+    environment:
+      PORTAL_ISSUER: ${FRONTEND_BASE_URL:-http://localhost:8000}
+      PORTAL_API_BASE: http://backend:8000
+      PORTAL_CLIENT_ID: demo-site
+    ports:
+      - "3001:3001"
+    depends_on:
+      - backend
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3001/ >/dev/null || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  postgres-data-prod:
+  redis-data-prod:
+  backend-keys:
