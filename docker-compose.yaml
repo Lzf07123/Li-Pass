@@ -8,9 +8,9 @@ services:
     ports:
       - "5432:5432"
     volumes:
-      - postgres-data:/var/lib/postgresql/data
+      - postgres-data-prod:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U portal"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-portal}"]
       interval: 5s
       timeout: 3s
       retries: 10
@@ -20,7 +20,12 @@ services:
     ports:
       - "6379:6379"
     volumes:
-      - redis-data:/data
+      - redis-data-prod:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
 
   backend:
     build: ./backend
@@ -28,18 +33,41 @@ services:
       DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-portal}:${POSTGRES_PASSWORD:-portal}@postgres:5432/${POSTGRES_DB:-portal}
       REDIS_URL: redis://redis:6379/0
       CORS_ORIGINS: "${CORS_ORIGINS:-[\"http://localhost:5173\"]}"
-      SESSION_COOKIE_SECURE: "false"
-      SESSION_COOKIE_SAMESITE: lax
-      PENDING_REQUEST_STORE: redis
+      SESSION_COOKIE_SECURE: ${SESSION_COOKIE_SECURE:-false}
+      SESSION_COOKIE_SAMESITE: ${SESSION_COOKIE_SAMESITE:-lax}
+      PENDING_REQUEST_STORE: ${PENDING_REQUEST_STORE:-redis}
+      TWOFA_STORE: ${TWOFA_STORE:-redis}
+      RATE_LIMITER: ${RATE_LIMITER:-redis}
       FRONTEND_BASE_URL: ${FRONTEND_BASE_URL:-http://localhost:5173}
       JWT_ISSUER: ${JWT_ISSUER:-http://localhost:8000}
-      TWOFA_STORE: redis
-      RATE_LIMITER: redis
+      JWT_PRIVATE_KEY_PATH: ${JWT_PRIVATE_KEY_PATH:-/app/keys/jwt_private.pem}
+      ENCRYPTION_KEY_PATH: ${ENCRYPTION_KEY_PATH:-/app/keys/encryption.key}
+      EMAIL_BACKEND: ${EMAIL_BACKEND:-console}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USERNAME: ${SMTP_USERNAME:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      SMTP_FROM: ${SMTP_FROM:-}
+      SMTP_FROM_NAME: ${SMTP_FROM_NAME:-Portal OSS}
+      SMTP_USE_TLS: ${SMTP_USE_TLS:-true}
     ports:
       - "8000:8000"
+    volumes:
+      - backend-keys:/app/keys
     depends_on:
       postgres:
         condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/healthz').status==200 else 1)",
+        ]
+      interval: 10s
+      timeout: 3s
+      retries: 10
 
   frontend:
     build:
@@ -50,6 +78,17 @@ services:
       - "5173:5173"
     depends_on:
       - backend
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:5173/').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 10s
+      timeout: 3s
+      retries: 10
 
   demo-site:
     build: ./examples/demo-site
@@ -63,7 +102,19 @@ services:
       - "3001:3001"
     depends_on:
       - backend
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:3001/').status==200 else 1)",
+        ]
+      interval: 10s
+      timeout: 3s
+      retries: 10
 
 volumes:
-  postgres-data:
-  redis-data:
+  postgres-data-prod:
+  redis-data-prod:
+  backend-keys:

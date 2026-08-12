@@ -108,7 +108,7 @@ docker compose up -d --build
 
 ```bash
 cp .env.example .env
-docker compose -f docker-compose.prod.yaml --env-file .env up -d --build
+docker compose -f docker-compose.yaml --env-file .env up -d --build
 ```
 
 详细部署、密钥备份与 HTTPS 说明见 [docs/deployment.md](docs/deployment.md)。

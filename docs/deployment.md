@@ -17,8 +17,10 @@ Portal OSS 使用 Docker Compose 部署。仓库**不内置反向代理**：前�
 ```bash
 cp .env.example .env
 # 按需修改 .env（域名、Cookie、邮件、密码等；生产配置示例见 .env.example 底部注释）
-docker compose -f docker-compose.prod.yaml --env-file .env up -d --build
+docker compose -f docker-compose.yaml --env-file .env up -d --build
 ```
+
+开发与生产共用这一份 `docker-compose.yaml`：本地直接 `docker compose up -d --build`；生产按上文配置 `.env` 后再启动即可。
 
 启动后：
 
@@ -94,7 +96,7 @@ docker run --rm -v portal_backend-keys:/keys -v "$PWD":/backup alpine \
 备份：
 
 ```bash
-docker compose -f docker-compose.prod.yaml --env-file .env exec postgres \
+docker compose -f docker-compose.yaml --env-file .env exec postgres \
   pg_dump -U portal portal | gzip > portal-$(date +%Y%m%d-%H%M%S).sql.gz
 ```
 
@@ -102,7 +104,7 @@ docker compose -f docker-compose.prod.yaml --env-file .env exec postgres \
 
 ```bash
 gunzip -c portal-20260101-120000.sql.gz | \
-  docker compose -f docker-compose.prod.yaml --env-file .env exec -T postgres \
+  docker compose -f docker-compose.yaml --env-file .env exec -T postgres \
   psql -U portal portal
 ```
 
@@ -123,7 +125,7 @@ gunzip -c portal-20260101-120000.sql.gz | \
 
 ## 常见运维操作
 
-- 查看日志：`docker compose -f docker-compose.prod.yaml --env-file .env logs -f backend`
-- 查看健康状态：`docker compose -f docker-compose.prod.yaml --env-file .env ps`
+- 查看日志：`docker compose -f docker-compose.yaml --env-file .env logs -f backend`
+- 查看健康状态：`docker compose -f docker-compose.yaml --env-file .env ps`
 - 升级：拉取新代码后 `up -d --build`，后端启动时会自动执行 `alembic upgrade head`
 - 审计查询：管理员登录门户后调用 `GET /api/v1/admin/audit-logs`（或直接查 `audit_logs` 表）
