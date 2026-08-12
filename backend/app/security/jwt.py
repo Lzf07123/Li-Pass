@@ -60,7 +60,13 @@ def create_access_token(user, client_id: str, scope: str) -> str:
     return _encode(payload)
 
 
-def create_id_token(user, client_id: str, nonce: str | None, scope: str) -> str:
+def create_id_token(
+    user,
+    client_id: str,
+    nonce: str | None,
+    scope: str,
+    acr: str = "urn:portal-oss:acr:1fa",
+) -> str:
     settings = get_settings()
     now = _now()
     payload = {
@@ -70,7 +76,7 @@ def create_id_token(user, client_id: str, nonce: str | None, scope: str) -> str:
         "iat": now,
         "exp": now + timedelta(minutes=settings.oauth_id_token_ttl_minutes),
         "nonce": nonce,
-        "acr": "urn:portal-oss:acr:1fa",
+        "acr": acr,
         "email": user.email,
         "email_verified": user.email_verified_at is not None,
         "nickname": user.nickname,

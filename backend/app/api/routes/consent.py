@@ -1,8 +1,8 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.api.deps import get_current_user
+from app.api.deps import get_current_session, get_current_user
 from app.core.db import get_db
 from app.models.oauth_client import OAuthClient
 from app.models.user import User
@@ -51,6 +51,7 @@ def consent_info(
 @router.post("/{request_id}/approve")
 def approve(
     request_id: str,
+    request: Request,
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> dict:
@@ -66,6 +67,7 @@ def approve(
     if find_block(db, client.id, user) is not None:
         raise HTTPException(status.HTTP_403_FORBIDDEN, "该账号已被此网站限制访问")
 
+    session = get_current_session(request, db)
     code = create_authorization_code(
         db,
         user,
@@ -75,6 +77,7 @@ def approve(
         pending.nonce,
         pending.code_challenge,
         pending.code_challenge_method,
+        session.auth_method,
     )
     consent = db.scalar(
         select(UserConsent).where(

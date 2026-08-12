@@ -55,6 +55,7 @@ def create_authorization_code(
     nonce: str | None = None,
     code_challenge: str | None = None,
     code_challenge_method: str = "S256",
+    auth_method: str = "password",
 ) -> str:
     settings = get_settings()
     code = secrets.token_urlsafe(32)
@@ -68,6 +69,7 @@ def create_authorization_code(
             nonce=nonce,
             code_challenge=code_challenge,
             code_challenge_method=code_challenge_method,
+            auth_method=auth_method,
             expires_at=datetime.now(timezone.utc)
             + timedelta(minutes=settings.oauth_code_ttl_minutes),
         )

@@ -8,7 +8,7 @@ from fastapi.responses import RedirectResponse
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.api.deps import get_optional_user
+from app.api.deps import get_current_session, get_optional_user
 from app.core.config import get_settings
 from app.core.db import get_db
 from app.models.authorization_code import AuthorizationCode
@@ -91,6 +91,7 @@ def authorize(
     )
     scope_ok = consent is not None and set(requested).issubset(set(consent.scopes))
     if scope_ok and not client.require_consent_every_time:
+        session = get_current_session(request, db)
         code = create_authorization_code(
             db,
             user,
@@ -100,6 +101,7 @@ def authorize(
             nonce,
             code_challenge,
             code_challenge_method,
+            session.auth_method,
         )
         return RedirectResponse(
             build_authorize_redirect(redirect_uri, code, state), status_code=302
@@ -194,7 +196,15 @@ def token(
         "access_token": create_access_token(user, client.client_id, record.scope),
         "token_type": "Bearer",
         "expires_in": settings.oauth_access_token_ttl_minutes * 60,
-        "id_token": create_id_token(user, client.client_id, record.nonce, record.scope),
+        "id_token": create_id_token(
+            user,
+            client.client_id,
+            record.nonce,
+            record.scope,
+            "urn:portal-oss:acr:2fa"
+            if record.auth_method in ("email_otp", "totp", "recovery")
+            else "urn:portal-oss:acr:1fa",
+        ),
     }
 
 
