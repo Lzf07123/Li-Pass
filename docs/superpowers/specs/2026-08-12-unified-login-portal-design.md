@@ -1,7 +1,7 @@
 # 统一登录门户（Portal OSS）设计文档
 
 - 日期：2026-08-12
-- 状态：已与用户逐节确认，待用户审阅
+- 状态：已实施完成（2026-08-12）；最终行为以仓库代码与 [docs/deployment.md](../deployment.md)、[docs/oidc-integration.md](../oidc-integration.md) 为准
 - 技术栈偏好：Python
 
 ## 1. 项目概述
@@ -20,7 +20,7 @@
 | --- | --- | --- |
 | 后端框架 | FastAPI + Pydantic v2 | 异步、自带 OpenAPI 文档 |
 | ORM/迁移 | SQLAlchemy 2.0 + Alembic | 数据模型与迁移 |
-| 前端 | React + Vite + TypeScript + Tailwind CSS | 动效生态最丰富（Motion、shadcn/ui、Aceternity UI、Magic UI） |
+| 前端 | React 19 + Vite 8 + TypeScript + Tailwind CSS 4 | 动效生态最丰富（Motion、shadcn/ui、Aceternity UI、Magic UI） |
 | 数据库 | PostgreSQL 16 | 主数据存储 |
 | 缓存 | Redis 7 | 验证码、2FA 挑战、限流计数、待授权请求 |
 | OIDC 实现 | 自研协议端点；JWT 用 PyJWT，密钥生成用 cryptography | 核心端点自行实现，保证可控可扩展 |
@@ -38,26 +38,27 @@
 portal-oss/
 ├── backend/                 # FastAPI 认证服务
 │   ├── app/
-│   │   ├── api/             # REST API：用户中心、管理后台、授权确认
-│   │   ├── oidc/            # OIDC Provider：authorize/token/userinfo/discovery/jwks
+│   │   ├── api/             # REST API 与 OIDC 端点（routes/oidc.py）
 │   │   ├── models/          # SQLAlchemy 模型
 │   │   ├── schemas/         # Pydantic 校验模型
 │   │   ├── security/        # 密码哈希、JWT、TOTP、限流、审计
 │   │   ├── services/        # 邮件、会话、2FA、黑名单等业务服务
 │   │   └── core/            # 配置、数据库、日志
-│   └── tests/
+│   ├── scripts/             # 运维脚本（已内置进镜像）
+│   └── tests/               # 仅保留本地，不入库
 ├── frontend/                # React SPA 门户
 │   ├── src/
-│   │   ├── pages/           # 登录、注册、找回密码、授权确认、用户中心、应用广场
+│   │   ├── pages/           # 登录、注册、找回密码、授权确认、用户中心、应用广场、管理后台
 │   │   ├── api/             # API 客户端
-│   │   └── components/
-│   └── tests/
+│   │   ├── components/
+│   │   └── hooks/
+│   └── 测试目录（本地）
 ├── examples/demo-site/      # 示例授权网站（演示 OIDC 接入）
 ├── docs/                    # 对接文档与设计文档
-└── docker-compose.yml       # frontend + backend + postgres + redis（不含反向代理）
+└── docker-compose.yaml      # frontend + backend + postgres + redis（不含反向代理）
 ```
 
-本仓库不内置反向代理：前端与后端作为独立服务直接暴露，生产环境的 HTTPS、域名路由与反代由部署环境（K8s Ingress、云负载均衡或外部网关）负责。因此门户会话 Cookie 使用 `SameSite=None; Secure`，前后端通过 CORS 白名单互信；Cookie 只存在于门户后端域名，授权网站只持有标准令牌，凭据边界依然清晰。
+本仓库不内置反向代理：前端与后端作为独立服务直接暴露，生产环境的 HTTPS、域名路由与反代由部署环境（K8s Ingress、云负载均衡或外部网关）负责。门户会话 Cookie 为 HttpOnly，开发默认 `SameSite=Lax`；跨站部署（前后端完全不同域）时须配置 `SameSite=None; Secure`（详见 docs/deployment.md「SameSite 与部署拓扑」）。前后端通过 CORS 白名单互信；Cookie 只存在于门户后端域名，授权网站只持有标准令牌，凭据边界依然清晰。
 
 ## 4. 功能范围（第一版 MVP）
 
@@ -306,7 +307,7 @@ erDiagram
 
 ### 会话与令牌
 
-- 门户会话：HttpOnly + Secure + SameSite=None Cookie（前后端跨域直连所需），SPA 无法读取；生产环境强制 HTTPS，否则该 Cookie 不生效。
+- 门户会话：HttpOnly Cookie；开发默认 `SameSite=Lax`，跨站部署（前后端完全不同域）必须 `None + Secure`；SPA 无法读取。
 - 刷新令牌强制轮换，检测到旧令牌重放即撤销整条会话链。
 - 授权码一次性、绑定 redirect_uri + PKCE code_challenge。
 

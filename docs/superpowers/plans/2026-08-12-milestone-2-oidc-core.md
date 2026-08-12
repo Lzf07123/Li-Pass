@@ -1,5 +1,7 @@
 # 里程碑 2：OIDC 核心流程 Implementation Plan
 
+> **状态：已完成（2026-08-12）** —— 最终实现与行为以仓库代码为准；部署/运维见 [docs/deployment.md](../../deployment.md)，OIDC 对接见 [docs/oidc-integration.md](../../oidc-integration.md)。
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** 实现统一登录门户的 OIDC/OAuth2 授权码 + PKCE 核心流程：授权网站管理（管理 API）、`authorize / token / userinfo / jwks / discovery` 端点、授权确认页（自动捕获门户会话并询问用户）、同意记录复用，以及一个可本地演示的示例授权网站。

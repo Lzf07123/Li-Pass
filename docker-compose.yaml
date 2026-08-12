@@ -63,7 +63,7 @@ services:
       DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-portal}:${POSTGRES_PASSWORD:-portal}@postgres:5432/${POSTGRES_DB:-portal}
       REDIS_URL: redis://:${REDIS_PASSWORD:-portal-dev-redis}@redis:6379/0
       CORS_ORIGINS: "${CORS_ORIGINS:-[\"http://localhost:5173\"]}"
-      ALLOWED_HOSTS: "${ALLOWED_HOSTS:-localhost}"
+      ALLOWED_HOSTS: "${ALLOWED_HOSTS:-[\"localhost\"]}"
       SESSION_COOKIE_SECURE: ${SESSION_COOKIE_SECURE:-false}
       SESSION_COOKIE_SAMESITE: ${SESSION_COOKIE_SAMESITE:-lax}
       PENDING_REQUEST_STORE: ${PENDING_REQUEST_STORE:-redis}

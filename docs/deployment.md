@@ -30,6 +30,8 @@ docker compose -f docker-compose.yaml --env-file .env up -d --build
 - 门户：http://localhost:5173
 - 后端健康检查：http://localhost:8000/healthz（存活），http://localhost:8000/readyz（就绪，含数据库/Redis 检查）
 
+前端容器（nginx）内置安全响应头与 CSP：`img-src` 已放行后端 API 源（由 `CONNECT_SRC` / `VITE_API_BASE_URL` 注入），因此后端托管的用户头像（`/uploads/avatars`）可跨源正常显示；生产更换后端域名时，同步更新 `VITE_API_BASE_URL` 并重建前端即可。
+
 示例授权网站（仅本地演示）默认**不随生产栈启动**，需要时单独启用：
 
 ```bash
@@ -40,18 +42,18 @@ docker compose --profile demo up -d --build demo-site
 ## 首次使用
 
 1. 在门户注册账号并激活邮箱。
-2. 提升管理员：
+2. 提升管理员（运维脚本已内置在后端镜像）：
 
 ```bash
-cd backend
-python -m venv .venv  # 或复用已有虚拟环境
-.venv/bin/python -m scripts.make_admin <你的邮箱>
+docker compose -f docker-compose.yaml --env-file .env exec backend \
+  python -m scripts.make_admin <你的邮箱>
 ```
 
 3. 创建演示客户端（可选，示例网站需要）：
 
 ```bash
-.venv/bin/python -m scripts.seed_demo_client
+docker compose -f docker-compose.yaml --env-file .env exec backend \
+  python -m scripts.seed_demo_client
 ```
 
 ## 环境变量

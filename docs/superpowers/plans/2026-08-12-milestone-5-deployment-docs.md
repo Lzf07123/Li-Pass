@@ -1,5 +1,8 @@
 # 里程碑 5：生产部署与对接文档 Implementation Plan
 
+> **状态：已完成（2026-08-12）** —— 最终实现与行为以仓库代码为准；部署/运维见 [docs/deployment.md](../../deployment.md)，OIDC 对接见 [docs/oidc-integration.md](../../oidc-integration.md)。
+> 注：部署形态最终合并为单一 `docker-compose.yaml`（不再使用计划中的 `docker-compose.prod.yml` / `.env.prod`）。
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** 提供可一条命令启动的生产形态部署（无内置反代、密钥持久卷、健康检查）与完整的 OIDC 对接文档、部署运维文档。

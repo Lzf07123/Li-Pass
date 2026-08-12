@@ -11,7 +11,7 @@
 - 自动捕获会话：浏览器已有门户会话时，免输密码直接进入授权确认页
 - 授权确认：首次授权必询问，可配置每次询问；同意记录复用
 - 网站级访问控制：每个授权网站可独立封禁/解封账号，认证链路三层拦截
-- 用户中心：资料修改、手机绑定、密码修改、设备与会话管理
+- 用户中心：资料修改、头像上传、手机绑定、密码修改、设备与会话管理
 - 应用广场：展示已授权网站，一键进入
 - 管理后台：用户管理、授权网站管理、黑名单管理、审计日志
 - 网站自助黑名单 API：授权网站可用自己的 client_id/secret 封禁/解封账号
@@ -33,28 +33,29 @@
 portal-oss/
 ├── backend/                 # FastAPI 认证服务
 │   ├── app/
-│   │   ├── api/             # REST API：用户中心、管理后台、授权确认
-│   │   ├── oidc/            # OIDC Provider
+│   │   ├── api/             # REST API 与 OIDC 端点（routes/oidc.py）
 │   │   ├── models/          # SQLAlchemy 模型
 │   │   ├── schemas/         # Pydantic 校验模型
 │   │   ├── security/        # 密码哈希、JWT、TOTP、限流、审计
 │   │   ├── services/        # 邮件、会话、2FA、黑名单等业务服务
 │   │   └── core/            # 配置、数据库、日志
-│   └── tests/
+│   ├── scripts/             # 运维脚本（已内置进镜像）：make_admin、seed_demo_client
+│   └── tests/               # 仅保留本地，不入库
 ├── frontend/                # React SPA 门户
 │   ├── src/
-│   │   ├── pages/           # 登录、注册、授权确认、用户中心、应用广场
+│   │   ├── pages/           # 登录、注册、授权确认、用户中心、应用广场、管理后台
 │   │   ├── api/             # API 客户端
-│   │   └── components/
-│   └── tests/
-├── examples/demo-site/      # 示例授权网站
+│   │   ├── components/      # 品牌、外壳、主题等公共组件
+│   │   └── hooks/           # 自定义 Hook
+│   └── 测试目录（本地）      # __tests__/ 与 test/ 仅保留本地，不入库
+├── examples/demo-site/      # 示例授权网站（OIDC 演示，demo profile）
 ├── docs/                    # 设计文档与对接文档
 └── docker-compose.yaml      # frontend + backend + postgres + redis（不含反向代理）
 ```
 
 ## 快速开始（开发环境）
 
-里程碑 1（项目骨架 + 基础账号体系）已完成。最快捷的方式是一键启动全栈（含前端、后端与基础设施）：
+全部五个里程碑（项目骨架与账号体系、OIDC 核心、用户中心与访问控制、2FA 与安全加固、生产部署与文档）已完成。最快捷的方式是一键启动全栈（含前端、后端与基础设施）：
 
 ```bash
 docker compose up -d --build
@@ -117,7 +118,7 @@ docker compose -f docker-compose.yaml --env-file .env up -d --build
 
 ```bash
 docker compose --profile demo up -d --build demo-site
-cd backend && .venv/bin/python -m scripts.seed_demo_client
+docker compose exec backend python -m scripts.seed_demo_client
 ```
 
 打开 http://localhost:3001 点击“通过门户登录”，即可体验从第三方网站跳转到门户授权确认并登录的完整闭环。
@@ -126,8 +127,8 @@ cd backend && .venv/bin/python -m scripts.seed_demo_client
 
 ## 演示数据
 
-- `cd backend && .venv/bin/python -m scripts.seed_demo_client`：创建示例授权网站客户端（`demo-site`，公开客户端）
-- `cd backend && .venv/bin/python -m scripts.make_admin <邮箱>`：把已注册用户提升为管理员（可管理应用与黑名单、查看审计日志）
+- `docker compose exec backend python -m scripts.seed_demo_client`：创建示例授权网站客户端（`demo-site`，公开客户端）
+- `docker compose exec backend python -m scripts.make_admin <邮箱>`：把已注册用户提升为管理员（可管理应用与黑名单、查看审计日志）
 
 ## 文档
 
@@ -141,8 +142,8 @@ cd backend && .venv/bin/python -m scripts.seed_demo_client
 
 ## 实施路线
 
-- 里程碑 1：项目骨架 + 基础账号体系
-- 里程碑 2：OIDC 核心流程
-- 里程碑 3：用户中心 + 网站级访问控制
-- 里程碑 4：2FA + 安全加固
-- 里程碑 5：生产部署 + 对接文档
+- ✅ 里程碑 1：项目骨架 + 基础账号体系
+- ✅ 里程碑 2：OIDC 核心流程
+- ✅ 里程碑 3：用户中心 + 网站级访问控制
+- ✅ 里程碑 4：2FA + 安全加固
+- ✅ 里程碑 5：生产部署 + 对接文档

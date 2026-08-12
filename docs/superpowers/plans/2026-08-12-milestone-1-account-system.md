@@ -1,5 +1,7 @@
 # 里程碑 1：项目骨架与基础账号体系 Implementation Plan
 
+> **状态：已完成（2026-08-12）** —— 最终实现与行为以仓库代码为准；部署/运维见 [docs/deployment.md](../../deployment.md)，OIDC 对接见 [docs/oidc-integration.md](../../oidc-integration.md)。
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** 搭建统一登录门户的前后端骨架，并实现邮箱注册、邮箱激活、登录/退出（门户会话 Cookie）与找回密码，使“注册 → 激活 → 登录 → 退出”在本地可完整跑通。

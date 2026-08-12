@@ -8,7 +8,7 @@
 
 **Project:** Portal OSS
 **Generated:** 2026-08-12 10:23:37
-**Category:** Password Manager
+**Category:** SSO 统一登录门户（Portal OSS）
 
 ---
 

@@ -159,6 +159,13 @@ const user = await fetch(`${issuer}/oauth2/userinfo`, {
 
 也可用管理 API：`POST /api/v1/admin/clients`。
 
+仓库内置两个运维脚本（已打进后端镜像）：
+
+```bash
+docker compose exec backend python -m scripts.seed_demo_client   # 创建 demo-site 公开客户端
+docker compose exec backend python -m scripts.make_admin <邮箱>  # 提升管理员
+```
+
 ## 5. 网站自助黑名单
 
 机密客户端可用 HTTP Basic（`client_id:client_secret`）管理自己的黑名单：

@@ -1,5 +1,7 @@
 # 里程碑 3：用户中心与网站级访问控制 Implementation Plan
 
+> **状态：已完成（2026-08-12）** —— 最终实现与行为以仓库代码为准；部署/运维见 [docs/deployment.md](../../deployment.md)，OIDC 对接见 [docs/oidc-integration.md](../../oidc-integration.md)。
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** 完善用户中心（资料/密码/手机绑定/设备会话管理/应用广场），并实现网站级账号黑名单：门户管理后台与网站自助 API 均可封禁账号，`authorize / token / userinfo` 三层强制拦截。

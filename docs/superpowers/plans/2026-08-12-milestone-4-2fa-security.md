@@ -1,5 +1,7 @@
 # 里程碑 4：2FA 与安全加固 Implementation Plan
 
+> **状态：已完成（2026-08-12）** —— 最终实现与行为以仓库代码为准；部署/运维见 [docs/deployment.md](../../deployment.md)，OIDC 对接见 [docs/oidc-integration.md](../../oidc-integration.md)。
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** 实现邮箱验证码与 TOTP 两种二次验证（含一次性恢复码、管理员重置），并完成限流、审计日志与安全响应头加固。
