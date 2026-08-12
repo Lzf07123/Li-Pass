@@ -71,15 +71,18 @@ export function AdminPage() {
             <button
               key={item.key}
               onClick={() => setTab(item.key)}
+              aria-pressed={tab === item.key}
               className={`btn ${tab === item.key ? "btn-primary" : "btn-secondary"}`}
             >
               {item.label}
             </button>
           ))}
         </div>
-        {tab === "users" && <AdminUsersPanel currentAdminId={me.id} />}
-        {tab === "clients" && <AdminClientsPage />}
-        {tab === "audit" && <AdminAuditPanel />}
+        <div key={tab} className="animate-fade-up">
+          {tab === "users" && <AdminUsersPanel currentAdminId={me.id} />}
+          {tab === "clients" && <AdminClientsPage />}
+          {tab === "audit" && <AdminAuditPanel />}
+        </div>
       </main>
     </div>
   );

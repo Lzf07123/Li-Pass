@@ -22,7 +22,7 @@ export function AuthShell({
       </div>
 
       <div className="relative w-full max-w-md">
-        <div className="mb-8 flex flex-col items-center gap-3 text-center">
+        <div className="animate-fade-up mb-8 flex flex-col items-center gap-3 text-center">
           <Brand className="h-12 w-12 drop-shadow-sm" />
           <div>
             <h1 className="text-[22px] font-semibold tracking-tight text-foreground">
@@ -32,14 +32,16 @@ export function AuthShell({
           </div>
         </div>
 
-        <div className="card p-6 sm:p-8">{children}</div>
+        <div className="animate-fade-up [animation-delay:70ms]">
+          <div className="card p-6 sm:p-8">{children}</div>
+        </div>
 
-        <p className="mt-6 text-center text-xs text-muted">
+        <p className="animate-fade-in mt-6 text-center text-xs text-muted [animation-delay:140ms]">
           一次注册，通行所有授权网站
         </p>
       </div>
 
-      <ThemeToggle className="absolute right-4 top-4 sm:right-6 sm:top-6" />
+      <ThemeToggle className="animate-fade-in absolute right-4 top-4 sm:right-6 sm:top-6 [animation-delay:180ms]" />
     </main>
   );
 }

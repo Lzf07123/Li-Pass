@@ -8,7 +8,7 @@ export function ThemeToggle({ className = "" }: { className?: string }) {
     <button
       type="button"
       onClick={() => setTheme(isDark ? "light" : "dark")}
-      className={`btn btn-ghost h-10 w-10 rounded-full p-0 ${className}`}
+      className={`btn btn-ghost group h-10 w-10 rounded-full p-0 ${className}`}
       aria-label={isDark ? "切换到浅色模式" : "切换到深色模式"}
       title={isDark ? "切换到浅色模式" : "切换到深色模式"}
     >
@@ -16,7 +16,7 @@ export function ThemeToggle({ className = "" }: { className?: string }) {
         /* 太阳 */
         <svg
           viewBox="0 0 24 24"
-          className="h-5 w-5"
+          className="h-5 w-5 transition-transform duration-300 group-hover:rotate-12"
           fill="none"
           stroke="currentColor"
           strokeWidth="1.8"
@@ -30,7 +30,7 @@ export function ThemeToggle({ className = "" }: { className?: string }) {
         /* 月亮 */
         <svg
           viewBox="0 0 24 24"
-          className="h-5 w-5"
+          className="h-5 w-5 transition-transform duration-300 group-hover:rotate-12"
           fill="none"
           stroke="currentColor"
           strokeWidth="1.8"

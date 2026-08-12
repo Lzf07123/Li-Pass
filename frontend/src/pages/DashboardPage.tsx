@@ -356,11 +356,12 @@ export function DashboardPage() {
           </h2>
           {phoneStep === "phone" ? (
             <form
+              key="phone"
               onSubmit={(e) => {
                 e.preventDefault();
                 sendPhoneCode();
               }}
-              className="flex flex-wrap items-end gap-2"
+              className="animate-fade-up flex flex-wrap items-end gap-2"
             >
               <label className="block min-w-0 flex-1">
                 <span className="label">手机号</span>
@@ -378,7 +379,11 @@ export function DashboardPage() {
               </button>
             </form>
           ) : (
-            <form onSubmit={bindPhone} className="flex flex-wrap items-end gap-2">
+            <form
+              key="code"
+              onSubmit={bindPhone}
+              className="animate-fade-up flex flex-wrap items-end gap-2"
+            >
               <label className="block min-w-0 flex-1">
                 <span className="label">邮箱验证码</span>
                 <input
@@ -443,7 +448,7 @@ export function DashboardPage() {
             </div>
 
             {totpSetup && (
-              <div className="space-y-3 rounded-xl border border-border bg-surface-2/50 p-4">
+              <div className="animate-fade-up space-y-3 rounded-xl border border-border bg-surface-2/50 p-4">
                 <p className="text-sm text-foreground">
                   用认证器扫描二维码或手动输入密钥：
                 </p>
@@ -536,7 +541,7 @@ export function DashboardPage() {
             {apps.map((app) => (
               <div
                 key={app.client_id}
-                className="flex flex-col gap-3 rounded-xl border border-border p-4"
+                className="card-interactive flex flex-col gap-3 rounded-xl border border-border bg-surface p-4"
               >
                 <div className="flex items-center gap-2">
                   {app.logo_url ? (

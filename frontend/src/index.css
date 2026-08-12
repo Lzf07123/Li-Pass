@@ -57,6 +57,24 @@
 
   --portal-ring: #0369a1;
 
+  /* 弥散阴影（透明度总和 < 0.1，三层叠加） */
+  --shadow-sm: 0px 0.6px 1.8px rgba(15, 23, 42, 0.02),
+    0px 2.4px 7.2px rgba(15, 23, 42, 0.04);
+  --shadow-md: 0px 0.6px 1.8px rgba(15, 23, 42, 0.02),
+    0px 2.4px 7.2px rgba(15, 23, 42, 0.04),
+    0px 8px 24px rgba(15, 23, 42, 0.06);
+  --shadow-lg: 0px 0.6px 1.8px rgba(15, 23, 42, 0.02),
+    0px 2.4px 7.2px rgba(15, 23, 42, 0.04),
+    0px 8px 32px rgba(15, 23, 42, 0.08);
+
+  /* 缓动曲线：入场 ease-out，按压弹性 spring */
+  --ease-out: cubic-bezier(0.25, 0.1, 0.25, 1);
+  --ease-in: cubic-bezier(0.55, 0.06, 0.68, 0.19);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --motion-fast: 150ms;
+  --motion-base: 250ms;
+  --motion-slow: 350ms;
+
   color-scheme: light;
 }
 
@@ -108,6 +126,18 @@
     border-radius: 4px;
   }
 
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: var(--portal-border);
+    border-radius: 20px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--portal-muted);
+  }
+
   @media (prefers-reduced-motion: reduce) {
     *,
     *::before,
@@ -124,11 +154,32 @@
   /* 卡片 */
   .card {
     @apply rounded-2xl border border-border bg-surface shadow-[0_1px_2px_rgba(15,23,42,0.04),0_8px_24px_-12px_rgba(15,23,42,0.12)];
+    transition:
+      transform var(--motion-base) var(--ease-out),
+      box-shadow var(--motion-base) var(--ease-out);
+    will-change: transform;
+  }
+  .card:hover {
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-lg);
   }
 
   /* 按钮 */
   .btn {
-    @apply inline-flex cursor-pointer select-none items-center justify-center gap-2 rounded-lg px-4 py-3 text-sm font-medium leading-none transition-colors duration-200 disabled:pointer-events-none disabled:opacity-50;
+    @apply inline-flex cursor-pointer select-none items-center justify-center gap-2 rounded-lg px-4 py-3 text-sm font-medium leading-none disabled:pointer-events-none disabled:opacity-50;
+    transition:
+      color var(--motion-fast) var(--ease-out),
+      background-color var(--motion-fast) var(--ease-out),
+      border-color var(--motion-fast) var(--ease-out),
+      box-shadow var(--motion-fast) var(--ease-out),
+      transform var(--motion-base) var(--ease-spring);
+    will-change: transform;
+  }
+  .btn:not(:disabled):hover {
+    transform: translateY(-1px);
+  }
+  .btn:not(:disabled):active {
+    transform: translateY(0) scale(0.97);
   }
   .btn-primary {
     @apply bg-primary text-primary-foreground shadow-sm hover:bg-primary-hover;
@@ -151,10 +202,18 @@
     @apply mb-1.5 block text-sm font-medium text-foreground;
   }
   .input {
-    @apply w-full rounded-lg border border-border bg-surface px-3 py-2.5 text-sm text-foreground shadow-sm transition-colors duration-150 placeholder:text-muted focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20;
+    @apply w-full rounded-lg border border-border bg-surface px-3 py-2.5 text-sm text-foreground shadow-sm placeholder:text-muted focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20;
+    transition:
+      border-color var(--motion-fast) var(--ease-out),
+      box-shadow var(--motion-fast) var(--ease-out),
+      background-color var(--motion-fast) var(--ease-out);
   }
   .input-sm {
     @apply w-full rounded-md border border-border bg-surface px-2.5 py-1.5 text-sm text-foreground placeholder:text-muted focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20;
+    transition:
+      border-color var(--motion-fast) var(--ease-out),
+      box-shadow var(--motion-fast) var(--ease-out),
+      background-color var(--motion-fast) var(--ease-out);
   }
 
   /* 徽章 */
@@ -180,6 +239,7 @@
   /* 提示条 */
   .alert {
     @apply flex items-start gap-2 rounded-lg border p-3 text-sm;
+    animation: portal-fade-up var(--motion-base) var(--ease-out) both;
   }
   .alert-success {
     @apply border-success/25 bg-success-soft text-success;
@@ -209,5 +269,100 @@
   }
   .table-shell tbody tr {
     @apply transition-colors duration-150 hover:bg-surface-2/60;
+  }
+}
+
+/* ========== 动效令牌与过渡工具类 ========== */
+@layer utilities {
+  @keyframes portal-fade-up {
+    from {
+      opacity: 0;
+      transform: translateY(12px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes portal-fade-in {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+
+  @keyframes portal-scale-in {
+    from {
+      opacity: 0;
+      transform: scale(0.96);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+
+  @keyframes portal-shimmer {
+    0% {
+      background-position: -200% 0;
+    }
+    100% {
+      background-position: 200% 0;
+    }
+  }
+
+  /* 路由切换：整页淡入上移，避免生硬跳转 */
+  .page-enter {
+    animation: portal-fade-up var(--motion-slow) var(--ease-out) both;
+  }
+
+  .animate-fade-up {
+    animation: portal-fade-up 300ms var(--ease-out) both;
+  }
+
+  .animate-fade-in {
+    animation: portal-fade-in var(--motion-base) var(--ease-out) both;
+  }
+
+  .animate-scale-in {
+    animation: portal-scale-in 220ms var(--ease-spring) both;
+  }
+
+  /* 图片/内容占位扫光 */
+  .shimmer {
+    background: linear-gradient(
+      90deg,
+      var(--portal-surface-2) 25%,
+      rgba(255, 255, 255, 0.65) 37%,
+      var(--portal-surface-2) 63%
+    );
+    background-size: 200% 100%;
+    animation: portal-shimmer 1.5s ease-in-out infinite;
+  }
+  .dark .shimmer {
+    background: linear-gradient(
+      90deg,
+      var(--portal-surface-2) 25%,
+      rgba(148, 163, 184, 0.18) 37%,
+      var(--portal-surface-2) 63%
+    );
+  }
+
+  /* 可悬浮卡片：仅动 transform/shadow，不引发重排 */
+  .card-interactive {
+    transition:
+      transform var(--motion-base) var(--ease-out),
+      box-shadow var(--motion-base) var(--ease-out);
+    will-change: transform;
+  }
+  .card-interactive:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+  }
+  .card-interactive:active {
+    transform: translateY(0) scale(0.985);
   }
 }

@@ -98,7 +98,7 @@ export function LoginPage() {
   if (challenge) {
     return (
       <AuthShell title="二次验证" subtitle="为保护账号安全，请完成二次验证">
-        <form onSubmit={verifyCode} className="space-y-4">
+        <form key="verify" onSubmit={verifyCode} className="animate-fade-up space-y-4">
           <div className="space-y-2">
             {challenge.methods.map((item) => (
               <label
@@ -156,7 +156,7 @@ export function LoginPage() {
 
   return (
     <AuthShell title="登录 Portal OSS" subtitle="一次注册，通行所有授权网站">
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <form key="login" onSubmit={handleSubmit} className="animate-fade-up space-y-4">
         <label className="block">
           <span className="label">邮箱</span>
           <input

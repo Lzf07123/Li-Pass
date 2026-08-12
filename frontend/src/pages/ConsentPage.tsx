@@ -41,7 +41,7 @@ export function ConsentPage() {
   return (
     <AuthShell title="授权确认" subtitle="请确认你要授权的网站与权限范围">
       {info ? (
-        <div className="space-y-4">
+        <div className="animate-fade-up space-y-4">
           <div className="flex items-center gap-3 rounded-xl border border-border bg-surface-2/60 p-4">
             {info.client.logo_url ? (
               <img
@@ -101,10 +101,14 @@ export function ConsentPage() {
             </button>
           </div>
         </div>
+      ) : error ? (
+        <p className="py-4 text-center text-sm text-muted">{error}</p>
       ) : (
-        <p className="py-4 text-center text-sm text-muted">
-          {error || "加载中…"}
-        </p>
+        <div className="space-y-3" aria-busy="true" aria-label="正在加载授权信息">
+          <div className="shimmer h-20 rounded-xl" />
+          <div className="shimmer h-32 rounded-xl" />
+          <div className="shimmer h-10 rounded-xl" />
+        </div>
       )}
     </AuthShell>
   );

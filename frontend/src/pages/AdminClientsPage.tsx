@@ -249,7 +249,7 @@ export function AdminClientsPage() {
       </form>
 
       {removeTarget && (
-        <div className="alert alert-error">
+        <div className="alert alert-error animate-fade-up">
           <span>
             确定删除应用“{removeTarget.name}”吗？其授权记录与黑名单将一并删除。
           </span>
@@ -267,7 +267,7 @@ export function AdminClientsPage() {
 
       <ul className="space-y-3">
         {clients.map((client) => (
-          <li key={client.id} className="card p-5">
+          <li key={client.id} className="card card-interactive p-5">
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div className="min-w-0">
                 <p className="flex flex-wrap items-center gap-2 font-semibold text-foreground">
@@ -311,7 +311,7 @@ export function AdminClientsPage() {
             )}
 
             {editingId === client.id && editDraft && (
-              <fieldset className="mt-4 space-y-3 rounded-xl border border-primary/30 bg-primary-soft p-4">
+              <fieldset className="animate-fade-up mt-4 space-y-3 rounded-xl border border-primary/30 bg-primary-soft p-4">
                 <legend className="px-1.5 text-sm font-semibold text-primary">
                   编辑应用
                 </legend>

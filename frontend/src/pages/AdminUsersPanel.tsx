@@ -125,7 +125,7 @@ export function AdminUsersPanel({ currentAdminId }: { currentAdminId: string }) 
       {passwordTarget && (
         <form
           onSubmit={submitResetPassword}
-          className="flex flex-wrap items-center gap-2 rounded-xl border border-primary/30 bg-primary-soft p-3"
+          className="animate-fade-up flex flex-wrap items-center gap-2 rounded-xl border border-primary/30 bg-primary-soft p-3"
         >
           <span className="text-sm text-foreground">
             为 {passwordTarget.email} 设置新密码：
@@ -152,7 +152,7 @@ export function AdminUsersPanel({ currentAdminId }: { currentAdminId: string }) 
       )}
 
       {confirmTarget && (
-        <div className="flex flex-wrap items-center gap-2 rounded-xl border border-warning/30 bg-warning-soft p-3">
+        <div className="animate-fade-up flex flex-wrap items-center gap-2 rounded-xl border border-warning/30 bg-warning-soft p-3">
           <span className="text-sm text-foreground">
             确定{confirmTarget.action === "toggle" ? "禁用/启用" : "重置 2FA"}
             {confirmTarget.user.email} 吗？
