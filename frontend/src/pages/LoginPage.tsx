@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 
 import { auth2faApi, authApi } from "../api/client";
@@ -13,20 +13,31 @@ const METHOD_LABELS: Record<string, string> = {
   recovery: "恢复码",
 };
 
+type EmailSendStatus = "sent" | "failed" | "rate_limited" | "skipped";
+
 export function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [challenge, setChallenge] = useState<{ id: string; methods: string[] } | null>(
     null
   );
+  const [emailStatus, setEmailStatus] = useState<EmailSendStatus | null>(null);
   const [code, setCode] = useState("");
   const [method, setMethod] = useState("");
+  const [verifying, setVerifying] = useState(false);
+  const [resendCountdown, setResendCountdown] = useState(0);
   const [rememberMe, setRememberMe] = useState(false);
   const toast = useToast();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const rawNext = searchParams.get("next");
   const next = isSafeNext(rawNext) ? rawNext : null;
+
+  useEffect(() => {
+    if (resendCountdown <= 0) return;
+    const timer = setTimeout(() => setResendCountdown((s) => s - 1), 1000);
+    return () => clearTimeout(timer);
+  }, [resendCountdown]);
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -35,6 +46,7 @@ export function LoginPage() {
       if (result.requires_2fa && result.challenge_id) {
         const methods = result.methods ?? [];
         setChallenge({ id: result.challenge_id, methods });
+        setEmailStatus(result.email_status ?? null);
         setMethod(
           methods.includes("email_otp")
             ? "email_otp"
@@ -57,6 +69,7 @@ export function LoginPage() {
   async function verifyCode(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!challenge) return;
+    setVerifying(true);
     try {
       await auth2faApi.verify(challenge.id, method, code);
       if (next) {
@@ -66,6 +79,8 @@ export function LoginPage() {
       }
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "验证失败");
+    } finally {
+      setVerifying(false);
     }
   }
 
@@ -73,8 +88,12 @@ export function LoginPage() {
     if (!challenge) return;
     try {
       await auth2faApi.send(challenge.id);
+      toast.success("验证码已重新发送，请查收邮箱");
+      setEmailStatus("sent");
+      setResendCountdown(60);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "发送失败");
+      setEmailStatus("failed");
     }
   }
 
@@ -109,6 +128,19 @@ export function LoginPage() {
               </label>
             ))}
           </div>
+          {method === "email_otp" && emailStatus && (
+            <p
+              className={`text-xs ${
+                emailStatus === "sent" ? "text-muted" : "text-warning"
+              }`}
+            >
+              {emailStatus === "sent" &&
+                "验证码已发送至你的邮箱，10 分钟内有效；重新发送后旧码自动失效"}
+              {emailStatus === "failed" &&
+                "验证码发送失败，请点击下方“重新发送邮箱验证码”重试"}
+              {emailStatus === "rate_limited" && "验证码发送过于频繁，请稍后再试"}
+            </p>
+          )}
           <label className="block">
             <span className="label">验证码</span>
             <input
@@ -116,19 +148,29 @@ export function LoginPage() {
               onChange={(e) => setCode(e.target.value)}
               className="input"
               placeholder={method === "recovery" ? "恢复码" : "6 位动态码"}
+              autoFocus
+              inputMode={method === "recovery" ? "text" : "numeric"}
+              maxLength={method === "recovery" ? 64 : 6}
               required
             />
           </label>
-          <button type="submit" className="btn btn-primary w-full">
-            验证
+          <button
+            type="submit"
+            className="btn btn-primary w-full"
+            disabled={verifying}
+          >
+            {verifying ? "验证中…" : "验证"}
           </button>
           {challenge.methods.includes("email_otp") && (
             <button
               type="button"
               onClick={sendCode}
               className="btn btn-secondary w-full"
+              disabled={verifying || resendCountdown > 0}
             >
-              重新发送邮箱验证码
+              {resendCountdown > 0
+                ? `重新发送（${resendCountdown}s）`
+                : "重新发送邮箱验证码"}
             </button>
           )}
         </form>

@@ -81,6 +81,10 @@ export const authApi = {
         requires_2fa?: boolean;
         challenge_id?: string;
         methods?: string[];
+        /** 登录时是否已向邮箱发送 2FA 验证码 */
+        email_sent?: boolean;
+        /** 邮件发送状态：sent / failed / rate_limited / skipped */
+        email_status?: "sent" | "failed" | "rate_limited" | "skipped";
       }
     >("/api/v1/auth/login", { method: "POST", body: JSON.stringify(data) }),
   logout: () => api<void>("/api/v1/auth/logout", { method: "POST" }),

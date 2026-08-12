@@ -319,17 +319,22 @@ def login(
             methods,
             remember_me=payload.remember_me,
         )
+        email_status = "skipped"
         if user.email_otp_enabled:
             send_count = get_rate_limiter().hit(
                 "otp_send", user.email, settings.otp_send_window_seconds
             )
-            if send_count <= settings.otp_send_limit:
+            if send_count > settings.otp_send_limit:
+                email_status = "rate_limited"
+            else:
                 code = create_otp(db, OtpPurpose.two_fa, user.email)
                 try:
                     get_email_service().send_verification(user.email, code)
+                    email_status = "sent"
                 except Exception:
                     # 邮件服务故障不应阻塞登录响应：TOTP/恢复码用户仍可完成二次验证，
                     # 邮箱用户可通过 /2fa/send 重发验证码（重发接口会给出明确错误）。
+                    email_status = "failed"
                     logger.exception("2FA 邮件发送失败 email=%s", user.email)
         log_audit(
             db,
@@ -339,7 +344,13 @@ def login(
             ip=ip,
             user_agent=user_agent,
         )
-        return {"requires_2fa": True, "challenge_id": challenge_id, "methods": methods}
+        return {
+            "requires_2fa": True,
+            "challenge_id": challenge_id,
+            "methods": methods,
+            "email_sent": email_status == "sent",
+            "email_status": email_status,
+        }
 
     _create_session_and_cookie(
         db,
