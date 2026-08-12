@@ -26,6 +26,7 @@ from app.security.tokens import generate_token, hash_token
 from app.services.email import get_email_service
 from app.services.otps import create_otp, verify_otp
 from app.services.audit import log_audit
+from app.services.rate_limit import get_rate_limiter
 from app.services.twofa import (
     consume_recovery_code,
     create_challenge,
@@ -110,11 +111,29 @@ def login(
     response: Response,
     db: Session = Depends(get_db),
 ) -> dict:
+    ip = request.client.host if request.client else ""
+    user_agent = request.headers.get("user-agent")
     user = db.scalar(select(User).where(User.email == payload.email.lower()))
     if user is None or not verify_password(payload.password, user.password_hash):
+        count = get_rate_limiter().hit(
+            "login",
+            f"{payload.email.lower()}:{ip}",
+            settings.login_rate_window_seconds,
+        )
+        log_audit(
+            db,
+            "user",
+            str(user.id) if user else None,
+            "login_failed",
+            ip=ip,
+            user_agent=user_agent,
+        )
+        if count > settings.login_rate_limit:
+            raise HTTPException(status.HTTP_429_TOO_MANY_REQUESTS, "尝试次数过多，请稍后再试")
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "邮箱或密码错误")
     if user.status != UserStatus.active:
         raise HTTPException(status.HTTP_403_FORBIDDEN, "账号已被禁用")
+    get_rate_limiter().reset("login", f"{user.email}:{ip}")
 
     methods = []
     if user.email_otp_enabled:
@@ -125,15 +144,19 @@ def login(
         methods.append("recovery")
         challenge_id = create_challenge(get_twofa_store(), str(user.id), methods)
         if user.email_otp_enabled:
-            code = create_otp(db, OtpPurpose.two_fa, user.email)
-            get_email_service().send_verification(user.email, code)
+            send_count = get_rate_limiter().hit(
+                "otp_send", user.email, settings.otp_send_window_seconds
+            )
+            if send_count <= settings.otp_send_limit:
+                code = create_otp(db, OtpPurpose.two_fa, user.email)
+                get_email_service().send_verification(user.email, code)
         log_audit(
             db,
             "user",
             str(user.id),
             "login_step1",
-            ip=request.client.host if request.client else None,
-            user_agent=request.headers.get("user-agent"),
+            ip=ip,
+            user_agent=user_agent,
         )
         return {"requires_2fa": True, "challenge_id": challenge_id, "methods": methods}
 
@@ -143,8 +166,8 @@ def login(
         "user",
         str(user.id),
         "login",
-        ip=request.client.host if request.client else None,
-        user_agent=request.headers.get("user-agent"),
+        ip=ip,
+        user_agent=user_agent,
     )
     return serialize_user(user)
 
@@ -162,6 +185,11 @@ def send_twofa_code(
     user = db.get(User, uuid.UUID(challenge.user_id))
     if user is None or user.status != UserStatus.active:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "账号不可用")
+    send_count = get_rate_limiter().hit(
+        "otp_send", user.email, settings.otp_send_window_seconds
+    )
+    if send_count > settings.otp_send_limit:
+        raise HTTPException(status.HTTP_429_TOO_MANY_REQUESTS, "发送过于频繁")
     code = create_otp(db, OtpPurpose.two_fa, user.email)
     get_email_service().send_verification(user.email, code)
     return {"message": "验证码已发送"}
@@ -247,4 +275,5 @@ def confirm_password_reset(
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "验证码无效或已过期")
     user.password_hash = hash_password(payload.new_password)
     db.commit()
+    log_audit(db, "user", str(user.id), "password_reset")
     return {"message": "密码已重置"}

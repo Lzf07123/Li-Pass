@@ -22,6 +22,7 @@ from app.schemas.auth import (
 )
 from app.security.passwords import hash_password, verify_password
 from app.services.blocks import find_block
+from app.services.audit import log_audit
 
 router = APIRouter(prefix="/api/v1", tags=["users"])
 
@@ -66,6 +67,7 @@ def change_password(
     for session in others:
         session.revoked_at = datetime.now(timezone.utc)
     db.commit()
+    log_audit(db, "user", str(user.id), "password_change")
     return {"message": "密码已修改，其他会话已退出"}
 
 

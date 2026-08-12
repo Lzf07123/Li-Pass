@@ -8,6 +8,7 @@ from app.api.deps import get_current_admin
 from app.core.db import get_db
 from app.models.client_user_block import ClientUserBlock
 from app.models.oauth_client import OAuthClient
+from app.models.user import User
 from app.schemas.oauth import (
     ClientBlockCreate,
     ClientCreate,
@@ -17,6 +18,7 @@ from app.schemas.oauth import (
 )
 from app.security.tokens import generate_client_id, generate_client_secret, hash_token
 from app.services.blocks import add_block, list_blocks, remove_block
+from app.services.audit import log_audit
 
 router = APIRouter(
     prefix="/api/v1/admin/clients",
@@ -123,6 +125,7 @@ def admin_list_blocks(client_id: uuid.UUID, db: Session = Depends(get_db)) -> li
 def admin_add_block(
     client_id: uuid.UUID,
     payload: ClientBlockCreate,
+    actor: User = Depends(get_current_admin),
     db: Session = Depends(get_db),
 ) -> dict:
     client = db.get(OAuthClient, client_id)
@@ -138,6 +141,15 @@ def admin_add_block(
         )
     except ValueError as exc:
         raise HTTPException(status.HTTP_409_CONFLICT, str(exc))
+    log_audit(
+        db,
+        "admin",
+        str(actor.id),
+        "block_add",
+        target_type="oauth_client",
+        target_id=str(client.id),
+        detail={"email": block.email, "user_id": str(block.user_id) if block.user_id else None},
+    )
     return _serialize_block(block)
 
 
@@ -145,7 +157,10 @@ def admin_add_block(
     "/{client_id:uuid}/blocks/{block_id}", status_code=status.HTTP_204_NO_CONTENT
 )
 def admin_remove_block(
-    client_id: uuid.UUID, block_id: uuid.UUID, db: Session = Depends(get_db)
+    client_id: uuid.UUID,
+    block_id: uuid.UUID,
+    actor: User = Depends(get_current_admin),
+    db: Session = Depends(get_db),
 ) -> None:
     client = db.get(OAuthClient, client_id)
     if client is None:
@@ -154,3 +169,11 @@ def admin_remove_block(
     if block is None or block.client_id != client.id:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "封禁记录不存在")
     remove_block(db, block.id)
+    log_audit(
+        db,
+        "admin",
+        str(actor.id),
+        "block_remove",
+        target_type="oauth_client",
+        target_id=str(client.id),
+    )

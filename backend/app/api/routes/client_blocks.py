@@ -11,6 +11,7 @@ from app.models.oauth_client import OAuthClient
 from app.schemas.oauth import ClientBlockCreate
 from app.security.tokens import hash_token
 from app.services.blocks import add_block, list_blocks, remove_block
+from app.services.audit import log_audit
 
 router = APIRouter(prefix="/oauth2/client", tags=["client-blocks"])
 
@@ -70,6 +71,13 @@ def create_client_block(
         )
     except ValueError as exc:
         raise HTTPException(status.HTTP_409_CONFLICT, str(exc))
+    log_audit(
+        db,
+        "client",
+        client.client_id,
+        "block_add",
+        detail={"email": block.email, "user_id": str(block.user_id) if block.user_id else None},
+    )
     return _serialize(block)
 
 
@@ -84,3 +92,4 @@ def delete_client_block(
     if block is None or block.client_id != client.id:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "封禁记录不存在")
     remove_block(db, block.id)
+    log_audit(db, "client", client.client_id, "block_remove")
