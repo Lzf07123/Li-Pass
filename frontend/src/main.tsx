@@ -4,6 +4,7 @@ import './index.css'
 import App from './App.tsx'
 import { DOCUMENT_TITLE, FAVICON_WEBP } from './lib/brand'
 import { ToastProvider } from './components/ToastProvider'
+import { initRipple } from './lib/ripple'
 
 /**
  * 品牌变量化：标题与 favicon 从 brand.ts 读取，替换配置即全局生效。
@@ -27,6 +28,7 @@ function applyBrandAssets() {
 }
 
 applyBrandAssets()
+initRipple()
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

@@ -2,14 +2,15 @@ import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 
 import { authApi } from "../api/client";
+import { AsyncButton } from "../components/AsyncButton";
 import { AuthShell } from "../components/AuthShell";
+import { useAsyncAction } from "../hooks/useAsyncAction";
 import { useToast } from "../hooks/useToast";
 
 export function VerifyEmailPage() {
   const [searchParams] = useSearchParams();
   const email = searchParams.get("email") ?? "";
   const [code, setCode] = useState("");
-  const [resending, setResending] = useState(false);
   const [resendCountdown, setResendCountdown] = useState(0);
   const toast = useToast();
   const navigate = useNavigate();
@@ -20,9 +21,8 @@ export function VerifyEmailPage() {
     return () => clearTimeout(timer);
   }, [resendCountdown]);
 
-  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    try {
+  const submitAction = useAsyncAction(
+    async (email: string, code: string) => {
       const result = await authApi.verifyEmail({ email, code });
       toast.success(result.message, {
         duration: 8000,
@@ -31,23 +31,33 @@ export function VerifyEmailPage() {
           onClick: () => navigate("/login"),
         },
       });
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "验证失败");
-    }
-  }
+    },
+    {
+      onError: (err) =>
+        toast.error(err instanceof Error ? err.message : "验证失败"),
+    },
+  );
 
-  async function resend() {
-    if (resending || !email) return;
-    setResending(true);
-    try {
+  const resendAction = useAsyncAction(
+    async (email: string) => {
       const result = await authApi.resendVerifyEmail(email);
       setResendCountdown(60);
       toast.success(result.message);
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "重新发送失败");
-    } finally {
-      setResending(false);
-    }
+    },
+    {
+      onError: (err) =>
+        toast.error(err instanceof Error ? err.message : "重新发送失败"),
+    },
+  );
+
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    await submitAction.run(email, code);
+  }
+
+  async function resend() {
+    if (resendAction.pending || !email) return;
+    await resendAction.run(email);
   }
 
   return (
@@ -68,16 +78,20 @@ export function VerifyEmailPage() {
             required
           />
         </label>
-        <button type="submit" className="btn btn-primary w-full">
+        <AsyncButton
+          type="submit"
+          status={submitAction.status}
+          className="btn btn-primary w-full"
+        >
           验证
-        </button>
+        </AsyncButton>
         <button
           type="button"
           onClick={() => void resend()}
-          disabled={resending || !email || resendCountdown > 0}
+          disabled={resendAction.pending || !email || resendCountdown > 0}
           className="btn btn-secondary w-full"
         >
-          {resending
+          {resendAction.pending
             ? "发送中…"
             : resendCountdown > 0
               ? `重新发送（${resendCountdown}s）`

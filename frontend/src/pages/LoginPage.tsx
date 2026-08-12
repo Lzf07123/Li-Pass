@@ -2,7 +2,9 @@ import { useEffect, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 
 import { auth2faApi, authApi } from "../api/client";
+import { AsyncButton } from "../components/AsyncButton";
 import { AuthShell } from "../components/AuthShell";
+import { useAsyncAction } from "../hooks/useAsyncAction";
 import { useToast } from "../hooks/useToast";
 import { APP_NAME } from "../lib/brand";
 import { isSafeNext } from "../lib/navigation";
@@ -24,9 +26,7 @@ export function LoginPage() {
   const [emailStatus, setEmailStatus] = useState<EmailSendStatus | null>(null);
   const [code, setCode] = useState("");
   const [method, setMethod] = useState("");
-  const [verifying, setVerifying] = useState(false);
   const [resendCountdown, setResendCountdown] = useState(0);
-  const [sending, setSending] = useState(false);
   const [emailRetryAfterSeconds, setEmailRetryAfterSeconds] = useState(3600);
   const [rememberMe, setRememberMe] = useState(false);
   const toast = useToast();
@@ -41,69 +41,79 @@ export function LoginPage() {
     return () => clearTimeout(timer);
   }, [resendCountdown]);
 
-  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    try {
-      const result = await authApi.login({ email, password, remember_me: rememberMe });
+  const loginAction = useAsyncAction(
+    async (email: string, password: string, rememberMe: boolean) => {
+      const result = await authApi.login({
+        email,
+        password,
+        remember_me: rememberMe,
+      });
       if (result.requires_2fa && result.challenge_id) {
         const methods = result.methods ?? [];
         setChallenge({ id: result.challenge_id, methods });
         setEmailStatus(result.email_status ?? null);
         setResendCountdown(0);
-        setEmailRetryAfterSeconds(
-          result.email_retry_after_seconds ?? 3600,
-        );
+        setEmailRetryAfterSeconds(result.email_retry_after_seconds ?? 3600);
         setMethod(
           methods.includes("email_otp")
             ? "email_otp"
             : methods.includes("totp")
               ? "totp"
-              : "recovery"
+              : "recovery",
         );
+      } else if (next) {
+        window.location.href = next;
       } else {
-        if (next) {
-          window.location.href = next;
-        } else {
-          navigate(next || "/");
-        }
+        navigate("/");
       }
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "登录失败");
-    }
+    },
+    {
+      onError: (err) =>
+        toast.error(err instanceof Error ? err.message : "登录失败"),
+    },
+  );
+
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    await loginAction.run(email, password, rememberMe);
   }
+
+  const verifyAction = useAsyncAction(
+    async (challengeId: string, method: string, code: string) => {
+      await auth2faApi.verify(challengeId, method, code);
+      if (next) window.location.href = next;
+      else navigate("/");
+    },
+    {
+      onError: (err) =>
+        toast.error(err instanceof Error ? err.message : "验证失败"),
+    },
+  );
 
   async function verifyCode(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!challenge) return;
-    setVerifying(true);
-    try {
-      await auth2faApi.verify(challenge.id, method, code);
-      if (next) {
-        window.location.href = next;
-      } else {
-        navigate(next || "/");
-      }
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "验证失败");
-    } finally {
-      setVerifying(false);
-    }
+    await verifyAction.run(challenge.id, method, code);
   }
 
-  async function sendCode() {
-    if (!challenge || sending) return;
-    setSending(true);
-    try {
-      await auth2faApi.send(challenge.id);
+  const sendCodeAction = useAsyncAction(
+    async (challengeId: string) => {
+      await auth2faApi.send(challengeId);
       toast.success("验证码已发送，请查收邮箱");
       setEmailStatus("sent");
       setResendCountdown(60);
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "发送失败");
-      setEmailStatus("failed");
-    } finally {
-      setSending(false);
-    }
+    },
+    {
+      onError: (err) => {
+        toast.error(err instanceof Error ? err.message : "发送失败");
+        setEmailStatus("failed");
+      },
+    },
+  );
+
+  function sendCode() {
+    if (!challenge || sendCodeAction.pending) return;
+    void sendCodeAction.run(challenge.id);
   }
 
   if (challenge) {
@@ -168,28 +178,27 @@ export function LoginPage() {
               required
             />
           </label>
-          <button
+          <AsyncButton
             type="submit"
+            status={verifyAction.status}
             className="btn btn-primary w-full"
-            disabled={verifying}
           >
-            {verifying ? "验证中…" : "验证"}
-          </button>
+            验证
+          </AsyncButton>
           {challenge.methods.includes("email_otp") && (
-            <button
+            <AsyncButton
               type="button"
-              onClick={sendCode}
+              status={sendCodeAction.status}
+              onClick={() => void sendCode()}
               className="btn btn-secondary w-full"
-              disabled={verifying || sending || resendCountdown > 0}
+              disabled={verifyAction.pending || resendCountdown > 0}
             >
-              {sending
-                ? "发送中…"
-                : resendCountdown > 0
-                  ? `重新发送（${resendCountdown}s）`
-                  : emailStatus === "sent"
-                    ? "重新发送邮箱验证码"
-                    : "获取邮箱验证码"}
-            </button>
+              {resendCountdown > 0
+                ? `重新发送（${resendCountdown}s）`
+                : emailStatus === "sent"
+                  ? "重新发送邮箱验证码"
+                  : "获取邮箱验证码"}
+            </AsyncButton>
           )}
         </form>
       </AuthShell>
@@ -230,9 +239,13 @@ export function LoginPage() {
           />
           记住我（30 天内免登录）
         </label>
-        <button type="submit" className="btn btn-primary w-full">
+        <AsyncButton
+          type="submit"
+          status={loginAction.status}
+          className="btn btn-primary w-full"
+        >
           登录
-        </button>
+        </AsyncButton>
         <div className="flex items-center justify-center gap-2 text-sm">
           <Link to="/forgot-password" className="btn-link">
             忘记密码？

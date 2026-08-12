@@ -1,5 +1,7 @@
 import type { ReactNode } from "react";
 
+import type { AsyncStatus } from "../hooks/useAsyncAction";
+import { AsyncButton } from "./AsyncButton";
 import { Modal, type ModalIntent } from "./Modal";
 
 export function ConfirmDialog({
@@ -10,6 +12,7 @@ export function ConfirmDialog({
   confirmLabel = "确认",
   cancelLabel = "取消",
   busy = false,
+  status,
   onConfirm,
   onCancel,
   children,
@@ -21,6 +24,7 @@ export function ConfirmDialog({
   confirmLabel?: string;
   cancelLabel?: string;
   busy?: boolean;
+  status?: AsyncStatus;
   onConfirm: () => void;
   onCancel: () => void;
   children?: ReactNode;
@@ -28,7 +32,7 @@ export function ConfirmDialog({
   return (
     <Modal
       open={open}
-      onClose={busy ? () => undefined : onCancel}
+      onClose={busy || status === "pending" ? () => undefined : onCancel}
       title={title}
       intent={intent}
       footer={
@@ -37,18 +41,21 @@ export function ConfirmDialog({
             type="button"
             className="btn btn-secondary"
             onClick={onCancel}
-            disabled={busy}
+            disabled={busy || status === "pending"}
           >
             {cancelLabel}
           </button>
-          <button
+          <AsyncButton
             type="button"
-            className={`btn ${intent === "danger" ? "btn-danger" : "btn-primary"}`}
+            status={status ?? (busy ? "pending" : "idle")}
+            className={`btn ${
+              intent === "danger" ? "btn-danger" : "btn-primary"
+            }`}
             onClick={onConfirm}
-            disabled={busy}
+            loadingLabel="处理中…"
           >
-            {busy ? "处理中…" : confirmLabel}
-          </button>
+            {confirmLabel}
+          </AsyncButton>
         </>
       }
     >

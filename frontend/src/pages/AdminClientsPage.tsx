@@ -1,8 +1,12 @@
 import { useEffect, useState } from "react";
 
 import { adminBlocksApi, adminClientsApi } from "../api/client";
+import { AnimatedNumber } from "../components/AnimatedNumber";
+import { AsyncButton } from "../components/AsyncButton";
 import { ConfirmDialog } from "../components/ConfirmDialog";
 import { Modal } from "../components/Modal";
+import { useAsyncAction } from "../hooks/useAsyncAction";
+import { useBreathOnChange } from "../hooks/useBreathOnChange";
 import { useToast } from "../hooks/useToast";
 import type { ClientBlockOut, ClientOut } from "../api/types";
 
@@ -28,6 +32,7 @@ export function AdminClientsPage() {
     secret: string;
   } | null>(null);
   const toast = useToast();
+  const clientsBreathing = useBreathOnChange(clients);
 
   useEffect(() => {
     adminClientsApi
@@ -44,20 +49,22 @@ export function AdminClientsPage() {
       );
   }, [toast]);
 
-  async function handleCreate(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    try {
+  const createAction = useAsyncAction(
+    async (payload: {
+      name: string;
+      homeUrl: string;
+      logoutUri: string;
+      redirectUris: string[];
+      isPublic: boolean;
+    }) => {
       const result = await adminClientsApi.create({
-        name,
-        home_url: homeUrl || null,
-        logout_uri: logoutUri || null,
-        redirect_uris: redirectUris
-          .split("\n")
-          .map((item) => item.trim())
-          .filter(Boolean),
-        public: isPublic,
+        name: payload.name,
+        home_url: payload.homeUrl || null,
+        logout_uri: payload.logoutUri || null,
+        redirect_uris: payload.redirectUris,
+        public: payload.isPublic,
       });
-      setClients([result.client, ...clients]);
+      setClients((prev) => [result.client, ...prev]);
       setSecretModal({
         name: result.client.name,
         client_id: result.client.client_id,
@@ -67,47 +74,86 @@ export function AdminClientsPage() {
       setHomeUrl("");
       setLogoutUri("");
       setRedirectUris("");
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "创建失败");
-    }
+    },
+    {
+      onError: (err) =>
+        toast.error(err instanceof Error ? err.message : "创建失败"),
+    },
+  );
+
+  async function handleCreate(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    await createAction.run({
+      name,
+      homeUrl,
+      logoutUri,
+      redirectUris: redirectUris
+        .split("\n")
+        .map((item) => item.trim())
+        .filter(Boolean),
+      isPublic,
+    });
   }
 
-  async function addBlock(clientId: string) {
-    try {
-      const created = await adminBlocksApi.add(clientId, {
-        email: blockEmail[clientId] ?? "",
-        reason: blockReason[clientId] ?? "",
-      });
-      setBlocks({ ...blocks, [clientId]: [created, ...(blocks[clientId] ?? [])] });
-      setBlockEmail({ ...blockEmail, [clientId]: "" });
-      setBlockReason({ ...blockReason, [clientId]: "" });
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "封禁失败");
-    }
+  const blockAction = useAsyncAction(
+    async (
+      clientId: string,
+      email: string,
+      reason: string,
+      blockId?: string,
+    ) => {
+      if (blockId) {
+        await adminBlocksApi.remove(clientId, blockId);
+        setBlocks((prev) => ({
+          ...prev,
+          [clientId]: (prev[clientId] ?? []).filter(
+            (block) => block.id !== blockId,
+          ),
+        }));
+      } else {
+        const created = await adminBlocksApi.add(clientId, { email, reason });
+        setBlocks((prev) => ({
+          ...prev,
+          [clientId]: [created, ...(prev[clientId] ?? [])],
+        }));
+        setBlockEmail((prev) => ({ ...prev, [clientId]: "" }));
+        setBlockReason((prev) => ({ ...prev, [clientId]: "" }));
+      }
+    },
+    {
+      onError: (err) =>
+        toast.error(err instanceof Error ? err.message : "操作失败"),
+    },
+  );
+
+  function addBlock(clientId: string) {
+    void blockAction.run(
+      clientId,
+      blockEmail[clientId] ?? "",
+      blockReason[clientId] ?? "",
+    );
   }
 
-  async function removeBlock(clientId: string, blockId: string) {
-    try {
-      await adminBlocksApi.remove(clientId, blockId);
-      setBlocks({
-        ...blocks,
-        [clientId]: (blocks[clientId] ?? []).filter((block) => block.id !== blockId),
-      });
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "解封失败");
-    }
+  function removeBlock(clientId: string, blockId: string) {
+    void blockAction.run(clientId, "", "", blockId);
   }
 
-  async function confirmRemove() {
-    if (!removeTarget) return;
-    try {
-      await adminClientsApi.remove(removeTarget.id);
-      setClients(clients.filter((client) => client.id !== removeTarget.id));
+  const removeAction = useAsyncAction(
+    async (client: ClientOut) => {
+      await adminClientsApi.remove(client.id);
+      setClients((prev) => prev.filter((item) => item.id !== client.id));
       setRemoveTarget(null);
-      toast.success(`应用“${removeTarget.name}”已删除`);
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "删除失败");
-    }
+      toast.success(`应用“${client.name}”已删除`);
+    },
+    {
+      onError: (err) =>
+        toast.error(err instanceof Error ? err.message : "删除失败"),
+    },
+  );
+
+  function confirmRemove() {
+    if (!removeTarget) return;
+    void removeAction.run(removeTarget);
   }
 
   function startEdit(client: ClientOut) {
@@ -124,45 +170,61 @@ export function AdminClientsPage() {
     setEditDraft((draft) => (draft ? { ...draft, ...patch } : draft));
   }
 
-  async function saveEdit() {
-    if (!editDraft) return;
-    try {
-      const updated = await adminClientsApi.update(editDraft.id, {
-        name: editDraft.name,
-        description: editDraft.description,
-        logo_url: editDraft.logo_url || null,
-        home_url: editDraft.home_url || null,
-        logout_uri: editDraft.logout_uri || null,
-        redirect_uris: editDraft.redirect_uris,
-        scopes: editDraft.scopes,
-        require_consent_every_time: editDraft.require_consent_every_time,
-        is_active: editDraft.is_active,
+  const saveEditAction = useAsyncAction(
+    async (draft: ClientOut) => {
+      const updated = await adminClientsApi.update(draft.id, {
+        name: draft.name,
+        description: draft.description,
+        logo_url: draft.logo_url || null,
+        home_url: draft.home_url || null,
+        logout_uri: draft.logout_uri || null,
+        redirect_uris: draft.redirect_uris,
+        scopes: draft.scopes,
+        require_consent_every_time: draft.require_consent_every_time,
+        is_active: draft.is_active,
       });
-      setClients(clients.map((client) => (client.id === updated.id ? updated : client)));
+      setClients((prev) =>
+        prev.map((client) => (client.id === updated.id ? updated : client)),
+      );
       setEditingId(null);
       setEditDraft(null);
       toast.success(`应用“${updated.name}”已保存`);
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "保存失败");
-    }
+    },
+    {
+      onError: (err) =>
+        toast.error(err instanceof Error ? err.message : "保存失败"),
+    },
+  );
+
+  function saveEdit() {
+    if (!editDraft) return;
+    void saveEditAction.run(editDraft);
   }
 
-  async function toggleActive(client: ClientOut) {
-    try {
+  const toggleAction = useAsyncAction(
+    async (client: ClientOut) => {
       const updated = await adminClientsApi.update(client.id, {
         is_active: !client.is_active,
       });
-      setClients(clients.map((item) => (item.id === updated.id ? updated : item)));
+      setClients((prev) =>
+        prev.map((item) => (item.id === updated.id ? updated : item)),
+      );
       toast.success(
         `应用“${updated.name}”已${updated.is_active ? "启用" : "停用"}`,
       );
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "操作失败");
-    }
+    },
+    {
+      onError: (err) =>
+        toast.error(err instanceof Error ? err.message : "操作失败"),
+    },
+  );
+
+  function toggleActive(client: ClientOut) {
+    void toggleAction.run(client);
   }
 
-  async function resetSecret(client: ClientOut) {
-    try {
+  const resetSecretAction = useAsyncAction(
+    async (client: ClientOut) => {
       const result = await adminClientsApi.resetSecret(client.id);
       setResetTarget(null);
       setSecretModal({
@@ -170,9 +232,15 @@ export function AdminClientsPage() {
         client_id: client.client_id,
         secret: result.client_secret ?? "",
       });
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "重置密钥失败");
-    }
+    },
+    {
+      onError: (err) =>
+        toast.error(err instanceof Error ? err.message : "重置密钥失败"),
+    },
+  );
+
+  function resetSecret(client: ClientOut) {
+    void resetSecretAction.run(client);
   }
 
   async function copyText(text: string, label: string) {
@@ -195,7 +263,12 @@ export function AdminClientsPage() {
 
   return (
     <section className="space-y-6">
-      <h2 className="text-lg font-semibold text-foreground">授权网站管理</h2>
+      <h2 className="text-lg font-semibold text-foreground">
+        授权网站管理
+        <span className="ml-2 text-sm font-normal text-muted">
+          共 <AnimatedNumber value={clients.length} /> 个应用
+        </span>
+      </h2>
 
       <form onSubmit={handleCreate} className="card space-y-4 p-6">
         <h3 className="text-sm font-semibold text-foreground">添加授权网站</h3>
@@ -248,12 +321,16 @@ export function AdminClientsPage() {
           不勾选“公开客户端”时会生成机密客户端并返回
           client_secret，用于服务端 OIDC 对接。
         </p>
-        <button type="submit" className="btn btn-primary">
+        <AsyncButton
+          type="submit"
+          status={createAction.status}
+          className="btn btn-primary"
+        >
           创建应用
-        </button>
+        </AsyncButton>
       </form>
 
-      <ul className="space-y-3">
+      <ul className={`space-y-3 ${clientsBreathing ? "animate-breath" : ""}`}>
         {clients.map((client) => (
           <li key={client.id} className="card card-interactive p-5">
             <div className="flex flex-wrap items-start justify-between gap-3">
@@ -300,9 +377,14 @@ export function AdminClientsPage() {
                 <button onClick={() => startEdit(client)} className="btn btn-secondary">
                   编辑
                 </button>
-                <button onClick={() => toggleActive(client)} className="btn btn-secondary">
+                <AsyncButton
+                  type="button"
+                  status={toggleAction.pending ? "pending" : "idle"}
+                  onClick={() => void toggleActive(client)}
+                  className="btn btn-secondary"
+                >
                   {client.is_active ? "停用" : "启用"}
-                </button>
+                </AsyncButton>
                 {!client.is_active && (
                   <span className="text-xs text-muted">已停用，无法发起授权</span>
                 )}
@@ -422,9 +504,14 @@ export function AdminClientsPage() {
                   启用该网站（停用后无法发起授权）
                 </label>
                 <div className="flex flex-wrap gap-2">
-                  <button onClick={saveEdit} className="btn btn-primary">
+                  <AsyncButton
+                    type="button"
+                    status={saveEditAction.status}
+                    onClick={() => void saveEdit()}
+                    className="btn btn-primary"
+                  >
                     保存修改
-                  </button>
+                  </AsyncButton>
                   <button onClick={cancelEdit} className="btn btn-secondary">
                     取消
                   </button>
@@ -443,12 +530,15 @@ export function AdminClientsPage() {
                     <span className="text-foreground">
                       {block.email ?? block.user_id}（{block.reason || "无原因"}）
                     </span>
-                    <button
-                      onClick={() => removeBlock(client.id, block.id)}
+                    <AsyncButton
+                      type="button"
+                      status={blockAction.pending ? "pending" : "idle"}
+                      spinner={false}
+                      onClick={() => void removeBlock(client.id, block.id)}
                       className="btn-link text-sm"
                     >
                       解封
-                    </button>
+                    </AsyncButton>
                   </li>
                 ))}
               </ul>
@@ -469,12 +559,14 @@ export function AdminClientsPage() {
                   placeholder="原因"
                   className="input-sm min-w-32 flex-1"
                 />
-                <button
-                  onClick={() => addBlock(client.id)}
+                <AsyncButton
+                  type="button"
+                  status={blockAction.pending ? "pending" : "idle"}
+                  onClick={() => void addBlock(client.id)}
                   className="btn btn-danger px-3 py-1.5 text-xs"
                 >
                   封禁
-                </button>
+                </AsyncButton>
               </div>
             </div>
           </li>
@@ -492,6 +584,7 @@ export function AdminClientsPage() {
           )
         }
         confirmLabel="确认删除"
+        status={removeAction.status}
         onConfirm={confirmRemove}
         onCancel={() => setRemoveTarget(null)}
       />
@@ -508,6 +601,7 @@ export function AdminClientsPage() {
           )
         }
         confirmLabel="确认重置"
+        status={resetSecretAction.status}
         onConfirm={() => resetTarget && void resetSecret(resetTarget)}
         onCancel={() => setResetTarget(null)}
       />

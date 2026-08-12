@@ -1,12 +1,13 @@
 import { useEffect, useState } from "react";
 
 import { adminSettingsApi } from "../api/client";
+import { AsyncButton } from "../components/AsyncButton";
 import type { SiteSettings } from "../api/types";
+import { useAsyncAction } from "../hooks/useAsyncAction";
 import { useToast } from "../hooks/useToast";
 
 export function AdminSettingsPanel() {
   const [settings, setSettings] = useState<SiteSettings | null>(null);
-  const [busy, setBusy] = useState(false);
   const toast = useToast();
 
   useEffect(() => {
@@ -18,10 +19,8 @@ export function AdminSettingsPanel() {
       );
   }, [toast]);
 
-  async function toggleRegistration() {
-    if (!settings || busy) return;
-    setBusy(true);
-    try {
+  const toggleAction = useAsyncAction(
+    async (settings: SiteSettings) => {
       const next = {
         public_registration_enabled: !settings.public_registration_enabled,
       };
@@ -32,11 +31,16 @@ export function AdminSettingsPanel() {
           ? "已开启公开注册"
           : "已关闭公开注册，仅接受邀请注册",
       );
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "保存设置失败");
-    } finally {
-      setBusy(false);
-    }
+    },
+    {
+      onError: (err) =>
+        toast.error(err instanceof Error ? err.message : "保存设置失败"),
+    },
+  );
+
+  function toggleRegistration() {
+    if (!settings) return;
+    void toggleAction.run(settings);
   }
 
   return (
@@ -58,17 +62,19 @@ export function AdminSettingsPanel() {
               注册页会提示“注册渠道暂时关闭，只接收邀请注册”。
             </p>
           </div>
-          <button
-            onClick={() => void toggleRegistration()}
-            disabled={settings === null || busy}
+          <AsyncButton
+            type="button"
+            status={toggleAction.status}
+            disabled={settings === null}
             className={`btn ${
               settings?.public_registration_enabled
                 ? "btn-secondary"
                 : "btn-primary"
             }`}
+            onClick={() => void toggleRegistration()}
           >
-            {busy ? "处理中…" : settings?.public_registration_enabled ? "关闭" : "开启"}
-          </button>
+            {settings?.public_registration_enabled ? "关闭" : "开启"}
+          </AsyncButton>
         </div>
       </div>
     </section>

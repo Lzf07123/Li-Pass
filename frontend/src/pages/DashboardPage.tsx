@@ -10,10 +10,14 @@ import {
   twofaApi,
 } from "../api/client";
 import type { AppOut, SessionOut, TotpSetup, TwoFaStatus, UserOut } from "../api/types";
+import { AnimatedNumber } from "../components/AnimatedNumber";
 import { AppHeader } from "../components/AppHeader";
+import { AsyncButton } from "../components/AsyncButton";
 import { ConfirmDialog } from "../components/ConfirmDialog";
 import { Modal } from "../components/Modal";
 import { SiteFooter } from "../components/SiteFooter";
+import { useAsyncAction } from "../hooks/useAsyncAction";
+import { useBreathOnChange } from "../hooks/useBreathOnChange";
 import { useToast } from "../hooks/useToast";
 import { FadeIn } from "../components/bits/FadeIn";
 
@@ -37,16 +41,17 @@ export function DashboardPage() {
   const [totpCode, setTotpCode] = useState("");
   const [recoveryCodes, setRecoveryCodes] = useState<string[] | null>(null);
   const [revokeTarget, setRevokeTarget] = useState<AppOut | null>(null);
-  const [revoking, setRevoking] = useState(false);
+  const [revokeSessionId, setRevokeSessionId] = useState<string | null>(null);
   const [twofaBusy, setTwofaBusy] = useState<
     "email" | "totp-setup" | "totp-enable" | "totp-disable" | null
   >(null);
   const [deleteAccountOpen, setDeleteAccountOpen] = useState(false);
   const [deleteAccountPassword, setDeleteAccountPassword] = useState("");
-  const [deleteAccountBusy, setDeleteAccountBusy] = useState(false);
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const navigate = useNavigate();
   const toast = useToast();
+  const sessionsBreathing = useBreathOnChange(sessions);
+  const appsBreathing = useBreathOnChange(apps);
   const emailNoticeId = useRef<number | null>(null);
 
   useEffect(() => {
@@ -89,9 +94,8 @@ export function DashboardPage() {
     toast.error(err instanceof Error ? err.message : fallback);
   }
 
-  async function saveProfile(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    try {
+  const saveProfileAction = useAsyncAction(
+    async (nickname: string, avatarUrl: string) => {
       const updated = await meApi.updateProfile({
         nickname,
         avatar_url: avatarUrl || null,
@@ -99,14 +103,19 @@ export function DashboardPage() {
       setUser(updated);
       setAvatarUrl(updated.avatar_url ?? "");
       toast.success("资料已保存");
-    } catch (err) {
-      showError(err, "保存失败");
-    }
+    },
+    {
+      onError: (err) => showError(err, "保存失败"),
+    },
+  );
+
+  async function saveProfile(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    await saveProfileAction.run(nickname, avatarUrl);
   }
 
-  async function changePassword(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    try {
+  const changePasswordAction = useAsyncAction(
+    async (currentPassword: string, newPassword: string) => {
       const result = await meApi.changePassword({
         current_password: currentPassword,
         new_password: newPassword,
@@ -114,76 +123,107 @@ export function DashboardPage() {
       toast.success(result.message);
       setCurrentPassword("");
       setNewPassword("");
-    } catch (err) {
-      showError(err, "修改失败");
-    }
+    },
+    {
+      onError: (err) => showError(err, "修改失败"),
+    },
+  );
+
+  async function changePassword(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    await changePasswordAction.run(currentPassword, newPassword);
   }
 
-  async function sendPhoneCode() {
-    try {
+  const sendPhoneCodeAction = useAsyncAction(
+    async () => {
       await meApi.sendPhoneBind();
       setPhoneStep("code");
       toast.success("验证码已发送至绑定邮箱");
-    } catch (err) {
-      showError(err, "发送失败");
-    }
+    },
+    {
+      onError: (err) => showError(err, "发送失败"),
+    },
+  );
+
+  async function sendPhoneCode() {
+    await sendPhoneCodeAction.run();
   }
 
-  async function bindPhone(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    try {
-      const updated = await meApi.bindPhone({ phone, code: phoneCode });
+  const bindPhoneAction = useAsyncAction(
+    async (phone: string, code: string) => {
+      const updated = await meApi.bindPhone({ phone, code });
       setUser(updated);
       setPhone("");
       setPhoneCode("");
       setPhoneStep("phone");
       toast.success("手机号已绑定");
-    } catch (err) {
-      showError(err, "绑定失败");
-    }
+    },
+    {
+      onError: (err) => showError(err, "绑定失败"),
+    },
+  );
+
+  async function bindPhone(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    await bindPhoneAction.run(phone, phoneCode);
   }
 
-  async function uploadAvatar(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (!avatarFile) return;
-    try {
-      const updated = await meApi.uploadAvatar(avatarFile);
+  const uploadAvatarAction = useAsyncAction(
+    async (file: File) => {
+      const updated = await meApi.uploadAvatar(file);
       setUser(updated);
       setAvatarUrl(updated.avatar_url ?? "");
       setAvatarFile(null);
       toast.success("头像已更新");
-    } catch (err) {
-      showError(err, "上传失败");
-    }
+    },
+    {
+      onError: (err) => showError(err, "上传失败"),
+    },
+  );
+
+  async function uploadAvatar(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!avatarFile) return;
+    await uploadAvatarAction.run(avatarFile);
   }
 
-  async function revokeSession(id: string) {
-    try {
+  const revokeSessionAction = useAsyncAction(
+    async (id: string) => {
       await sessionsApi.revoke(id);
       setSessions(await sessionsApi.list());
+      setRevokeSessionId(null);
       toast.success("已退出该设备");
-    } catch (err) {
-      showError(err, "操作失败");
-    }
+    },
+    {
+      onError: (err) => showError(err, "操作失败"),
+    },
+  );
+
+  function revokeSession(id: string) {
+    setRevokeSessionId(id);
+    void revokeSessionAction.run(id);
   }
 
-  async function confirmRevoke() {
-    if (!revokeTarget) return;
-    setRevoking(true);
-    try {
-      const result = await appsApi.revoke(revokeTarget.client_id);
-      setApps(apps.filter((app) => app.client_id !== revokeTarget.client_id));
+  const revokeAppAction = useAsyncAction(
+    async (clientId: string, name: string) => {
+      const result = await appsApi.revoke(clientId);
+      setApps((prev) => prev.filter((app) => app.client_id !== clientId));
       setRevokeTarget(null);
-      toast.success(`已取消对“${revokeTarget.name}”的授权`);
+      toast.success(`已取消对“${name}”的授权`);
       if (result.logout_uri) {
         const next = encodeURIComponent(`${window.location.origin}/`);
         window.location.href = `${result.logout_uri}?next=${next}`;
       }
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "取消授权失败");
-    } finally {
-      setRevoking(false);
-    }
+    },
+    {
+      onError: (err) =>
+        toast.error(err instanceof Error ? err.message : "取消授权失败"),
+    },
+  );
+
+  function confirmRevoke() {
+    if (!revokeTarget) return;
+    void revokeAppAction.run(revokeTarget.client_id, revokeTarget.name);
   }
 
   async function logout() {
@@ -271,25 +311,27 @@ export function DashboardPage() {
     }
   }
 
-  async function submitDeleteAccount(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (deleteAccountBusy) return;
-    if (!deleteAccountPassword) {
-      toast.error("请输入当前密码以确认注销账号");
-      return;
-    }
-    setDeleteAccountBusy(true);
-    try {
-      const result = await meApi.deleteAccount(deleteAccountPassword);
+  const deleteAccountAction = useAsyncAction(
+    async (password: string) => {
+      const result = await meApi.deleteAccount(password);
       setDeleteAccountOpen(false);
       setDeleteAccountPassword("");
       toast.success(result.message);
       navigate("/login");
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "注销失败");
-    } finally {
-      setDeleteAccountBusy(false);
+    },
+    {
+      onError: (err) =>
+        toast.error(err instanceof Error ? err.message : "注销失败"),
+    },
+  );
+
+  async function submitDeleteAccount(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!deleteAccountPassword) {
+      toast.error("请输入当前密码以确认注销账号");
+      return;
     }
+    await deleteAccountAction.run(deleteAccountPassword);
   }
 
   useEffect(() => {
@@ -370,9 +412,13 @@ export function DashboardPage() {
                       className="input file:cursor-pointer file:mr-3 file:rounded-md file:border-0 file:bg-surface-2 file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-foreground"
                     />
                   </label>
-                  <button type="submit" className="btn btn-primary">
+                  <AsyncButton
+                    type="submit"
+                    status={uploadAvatarAction.status}
+                    className="btn btn-primary"
+                  >
                     上传头像
-                  </button>
+                  </AsyncButton>
                 </form>
                 <form onSubmit={saveProfile} className="flex flex-wrap items-end gap-2">
                   <label className="block min-w-0 flex-1">
@@ -384,9 +430,13 @@ export function DashboardPage() {
                       required
                     />
                   </label>
-                  <button type="submit" className="btn btn-primary">
+                  <AsyncButton
+                    type="submit"
+                    status={saveProfileAction.status}
+                    className="btn btn-primary"
+                  >
                     保存
-                  </button>
+                  </AsyncButton>
                 </form>
               </section>
             </FadeIn>
@@ -416,9 +466,13 @@ export function DashboardPage() {
                 autoComplete="new-password"
                 required
               />
-              <button type="submit" className="btn btn-primary">
+              <AsyncButton
+                type="submit"
+                status={changePasswordAction.status}
+                className="btn btn-primary"
+              >
                 修改密码
-              </button>
+              </AsyncButton>
             </form>
           </section>
         </FadeIn>
@@ -447,9 +501,13 @@ export function DashboardPage() {
                       required
                     />
                   </label>
-                  <button type="submit" className="btn btn-primary">
+                  <AsyncButton
+                    type="submit"
+                    status={sendPhoneCodeAction.status}
+                    className="btn btn-primary"
+                  >
                     发送验证码
-                  </button>
+                  </AsyncButton>
                 </form>
               ) : (
                 <form
@@ -475,9 +533,13 @@ export function DashboardPage() {
                   >
                     上一步
                   </button>
-                  <button type="submit" className="btn btn-primary">
+                  <AsyncButton
+                    type="submit"
+                    status={bindPhoneAction.status}
+                    className="btn btn-primary"
+                  >
                     确认绑定
-                  </button>
+                  </AsyncButton>
                 </form>
               )}
             </section>
@@ -495,17 +557,15 @@ export function DashboardPage() {
                   {twofa?.email_otp_enabled ? "已开启" : "未开启"}
                 </p>
               </div>
-              <button
+              <AsyncButton
+                type="button"
+                status={twofaBusy === "email" ? "pending" : "idle"}
                 onClick={toggleEmailTwofa}
                 className={`btn ${twofa?.email_otp_enabled ? "btn-secondary" : "btn-primary"}`}
                 disabled={twofa === null || twofaBusy !== null}
               >
-                {twofaBusy === "email"
-                  ? "处理中…"
-                  : twofa?.email_otp_enabled
-                    ? "关闭"
-                    : "开启"}
-              </button>
+                {twofa?.email_otp_enabled ? "关闭" : "开启"}
+              </AsyncButton>
             </div>
 
             <div className="flex items-center justify-between gap-4">
@@ -518,21 +578,25 @@ export function DashboardPage() {
                 </p>
               </div>
               {twofa?.totp_enabled ? (
-                <button
+                <AsyncButton
+                  type="button"
+                  status={twofaBusy === "totp-disable" ? "pending" : "idle"}
                   onClick={disableTotp}
                   className="btn btn-danger"
                   disabled={twofa === null || twofaBusy !== null}
                 >
-                  {twofaBusy === "totp-disable" ? "处理中…" : "关闭"}
-                </button>
+                  关闭
+                </AsyncButton>
               ) : (
-                <button
+                <AsyncButton
+                  type="button"
+                  status={twofaBusy === "totp-setup" ? "pending" : "idle"}
                   onClick={startTotpSetup}
                   className="btn btn-primary"
                   disabled={twofa === null || twofaBusy !== null}
                 >
-                  {twofaBusy === "totp-setup" ? "处理中…" : "开始设置"}
-                </button>
+                  开始设置
+                </AsyncButton>
               )}
             </div>
 
@@ -556,13 +620,15 @@ export function DashboardPage() {
                   className="input"
                   inputMode="numeric"
                 />
-                <button
+                <AsyncButton
+                  type="button"
+                  status={twofaBusy === "totp-enable" ? "pending" : "idle"}
                   onClick={enableTotp}
                   className="btn btn-primary"
                   disabled={twofaBusy !== null}
                 >
-                  {twofaBusy === "totp-enable" ? "处理中…" : "启用 TOTP"}
-                </button>
+                  启用 TOTP
+                </AsyncButton>
               </div>
             )}
 
@@ -581,8 +647,13 @@ export function DashboardPage() {
 
         <FadeIn delay={0.32}>
           <section className="card p-6">
-            <h2 className="mb-4 text-base font-semibold text-foreground">登录设备</h2>
-            <ul className="space-y-2">
+            <h2 className="mb-4 text-base font-semibold text-foreground">
+              登录设备
+              <span className="ml-2 text-sm font-normal text-muted">
+                共 <AnimatedNumber value={sessions.length} /> 个会话
+              </span>
+            </h2>
+            <ul className={`space-y-2 ${sessionsBreathing ? "animate-breath" : ""}`}>
               {sessions.map((session) => (
                 <li
                   key={session.id}
@@ -600,13 +671,20 @@ export function DashboardPage() {
                       {new Date(session.last_used_at).toLocaleString()}
                     </p>
                   </div>
-                  <button
+                  <AsyncButton
+                    type="button"
+                    status={
+                      revokeSessionAction.pending &&
+                      revokeSessionId === session.id
+                        ? "pending"
+                        : "idle"
+                    }
                     onClick={() => revokeSession(session.id)}
                     disabled={session.current}
                     className="btn btn-secondary"
                   >
                     退出
-                  </button>
+                  </AsyncButton>
                 </li>
               ))}
               {sessions.length === 0 && <p className="text-sm text-muted">暂无会话</p>}
@@ -616,9 +694,14 @@ export function DashboardPage() {
 
         <FadeIn delay={0.4}>
           <section className="card p-6">
-            <h2 className="mb-4 text-base font-semibold text-foreground">应用广场</h2>
+            <h2 className="mb-4 text-base font-semibold text-foreground">
+              应用广场
+              <span className="ml-2 text-sm font-normal text-muted">
+                共 <AnimatedNumber value={apps.length} /> 个网站
+              </span>
+            </h2>
             {apps.length === 0 && <p className="text-sm text-muted">还没有已授权的网站</p>}
-            <div className="grid gap-3 sm:grid-cols-2">
+            <div className={`grid gap-3 sm:grid-cols-2 ${appsBreathing ? "animate-breath" : ""}`}>
               {apps.map((app) => (
                 <div
                   key={app.client_id}
@@ -688,11 +771,11 @@ export function DashboardPage() {
             <span>确定取消对“{revokeTarget.name}”的授权吗？</span>
           )
         }
-        busy={revoking}
+        status={revokeAppAction.status}
         confirmLabel="确认取消"
         onConfirm={confirmRevoke}
         onCancel={() => {
-          if (!revoking) setRevokeTarget(null);
+          if (!revokeAppAction.pending) setRevokeTarget(null);
         }}
       />
 
@@ -725,7 +808,7 @@ export function DashboardPage() {
       <Modal
         open={deleteAccountOpen}
         onClose={() => {
-          if (!deleteAccountBusy) setDeleteAccountOpen(false);
+          if (!deleteAccountAction.pending) setDeleteAccountOpen(false);
         }}
         title="注销账号"
         intent="danger"
@@ -735,18 +818,18 @@ export function DashboardPage() {
               type="button"
               className="btn btn-secondary"
               onClick={() => setDeleteAccountOpen(false)}
-              disabled={deleteAccountBusy}
+              disabled={deleteAccountAction.pending}
             >
               取消
             </button>
-            <button
+            <AsyncButton
               type="submit"
               form="delete-account-form"
+              status={deleteAccountAction.status}
               className="btn btn-danger"
-              disabled={deleteAccountBusy}
             >
-              {deleteAccountBusy ? "处理中…" : "永久注销"}
-            </button>
+              永久注销
+            </AsyncButton>
           </>
         }
       >

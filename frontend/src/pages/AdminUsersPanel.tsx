@@ -1,8 +1,12 @@
 import { useCallback, useEffect, useState } from "react";
 
 import { adminUsersApi } from "../api/client";
+import { AnimatedNumber } from "../components/AnimatedNumber";
+import { AsyncButton } from "../components/AsyncButton";
 import { ConfirmDialog } from "../components/ConfirmDialog";
 import { Modal } from "../components/Modal";
+import { useAsyncAction } from "../hooks/useAsyncAction";
+import { useBreathOnChange } from "../hooks/useBreathOnChange";
 import { useToast } from "../hooks/useToast";
 import type { AdminUserOut } from "../api/types";
 
@@ -19,25 +23,21 @@ export function AdminUsersPanel({ currentAdminId }: { currentAdminId: string }) 
   } | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<AdminUserOut | null>(null);
   const [deletePassword, setDeletePassword] = useState("");
-  const [deleting, setDeleting] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
   const [createEmail, setCreateEmail] = useState("");
   const [createNickname, setCreateNickname] = useState("");
   const [createPassword, setCreatePassword] = useState("");
-  const [createBusy, setCreateBusy] = useState(false);
   const [inviteOpen, setInviteOpen] = useState(false);
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteNickname, setInviteNickname] = useState("");
-  const [inviteBusy, setInviteBusy] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
-  const [bulkBusy, setBulkBusy] = useState<"status" | "delete" | null>(null);
   const [batchDeleteOpen, setBatchDeleteOpen] = useState(false);
   const [batchDeletePassword, setBatchDeletePassword] = useState("");
   const [batchInviteOpen, setBatchInviteOpen] = useState(false);
   const [batchInviteText, setBatchInviteText] = useState("");
-  const [batchInviteBusy, setBatchInviteBusy] = useState(false);
   const [inviteBusyId, setInviteBusyId] = useState<string | null>(null);
   const toast = useToast();
+  const usersBreathing = useBreathOnChange(users);
 
   const selectableUsers = users.filter(
     (user) => user.id !== currentAdminId && user.kind !== "invite",
@@ -77,20 +77,8 @@ export function AdminUsersPanel({ currentAdminId }: { currentAdminId: string }) 
     load(query, statusFilter, roleFilter);
   }
 
-  async function toggleStatus(user: AdminUserOut) {
+  function toggleStatus(user: AdminUserOut) {
     setConfirmTarget({ user, action: "toggle" });
-  }
-
-  async function runToggle(user: AdminUserOut) {
-    try {
-      const nextStatus = user.status === "active" ? "disabled" : "active";
-      const updated = await adminUsersApi.update(user.id, { status: nextStatus });
-      setUsers(users.map((item) => (item.id === updated.id ? updated : item)));
-      setConfirmTarget(null);
-      toast.success(`${user.email} 已${nextStatus === "active" ? "启用" : "禁用"}`);
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "操作失败");
-    }
   }
 
   function startResetPassword(user: AdminUserOut) {
@@ -98,20 +86,26 @@ export function AdminUsersPanel({ currentAdminId }: { currentAdminId: string }) 
     setNewPassword("");
   }
 
+  const resetPasswordAction = useAsyncAction(
+    async (id: string, newPassword: string) => {
+      const result = await adminUsersApi.resetPassword(id, newPassword);
+      toast.success(result.message);
+      setPasswordTarget(null);
+      setNewPassword("");
+    },
+    {
+      onError: (err) =>
+        toast.error(err instanceof Error ? err.message : "重置失败"),
+    },
+  );
+
   async function submitResetPassword(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!passwordTarget || newPassword.length < 8) {
       toast.error("新密码至少 8 位");
       return;
     }
-    try {
-      const result = await adminUsersApi.resetPassword(passwordTarget.id, newPassword);
-      toast.success(result.message);
-      setPasswordTarget(null);
-      setNewPassword("");
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "重置失败");
-    }
+    await resetPasswordAction.run(passwordTarget.id, newPassword);
   }
 
   function startReset2fa(user: AdminUserOut) {
@@ -126,37 +120,41 @@ export function AdminUsersPanel({ currentAdminId }: { currentAdminId: string }) 
     setConfirmTarget({ user, action: "removeInvite" });
   }
 
-  async function runReset2fa(user: AdminUserOut) {
-    try {
-      const result = await adminUsersApi.reset2fa(user.id);
-      toast.success(result.message);
+  const confirmAction = useAsyncAction(
+    async (
+      user: AdminUserOut,
+      action: "toggle" | "reset2fa" | "cancelInvite" | "removeInvite",
+    ) => {
+      if (action === "toggle") {
+        const nextStatus = user.status === "active" ? "disabled" : "active";
+        const updated = await adminUsersApi.update(user.id, {
+          status: nextStatus,
+        });
+        setUsers((prev) =>
+          prev.map((item) => (item.id === updated.id ? updated : item)),
+        );
+        toast.success(
+          `${user.email} 已${nextStatus === "active" ? "启用" : "禁用"}`,
+        );
+      } else if (action === "reset2fa") {
+        const result = await adminUsersApi.reset2fa(user.id);
+        toast.success(result.message);
+      } else if (action === "cancelInvite") {
+        const result = await adminUsersApi.cancelInvite(user.id);
+        await load(query, statusFilter, roleFilter);
+        toast.success(result.message);
+      } else {
+        const result = await adminUsersApi.deleteInvite(user.id);
+        await load(query, statusFilter, roleFilter);
+        toast.success(result.message);
+      }
       setConfirmTarget(null);
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "重置失败");
-    }
-  }
-
-  async function runCancelInvite(user: AdminUserOut) {
-    try {
-      const result = await adminUsersApi.cancelInvite(user.id);
-      setConfirmTarget(null);
-      await load(query, statusFilter, roleFilter);
-      toast.success(result.message);
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "取消邀请失败");
-    }
-  }
-
-  async function runRemoveInvite(user: AdminUserOut) {
-    try {
-      const result = await adminUsersApi.deleteInvite(user.id);
-      setConfirmTarget(null);
-      await load(query, statusFilter, roleFilter);
-      toast.success(result.message);
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "删除邀请失败");
-    }
-  }
+    },
+    {
+      onError: (err) =>
+        toast.error(err instanceof Error ? err.message : "操作失败"),
+    },
+  );
 
   async function runResendInvite(user: AdminUserOut) {
     if (inviteBusyId !== null) return;
@@ -174,15 +172,7 @@ export function AdminUsersPanel({ currentAdminId }: { currentAdminId: string }) 
 
   function runConfirm() {
     if (!confirmTarget) return;
-    if (confirmTarget.action === "toggle") {
-      void runToggle(confirmTarget.user);
-    } else if (confirmTarget.action === "reset2fa") {
-      void runReset2fa(confirmTarget.user);
-    } else if (confirmTarget.action === "cancelInvite") {
-      void runCancelInvite(confirmTarget.user);
-    } else {
-      void runRemoveInvite(confirmTarget.user);
-    }
+    void confirmAction.run(confirmTarget.user, confirmTarget.action);
   }
 
   function startDelete(user: AdminUserOut) {
@@ -190,28 +180,28 @@ export function AdminUsersPanel({ currentAdminId }: { currentAdminId: string }) 
     setDeletePassword("");
   }
 
+  const deleteAction = useAsyncAction(
+    async (id: string, password: string) => {
+      const result = await adminUsersApi.deleteAccount(id, password);
+      setUsers((prev) => prev.filter((item) => item.id !== id));
+      setDeleteTarget(null);
+      setDeletePassword("");
+      toast.success(result.message);
+    },
+    {
+      onError: (err) =>
+        toast.error(err instanceof Error ? err.message : "删除失败"),
+    },
+  );
+
   async function submitDelete(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!deleteTarget || deleting) return;
+    if (!deleteTarget) return;
     if (!deletePassword) {
       toast.error("请输入你的当前密码以确认删除");
       return;
     }
-    setDeleting(true);
-    try {
-      const result = await adminUsersApi.deleteAccount(
-        deleteTarget.id,
-        deletePassword,
-      );
-      setUsers(users.filter((item) => item.id !== deleteTarget.id));
-      setDeleteTarget(null);
-      setDeletePassword("");
-      toast.success(result.message);
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "删除失败");
-    } finally {
-      setDeleting(false);
-    }
+    await deleteAction.run(deleteTarget.id, deletePassword);
   }
 
   function openCreate() {
@@ -221,28 +211,30 @@ export function AdminUsersPanel({ currentAdminId }: { currentAdminId: string }) 
     setCreateOpen(true);
   }
 
-  async function submitCreate(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (createBusy) return;
-    if (createPassword.length < 8) {
-      toast.error("初始密码至少 8 位");
-      return;
-    }
-    setCreateBusy(true);
-    try {
+  const createAction = useAsyncAction(
+    async (email: string, nickname: string, password: string) => {
       const created = await adminUsersApi.createAccount({
-        email: createEmail,
-        nickname: createNickname,
-        password: createPassword,
+        email,
+        nickname,
+        password,
       });
       setCreateOpen(false);
       toast.success(`账号 ${created.email} 已创建，用户可直接登录`);
       load(query, statusFilter, roleFilter);
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "创建失败");
-    } finally {
-      setCreateBusy(false);
+    },
+    {
+      onError: (err) =>
+        toast.error(err instanceof Error ? err.message : "创建失败"),
+    },
+  );
+
+  async function submitCreate(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (createPassword.length < 8) {
+      toast.error("初始密码至少 8 位");
+      return;
     }
+    await createAction.run(createEmail, createNickname, createPassword);
   }
 
   function openInvite() {
@@ -251,23 +243,25 @@ export function AdminUsersPanel({ currentAdminId }: { currentAdminId: string }) 
     setInviteOpen(true);
   }
 
-  async function submitInvite(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (inviteBusy) return;
-    setInviteBusy(true);
-    try {
+  const inviteAction = useAsyncAction(
+    async (email: string, nickname: string) => {
       const result = await adminUsersApi.invite({
-        email: inviteEmail,
-        nickname: inviteNickname || undefined,
+        email,
+        nickname: nickname || undefined,
       });
       setInviteOpen(false);
       await load(query, statusFilter, roleFilter);
       toast.success(result.message);
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "发送邀请失败");
-    } finally {
-      setInviteBusy(false);
-    }
+    },
+    {
+      onError: (err) =>
+        toast.error(err instanceof Error ? err.message : "发送邀请失败"),
+    },
+  );
+
+  async function submitInvite(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    await inviteAction.run(inviteEmail, inviteNickname);
   }
 
   function toggleSelect(id: string) {
@@ -290,60 +284,55 @@ export function AdminUsersPanel({ currentAdminId }: { currentAdminId: string }) 
     }
   }
 
-  async function runBatchStatus(status: "active" | "disabled") {
-    const ids = Array.from(selected);
-    if (ids.length === 0 || bulkBusy !== null) return;
-    setBulkBusy("status");
-    try {
+  const batchStatusAction = useAsyncAction(
+    async (ids: string[], status: "active" | "disabled") => {
       const result = await adminUsersApi.batchUpdate(ids, { status });
       setSelected(new Set());
       await load(query, statusFilter, roleFilter);
       toast.success(
         `已${status === "active" ? "启用" : "禁用"} ${result.updated.length} 个账号`,
       );
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "批量操作失败");
-    } finally {
-      setBulkBusy(null);
-    }
+    },
+    {
+      onError: (err) =>
+        toast.error(err instanceof Error ? err.message : "批量操作失败"),
+    },
+  );
+
+  function runBatchStatus(status: "active" | "disabled") {
+    const ids = Array.from(selected);
+    if (ids.length === 0) return;
+    void batchStatusAction.run(ids, status);
   }
 
-  async function submitBatchDelete(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const ids = Array.from(selected);
-    if (ids.length === 0 || bulkBusy !== null) return;
-    if (!batchDeletePassword) {
-      toast.error("请输入你的当前密码以确认批量删除");
-      return;
-    }
-    setBulkBusy("delete");
-    try {
-      const result = await adminUsersApi.batchDelete(ids, batchDeletePassword);
+  const batchDeleteAction = useAsyncAction(
+    async (ids: string[], password: string) => {
+      const result = await adminUsersApi.batchDelete(ids, password);
       setBatchDeleteOpen(false);
       setBatchDeletePassword("");
       setSelected(new Set());
       await load(query, statusFilter, roleFilter);
       toast.success(result.message);
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "批量删除失败");
-    } finally {
-      setBulkBusy(null);
-    }
-  }
+    },
+    {
+      onError: (err) =>
+        toast.error(err instanceof Error ? err.message : "批量删除失败"),
+    },
+  );
 
-  async function submitBatchInvite(event: React.FormEvent<HTMLFormElement>) {
+  async function submitBatchDelete(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (batchInviteBusy) return;
-    const emails = batchInviteText
-      .split(/\r?\n/)
-      .map((item) => item.trim())
-      .filter(Boolean);
-    if (emails.length === 0) {
-      toast.error("请至少填写一个邮箱");
+    const ids = Array.from(selected);
+    if (ids.length === 0) return;
+    if (!batchDeletePassword) {
+      toast.error("请输入你的当前密码以确认批量删除");
       return;
     }
-    setBatchInviteBusy(true);
-    try {
+    await batchDeleteAction.run(ids, batchDeletePassword);
+  }
+
+  const batchInviteAction = useAsyncAction(
+    async (emails: string[]) => {
       const result = await adminUsersApi.batchInvite(emails);
       setBatchInviteOpen(false);
       setBatchInviteText("");
@@ -360,17 +349,35 @@ export function AdminUsersPanel({ currentAdminId }: { currentAdminId: string }) 
             .join("、")}`,
         );
       }
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "批量邀请失败");
-    } finally {
-      setBatchInviteBusy(false);
+    },
+    {
+      onError: (err) =>
+        toast.error(err instanceof Error ? err.message : "批量邀请失败"),
+    },
+  );
+
+  async function submitBatchInvite(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const emails = batchInviteText
+      .split(/\r?\n/)
+      .map((item) => item.trim())
+      .filter(Boolean);
+    if (emails.length === 0) {
+      toast.error("请至少填写一个邮箱");
+      return;
     }
+    await batchInviteAction.run(emails);
   }
 
   return (
     <section className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 className="text-lg font-semibold text-foreground">用户管理</h2>
+        <h2 className="text-lg font-semibold text-foreground">
+          用户管理
+          <span className="ml-2 text-sm font-normal text-muted">
+            共 <AnimatedNumber value={users.length} /> 个账号
+          </span>
+        </h2>
         <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
           <button onClick={openCreate} className="btn btn-primary">
             添加账号
@@ -437,26 +444,30 @@ export function AdminUsersPanel({ currentAdminId }: { currentAdminId: string }) 
           <span className="text-sm font-medium text-foreground">
             已选 {selected.size} 个账号
           </span>
-          <button
+          <AsyncButton
+            type="button"
+            status={batchStatusAction.pending ? "pending" : "idle"}
             onClick={() => void runBatchStatus("active")}
-            disabled={bulkBusy !== null}
+            disabled={selected.size === 0}
             className="btn btn-secondary px-2.5 py-1.5 text-xs"
           >
             批量启用
-          </button>
-          <button
+          </AsyncButton>
+          <AsyncButton
+            type="button"
+            status={batchStatusAction.pending ? "pending" : "idle"}
             onClick={() => void runBatchStatus("disabled")}
-            disabled={bulkBusy !== null}
+            disabled={selected.size === 0}
             className="btn btn-secondary px-2.5 py-1.5 text-xs"
           >
             批量禁用
-          </button>
+          </AsyncButton>
           <button
             onClick={() => {
               setBatchDeletePassword("");
               setBatchDeleteOpen(true);
             }}
-            disabled={bulkBusy !== null}
+            disabled={batchStatusAction.pending || batchDeleteAction.pending}
             className="btn btn-danger px-2.5 py-1.5 text-xs"
           >
             批量删除
@@ -470,7 +481,7 @@ export function AdminUsersPanel({ currentAdminId }: { currentAdminId: string }) 
         </div>
       )}
 
-      <div className="table-shell">
+      <div className={`table-shell ${usersBreathing ? "animate-breath" : ""}`}>
         <table>
           <thead>
             <tr>
@@ -557,13 +568,15 @@ export function AdminUsersPanel({ currentAdminId }: { currentAdminId: string }) 
                           取消邀请
                         </button>
                       )}
-                      <button
-                        onClick={() => void runResendInvite(user)}
+                      <AsyncButton
+                        type="button"
+                        status={inviteBusyId === user.id ? "pending" : "idle"}
                         disabled={inviteBusyId !== null}
                         className="btn btn-secondary px-2.5 py-1.5 text-xs"
+                        onClick={() => void runResendInvite(user)}
                       >
-                        {inviteBusyId === user.id ? "发送中…" : "重发邀请"}
-                      </button>
+                        重发邀请
+                      </AsyncButton>
                       <button
                         onClick={() => startRemoveInvite(user)}
                         disabled={inviteBusyId !== null}
@@ -671,6 +684,7 @@ export function AdminUsersPanel({ currentAdminId }: { currentAdminId: string }) 
                 ? "确认删除"
                 : "确认重置"
         }
+        status={confirmAction.status}
         onConfirm={runConfirm}
         onCancel={() => setConfirmTarget(null)}
       />
@@ -686,16 +700,18 @@ export function AdminUsersPanel({ currentAdminId }: { currentAdminId: string }) 
               type="button"
               className="btn btn-secondary"
               onClick={() => setPasswordTarget(null)}
+              disabled={resetPasswordAction.pending}
             >
               取消
             </button>
-            <button
+            <AsyncButton
               type="submit"
               form="reset-password-form"
+              status={resetPasswordAction.status}
               className="btn btn-primary"
             >
               确认重置
-            </button>
+            </AsyncButton>
           </>
         }
       >
@@ -722,7 +738,7 @@ export function AdminUsersPanel({ currentAdminId }: { currentAdminId: string }) 
       <Modal
         open={deleteTarget !== null}
         onClose={() => {
-          if (!deleting) setDeleteTarget(null);
+          if (!deleteAction.pending) setDeleteTarget(null);
         }}
         title={deleteTarget ? `删除账号：${deleteTarget.email}` : "删除账号"}
         intent="danger"
@@ -732,18 +748,18 @@ export function AdminUsersPanel({ currentAdminId }: { currentAdminId: string }) 
               type="button"
               className="btn btn-secondary"
               onClick={() => setDeleteTarget(null)}
-              disabled={deleting}
+              disabled={deleteAction.pending}
             >
               取消
             </button>
-            <button
+            <AsyncButton
               type="submit"
               form="delete-user-form"
+              status={deleteAction.status}
               className="btn btn-danger"
-              disabled={deleting}
             >
-              {deleting ? "处理中…" : "永久删除"}
-            </button>
+              永久删除
+            </AsyncButton>
           </>
         }
       >
@@ -774,7 +790,7 @@ export function AdminUsersPanel({ currentAdminId }: { currentAdminId: string }) 
       <Modal
         open={createOpen}
         onClose={() => {
-          if (!createBusy) setCreateOpen(false);
+          if (!createAction.pending) setCreateOpen(false);
         }}
         title="添加账号"
         intent="info"
@@ -784,18 +800,18 @@ export function AdminUsersPanel({ currentAdminId }: { currentAdminId: string }) 
               type="button"
               className="btn btn-secondary"
               onClick={() => setCreateOpen(false)}
-              disabled={createBusy}
+              disabled={createAction.pending}
             >
               取消
             </button>
-            <button
+            <AsyncButton
               type="submit"
               form="create-user-form"
+              status={createAction.status}
               className="btn btn-primary"
-              disabled={createBusy}
             >
-              {createBusy ? "处理中…" : "创建账号"}
-            </button>
+              创建账号
+            </AsyncButton>
           </>
         }
       >
@@ -848,7 +864,7 @@ export function AdminUsersPanel({ currentAdminId }: { currentAdminId: string }) 
       <Modal
         open={inviteOpen}
         onClose={() => {
-          if (!inviteBusy) setInviteOpen(false);
+          if (!inviteAction.pending) setInviteOpen(false);
         }}
         title="邀请注册"
         intent="info"
@@ -858,18 +874,18 @@ export function AdminUsersPanel({ currentAdminId }: { currentAdminId: string }) 
               type="button"
               className="btn btn-secondary"
               onClick={() => setInviteOpen(false)}
-              disabled={inviteBusy}
+              disabled={inviteAction.pending}
             >
               取消
             </button>
-            <button
+            <AsyncButton
               type="submit"
               form="invite-user-form"
+              status={inviteAction.status}
               className="btn btn-primary"
-              disabled={inviteBusy}
             >
-              {inviteBusy ? "处理中…" : "发送邀请"}
-            </button>
+              发送邀请
+            </AsyncButton>
           </>
         }
       >
@@ -908,7 +924,7 @@ export function AdminUsersPanel({ currentAdminId }: { currentAdminId: string }) 
       <Modal
         open={batchDeleteOpen}
         onClose={() => {
-          if (bulkBusy !== "delete") setBatchDeleteOpen(false);
+          if (!batchDeleteAction.pending) setBatchDeleteOpen(false);
         }}
         title="批量删除账号"
         intent="danger"
@@ -918,18 +934,18 @@ export function AdminUsersPanel({ currentAdminId }: { currentAdminId: string }) 
               type="button"
               className="btn btn-secondary"
               onClick={() => setBatchDeleteOpen(false)}
-              disabled={bulkBusy === "delete"}
+              disabled={batchDeleteAction.pending}
             >
               取消
             </button>
-            <button
+            <AsyncButton
               type="submit"
               form="batch-delete-user-form"
+              status={batchDeleteAction.status}
               className="btn btn-danger"
-              disabled={bulkBusy === "delete"}
             >
-              {bulkBusy === "delete" ? "处理中…" : "永久删除"}
-            </button>
+              永久删除
+            </AsyncButton>
           </>
         }
       >
@@ -960,7 +976,7 @@ export function AdminUsersPanel({ currentAdminId }: { currentAdminId: string }) 
       <Modal
         open={batchInviteOpen}
         onClose={() => {
-          if (!batchInviteBusy) setBatchInviteOpen(false);
+          if (!batchInviteAction.pending) setBatchInviteOpen(false);
         }}
         title="批量邀请注册"
         intent="info"
@@ -970,18 +986,18 @@ export function AdminUsersPanel({ currentAdminId }: { currentAdminId: string }) 
               type="button"
               className="btn btn-secondary"
               onClick={() => setBatchInviteOpen(false)}
-              disabled={batchInviteBusy}
+              disabled={batchInviteAction.pending}
             >
               取消
             </button>
-            <button
+            <AsyncButton
               type="submit"
               form="batch-invite-user-form"
+              status={batchInviteAction.status}
               className="btn btn-primary"
-              disabled={batchInviteBusy}
             >
-              {batchInviteBusy ? "处理中…" : "发送邀请"}
-            </button>
+              发送邀请
+            </AsyncButton>
           </>
         }
       >
