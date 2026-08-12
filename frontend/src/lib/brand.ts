@@ -17,6 +17,9 @@ export const FAVICON_WEBP = "/favicon.webp";
 /** 兼容旧引用的主图标路径 */
 export const FAVICON_PATH = FAVICON_WEBP;
 
+/** 页面品牌主图（登录页/页头 Logo）：透明背景，512×512 */
+export const APP_LOGO = "/brand-logo.webp";
+
 // TODO: 上线前替换为真实备案信息
 export const ICP_FILING_TEXT = "京ICP备00000000号-1";
 export const ICP_FILING_URL = "https://beian.miit.gov.cn/";

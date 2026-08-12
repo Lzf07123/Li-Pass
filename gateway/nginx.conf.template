@@ -7,10 +7,6 @@ upstream frontend_http {
     server frontend:5173;
     keepalive 32;
 }
-upstream demo_http {
-    server demo-site:3001;
-    keepalive 16;
-}
 
 # API JSON 与 HTML 响应压缩（前端构建产物已由前端容器自行压缩）
 gzip on;
@@ -30,6 +26,10 @@ server {
     listen 80;
     server_name _;
     server_tokens off;
+
+    # Docker 内嵌 DNS：演示站仅在 demo profile 下运行，
+    # 用请求期动态解析避免 nginx 启动时因 demo-site 未启动而整体退出。
+    resolver 127.0.0.11 valid=10s;
 
     # 上传头像 ≤5MB，留余量
     client_max_body_size 6m;
@@ -87,7 +87,8 @@ server {
         return 301 /demo/;
     }
     location /demo/ {
-        proxy_pass http://demo_http/;
+        set $demo_upstream demo-site:3001;
+        proxy_pass http://$demo_upstream/;
     }
 
     # 其余全部交给前端 SPA
