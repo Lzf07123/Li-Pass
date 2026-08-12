@@ -17,6 +17,9 @@ import { SiteFooter } from "../components/SiteFooter";
 import { useToast } from "../hooks/useToast";
 import { FadeIn } from "../components/bits/FadeIn";
 
+// 绑定手机功能暂未完善：置为 true 即恢复显示（代码与接口保留）。
+const PHONE_BINDING_ENABLED = false;
+
 export function DashboardPage() {
   const [user, setUser] = useState<UserOut | null>(null);
   const [apps, setApps] = useState<AppOut[]>([]);
@@ -420,64 +423,66 @@ export function DashboardPage() {
           </section>
         </FadeIn>
 
-        <FadeIn delay={0.16}>
-          <section className="card p-6">
-            <h2 className="mb-4 text-base font-semibold text-foreground">绑定手机</h2>
-            {phoneStep === "phone" ? (
-              <form
-                key="phone"
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  sendPhoneCode();
-                }}
-                className="animate-fade-up flex flex-wrap items-end gap-2"
-              >
-                <label className="block min-w-0 flex-1">
-                  <span className="label">手机号</span>
-                  <input
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    placeholder="+8613800000000"
-                    className="input"
-                    inputMode="tel"
-                    required
-                  />
-                </label>
-                <button type="submit" className="btn btn-primary">
-                  发送验证码
-                </button>
-              </form>
-            ) : (
-              <form
-                key="code"
-                onSubmit={bindPhone}
-                className="animate-fade-up flex flex-wrap items-end gap-2"
-              >
-                <label className="block min-w-0 flex-1">
-                  <span className="label">邮箱验证码</span>
-                  <input
-                    value={phoneCode}
-                    onChange={(e) => setPhoneCode(e.target.value)}
-                    placeholder="6 位验证码"
-                    className="input"
-                    inputMode="numeric"
-                    required
-                  />
-                </label>
-                <button
-                  type="button"
-                  onClick={() => setPhoneStep("phone")}
-                  className="btn btn-secondary"
+        {PHONE_BINDING_ENABLED && (
+          <FadeIn delay={0.16}>
+            <section className="card p-6">
+              <h2 className="mb-4 text-base font-semibold text-foreground">绑定手机</h2>
+              {phoneStep === "phone" ? (
+                <form
+                  key="phone"
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    sendPhoneCode();
+                  }}
+                  className="animate-fade-up flex flex-wrap items-end gap-2"
                 >
-                  上一步
-                </button>
-                <button type="submit" className="btn btn-primary">
-                  确认绑定
-                </button>
-              </form>
-            )}
-          </section>
-        </FadeIn>
+                  <label className="block min-w-0 flex-1">
+                    <span className="label">手机号</span>
+                    <input
+                      value={phone}
+                      onChange={(e) => setPhone(e.target.value)}
+                      placeholder="+8613800000000"
+                      className="input"
+                      inputMode="tel"
+                      required
+                    />
+                  </label>
+                  <button type="submit" className="btn btn-primary">
+                    发送验证码
+                  </button>
+                </form>
+              ) : (
+                <form
+                  key="code"
+                  onSubmit={bindPhone}
+                  className="animate-fade-up flex flex-wrap items-end gap-2"
+                >
+                  <label className="block min-w-0 flex-1">
+                    <span className="label">邮箱验证码</span>
+                    <input
+                      value={phoneCode}
+                      onChange={(e) => setPhoneCode(e.target.value)}
+                      placeholder="6 位验证码"
+                      className="input"
+                      inputMode="numeric"
+                      required
+                    />
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => setPhoneStep("phone")}
+                    className="btn btn-secondary"
+                  >
+                    上一步
+                  </button>
+                  <button type="submit" className="btn btn-primary">
+                    确认绑定
+                  </button>
+                </form>
+              )}
+            </section>
+          </FadeIn>
+        )}
 
         <FadeIn delay={0.24}>
           <section className="card p-6">
