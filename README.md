@@ -30,7 +30,7 @@
 ## 项目结构
 
 ```
-portal-oss/
+account-service/
 ├── backend/                 # FastAPI 认证服务
 │   ├── app/
 │   │   ├── api/             # REST API 与 OIDC 端点（routes/oidc.py）

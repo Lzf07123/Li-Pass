@@ -13,7 +13,7 @@ LinPass SSO 使用 Docker Compose 部署。仓库内置 `gateway`（nginx）作�
 后端 → PostgreSQL 16（数据）+ Redis 7（挑战/限流/待授权请求）
 后端密钥卷：/app/keys（JWT 私钥 + Fernet 加密密钥）
 后端上传卷：/app/uploads（用户头像）
-命名卷（compose 项目固定为 `portal-oss`，卷名前缀 `portal-oss_`）：
+命名卷（compose 项目固定为 `account-service`，卷名前缀 `account-service_`）：
 `postgres-data-prod`、`redis-data-prod`、`backend-keys`、`backend-uploads`
 ```
 
@@ -153,7 +153,7 @@ SMTP_USE_TLS=true
 - **必须备份该卷**：
 
 ```bash
-docker run --rm -v portal-oss_backend-keys:/keys -v "$PWD":/backup alpine \
+docker run --rm -v account-service_backend-keys:/keys -v "$PWD":/backup alpine \
   tar czf /backup/backend-keys.tar.gz -C /keys .
 ```
 
@@ -183,7 +183,7 @@ gunzip -c portal-20260101-120000.sql.gz | \
 建议配置定时任务（cron/云备份）并定期演练恢复。用户头像存储在 `backend-uploads` 卷，同样需要备份：
 
 ```bash
-docker run --rm -v portal-oss_backend-uploads:/uploads -v "$PWD":/backup alpine \
+docker run --rm -v account-service_backend-uploads:/uploads -v "$PWD":/backup alpine \
   tar czf /backup/backend-uploads.tar.gz -C /uploads .
 ```
 
@@ -229,10 +229,10 @@ docker compose --profile bundle exec backend alembic downgrade -1
 
 | 服务 | 数据内容 | 存储位置 | 重建容器后 |
 | --- | --- | --- | --- |
-| PostgreSQL | 用户/会话/OAuth/审计/授权记录 | `portal-oss_postgres-data-prod`（`/var/lib/postgresql/data`） | 数据保留 |
-| Redis | 验证码、2FA 挑战、待授权请求、限流计数 | `portal-oss_redis-data-prod`（`/data`，RDB + AOF） | 数据保留（短 TTL 数据本就过期） |
-| 后端 | JWT 私钥、Fernet 加密密钥 | `portal-oss_backend-keys`（`/app/keys`） | 密钥保留 |
-| 后端 | 用户头像 | `portal-oss_backend-uploads`（`/app/uploads`） | 头像保留 |
+| PostgreSQL | 用户/会话/OAuth/审计/授权记录 | `account-service_postgres-data-prod`（`/var/lib/postgresql/data`） | 数据保留 |
+| Redis | 验证码、2FA 挑战、待授权请求、限流计数 | `account-service_redis-data-prod`（`/data`，RDB + AOF） | 数据保留（短 TTL 数据本就过期） |
+| 后端 | JWT 私钥、Fernet 加密密钥 | `account-service_backend-keys`（`/app/keys`） | 密钥保留 |
+| 后端 | 用户头像 | `account-service_backend-uploads`（`/app/uploads`） | 头像保留 |
 | 前端 nginx | 无（仅静态构建产物） | 容器层 | 重建后由镜像重新提供 |
 | 示例授权网站 | 无 | 容器层 | 重建后恢复默认 |
 
@@ -286,7 +286,7 @@ Redis 已通过 `--appendonly yes` 显式开启 AOF（可用 `REDIS_APPENDONLY=n
 `docker-compose.yaml` 的所有镜像地址统一由一个环境变量 `IMAGE_REGISTRY` 控制（默认留空 = 官方 Docker Hub）。它会同时作用于：
 
 - 基础设施镜像：`postgres:16-alpine`、`redis:7-alpine`
-- 自建服务镜像：`portal-oss-backend:local`、`portal-oss-frontend:local`、`portal-oss-demo-site:local`（同时作为 `docker compose build` 的标签）
+- 自建服务镜像：`account-service-backend:local`、`account-service-frontend:local`、`account-service-demo-site:local`（同时作为 `docker compose build` 的标签）
 - 构建基础镜像：`python:3.12-slim`、`node:20-alpine`、`nginx:1.27-alpine`（作为构建参数传入 Dockerfile）
 
 私有仓库 / 内网镜像源场景只需在 `.env` 设置一个变量（**必须以 `/` 结尾**）：
@@ -295,7 +295,7 @@ Redis 已通过 `--appendonly yes` 显式开启 AOF（可用 `REDIS_APPENDONLY=n
   IMAGE_REGISTRY=registry.example.com/
   ```
 
-渲染后的镜像地址示例：`registry.example.com/postgres:16-alpine`、`registry.example.com/portal-oss-backend:local`。
+渲染后的镜像地址示例：`registry.example.com/postgres:16-alpine`、`registry.example.com/account-service-backend:local`。
 
 本地构建并推送：先构建并推送到私有仓库，生产端设置同一 `IMAGE_REGISTRY` 直接拉取：
 

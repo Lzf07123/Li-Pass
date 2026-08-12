@@ -1,6 +1,13 @@
 ARG IMAGE_REGISTRY=
 FROM ${IMAGE_REGISTRY}python:3.12-slim
 
+ENV TZ=Asia/Shanghai
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends tzdata \
+    && ln -snf /usr/share/zoneinfo/$TZ /etc/localtime \
+    && echo $TZ > /etc/timezone \
+    && rm -rf /var/lib/apt/lists/*
+
 RUN useradd --create-home --uid 10001 appuser
 
 WORKDIR /app

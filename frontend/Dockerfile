@@ -9,7 +9,11 @@ COPY . .
 RUN npm run build
 
 FROM ${IMAGE_REGISTRY}nginx:1.27-alpine
-ENV CONNECT_SRC=http://localhost:8000
+ENV CONNECT_SRC=http://localhost:8000 \
+    TZ=Asia/Shanghai
+RUN apk add --no-cache tzdata \
+    && ln -snf /usr/share/zoneinfo/$TZ /etc/localtime \
+    && echo $TZ > /etc/timezone
 COPY nginx.conf.template /etc/nginx/templates/default.conf.template
 COPY --from=build /app/dist /usr/share/nginx/html
 EXPOSE 5173

@@ -1,3 +1,4 @@
+import logging
 import uuid
 from datetime import datetime, timedelta, timezone
 
@@ -44,6 +45,7 @@ from app.services.twofa import (
 
 router = APIRouter(prefix="/api/v1/auth", tags=["auth"])
 settings = get_settings()
+logger = logging.getLogger(__name__)
 
 
 def _as_utc(dt: datetime) -> datetime:
@@ -323,7 +325,12 @@ def login(
             )
             if send_count <= settings.otp_send_limit:
                 code = create_otp(db, OtpPurpose.two_fa, user.email)
-                get_email_service().send_verification(user.email, code)
+                try:
+                    get_email_service().send_verification(user.email, code)
+                except Exception:
+                    # 邮件服务故障不应阻塞登录响应：TOTP/恢复码用户仍可完成二次验证，
+                    # 邮箱用户可通过 /2fa/send 重发验证码（重发接口会给出明确错误）。
+                    logger.exception("2FA 邮件发送失败 email=%s", user.email)
         log_audit(
             db,
             "user",
@@ -372,7 +379,14 @@ def send_twofa_code(
     if send_count > settings.otp_send_limit:
         raise HTTPException(status.HTTP_429_TOO_MANY_REQUESTS, "发送过于频繁")
     code = create_otp(db, OtpPurpose.two_fa, user.email)
-    get_email_service().send_verification(user.email, code)
+    try:
+        get_email_service().send_verification(user.email, code)
+    except Exception:
+        logger.exception("2FA 邮件重发失败 email=%s", user.email)
+        raise HTTPException(
+            status.HTTP_502_BAD_GATEWAY,
+            "邮件发送失败，请检查服务端 SMTP 配置或稍后重试",
+        )
     return {"message": "验证码已发送"}
 
 

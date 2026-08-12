@@ -107,7 +107,11 @@ class AppOut(BaseModel):
 
 class TwoFaTotpEnable(BaseModel):
     code: str = Field(min_length=6, max_length=6)
-    secret: str = Field(min_length=16, max_length=128)
+    secret: str = Field(
+        min_length=16,
+        max_length=128,
+        pattern=r"^[A-Za-z2-7]+$",
+    )
     current_password: str = Field(min_length=1, max_length=128)
 
 

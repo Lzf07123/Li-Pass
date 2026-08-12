@@ -8,6 +8,7 @@ from datetime import datetime, timedelta, timezone
 import pyotp
 import qrcode
 import qrcode.image.svg
+from cryptography.fernet import InvalidToken
 from sqlalchemy import select
 
 from app.core.config import get_settings
@@ -149,7 +150,12 @@ def qr_data_url(uri: str) -> str:
 def verify_totp(user, code: str) -> bool:
     if not user.totp_secret_encrypted:
         return False
-    return pyotp.TOTP(decrypt_str(user.totp_secret_encrypted)).verify(code, valid_window=1)
+    try:
+        secret = decrypt_str(user.totp_secret_encrypted)
+        return pyotp.TOTP(secret).verify(code, valid_window=1)
+    except (ValueError, TypeError, InvalidToken):
+        # 存量/损坏的密钥或非法 Base32 视为验证失败，避免 500
+        return False
 
 
 def enable_totp(user, secret: str, db) -> None:
