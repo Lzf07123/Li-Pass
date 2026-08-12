@@ -96,6 +96,10 @@ export const adminClientsApi = {
       method: "POST",
       body: JSON.stringify(data),
     }),
+  remove: (id: string) =>
+    api<void>(`/api/v1/admin/clients/${id}`, {
+      method: "DELETE",
+    }),
 };
 
 export const meApi = {

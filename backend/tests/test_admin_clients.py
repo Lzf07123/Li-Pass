@@ -85,3 +85,29 @@ def test_public_client_has_no_secret(client, db_session) -> None:
     )
     assert response.status_code == 200
     assert response.json()["client_secret"] is None
+
+
+def test_admin_delete_client(client, db_session) -> None:
+    db_session.add(
+        User(
+            email="admin@example.com",
+            password_hash=hash_password("password123"),
+            nickname="A",
+            role=UserRole.admin,
+        )
+    )
+    db_session.commit()
+    client.post(
+        "/api/v1/auth/login",
+        json={"email": "admin@example.com", "password": "password123"},
+    )
+
+    created = client.post(
+        "/api/v1/admin/clients",
+        json={"name": "ToDelete", "redirect_uris": ["http://x/cb"]},
+    ).json()["client"]
+
+    response = client.delete(f"/api/v1/admin/clients/{created['id']}")
+    assert response.status_code == 204
+    remaining = client.get("/api/v1/admin/clients").json()
+    assert all(item["client_id"] != created["client_id"] for item in remaining)

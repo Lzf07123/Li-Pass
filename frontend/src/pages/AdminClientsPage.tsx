@@ -16,6 +16,7 @@ export function AdminClientsPage() {
   const [blocks, setBlocks] = useState<Record<string, ClientBlockOut[]>>({});
   const [blockEmail, setBlockEmail] = useState<Record<string, string>>({});
   const [blockReason, setBlockReason] = useState<Record<string, string>>({});
+  const [removeTarget, setRemoveTarget] = useState<ClientOut | null>(null);
 
   useEffect(() => {
     adminClientsApi
@@ -84,6 +85,18 @@ export function AdminClientsPage() {
     }
   }
 
+  async function confirmRemove() {
+    if (!removeTarget) return;
+    setError("");
+    try {
+      await adminClientsApi.remove(removeTarget.id);
+      setClients(clients.filter((client) => client.id !== removeTarget.id));
+      setRemoveTarget(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "删除失败");
+    }
+  }
+
   return (
     <main className="min-h-screen bg-gray-50 p-8">
       <h1 className="mb-6 text-2xl font-bold">授权网站管理</h1>
@@ -137,16 +150,42 @@ export function AdminClientsPage() {
             请立即保存 client_secret（只显示一次）：<code>{secret}</code>
           </p>
         )}
-        {error && <p className="text-red-600">{error}</p>}
+      {error && <p className="text-red-600">{error}</p>}
         <button type="submit" className="rounded bg-blue-600 p-2 text-white">
           创建应用
         </button>
       </form>
+      {removeTarget && (
+        <div className="mb-4 flex items-center gap-2 rounded border border-red-200 bg-red-50 p-3">
+          <span className="text-sm">
+            确定删除应用“{removeTarget.name}”吗？其授权记录与黑名单将一并删除。
+          </span>
+          <button onClick={confirmRemove} className="rounded bg-red-600 p-2 text-white">
+            确认删除
+          </button>
+          <button
+            onClick={() => setRemoveTarget(null)}
+            className="rounded bg-gray-200 p-2"
+          >
+            取消
+          </button>
+        </div>
+      )}
       <ul className="space-y-2">
         {clients.map((client) => (
           <li key={client.id} className="rounded-xl bg-white p-4 shadow">
-            <p className="font-semibold">{client.name}</p>
-            <p className="text-sm text-gray-500">{client.client_id}</p>
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="font-semibold">{client.name}</p>
+                <p className="text-sm text-gray-500">{client.client_id}</p>
+              </div>
+              <button
+                onClick={() => setRemoveTarget(client)}
+                className="rounded bg-red-600 p-2 text-sm text-white"
+              >
+                删除应用
+              </button>
+            </div>
             <div className="mt-3 border-t pt-3">
               <p className="mb-2 text-sm font-semibold">黑名单</p>
               <ul className="mb-2 space-y-1">

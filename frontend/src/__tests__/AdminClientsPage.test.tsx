@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { AdminClientsPage } from "../pages/AdminClientsPage";
@@ -67,5 +67,48 @@ describe("AdminClientsPage", () => {
     vi.stubGlobal("fetch", fetchMock);
     render(<AdminClientsPage />);
     await waitFor(() => expect(screen.getByText(/bad@example\.com/)).toBeInTheDocument());
+  });
+
+  it("删除应用后从列表移除", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify([
+            {
+              id: "1",
+              client_id: "cli_demo",
+              name: "Demo",
+              description: "",
+              logo_url: null,
+              home_url: null,
+              logout_uri: null,
+              redirect_uris: ["http://localhost:3001/callback"],
+              scopes: ["openid"],
+              require_consent_every_time: false,
+              is_active: true,
+              created_at: "2026-08-12T00:00:00Z",
+            },
+          ]),
+          { status: 200, headers: { "Content-Type": "application/json" } }
+        )
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify([]), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        })
+      )
+      .mockResolvedValueOnce(new Response(null, { status: 204 }));
+    vi.stubGlobal("fetch", fetchMock);
+    render(<AdminClientsPage />);
+    await waitFor(() => expect(screen.getByText("Demo")).toBeInTheDocument());
+    fireEvent.click(screen.getByRole("button", { name: "删除应用" }));
+    fireEvent.click(screen.getByRole("button", { name: "确认删除" }));
+    await waitFor(() => expect(screen.queryByText("Demo")).not.toBeInTheDocument());
+    const deleteCall = fetchMock.mock.calls.find(
+      (call) => (call[1] as RequestInit | undefined)?.method === "DELETE"
+    );
+    expect(String(deleteCall?.[0])).toContain("/api/v1/admin/clients/1");
   });
 });
