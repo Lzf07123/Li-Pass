@@ -3,10 +3,18 @@ server {
     server_name _;
     server_tokens off;
 
+    # 静态文件缓存元数据，减少重复 stat 的磁盘 IO
+    open_file_cache max=1000 inactive=5m;
+    open_file_cache_valid 2m;
+    open_file_cache_min_uses 1;
+    open_file_cache_errors on;
+
     root /usr/share/nginx/html;
     index index.html;
 
     # 静态资源压缩（构建产物均为带 hash 的缓存文件）
+    # gzip_static 直接发送构建时预生成的 .gz，避免每个请求重复压缩。
+    gzip_static on;
     gzip on;
     gzip_vary on;
     gzip_min_length 1024;

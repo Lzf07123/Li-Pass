@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { Link } from "react-router-dom";
 
 import { APP_NAME } from "../lib/brand";
+import { ShinyText } from "./bits/ShinyText";
 import { Brand } from "./Brand";
 import { ThemeToggle } from "./ThemeToggle";
 
@@ -21,9 +22,11 @@ export function AppHeader({
           aria-label={`${APP_NAME} 首页`}
         >
           <Brand className="h-8 w-8" />
-          <span className="text-[15px] font-semibold tracking-tight text-foreground">
-            {APP_NAME}
-          </span>
+          <ShinyText
+            text={APP_NAME}
+            className="text-[15px] font-semibold tracking-tight text-foreground"
+            duration={6}
+          />
         </Link>
         <span className="hidden truncate text-sm text-muted sm:inline">{title}</span>
         <div className="ml-auto flex items-center gap-2">{actions}</div>

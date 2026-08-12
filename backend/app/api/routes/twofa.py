@@ -44,9 +44,13 @@ def twofa_status(
 
 @router.post("/email/enable")
 def enable_email_otp(
+    payload: PasswordConfirm,
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> dict:
+    # 2FA 开启/关闭/更换均属于高敏感操作，统一要求当前密码，
+    # 防止会话被临时窃取后静默改动认证策略。
+    _require_password(payload.current_password, user)
     if user.email_verified_at is None:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "请先验证邮箱")
     user.email_otp_enabled = True

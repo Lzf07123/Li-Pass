@@ -5,6 +5,7 @@ import { authApi } from "../api/client";
 import type { UserOut } from "../api/types";
 import { AppHeader } from "../components/AppHeader";
 import { SiteFooter } from "../components/SiteFooter";
+import { FadeIn } from "../components/bits/FadeIn";
 import { AdminAuditPanel } from "./AdminAuditPanel";
 import { AdminClientsPage } from "./AdminClientsPage";
 import { AdminUsersPanel } from "./AdminUsersPanel";
@@ -56,7 +57,7 @@ export function AdminPage() {
   ];
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="flex min-h-screen flex-col bg-background">
       <AppHeader
         title="管理后台"
         actions={
@@ -66,7 +67,7 @@ export function AdminPage() {
         }
       />
 
-      <main className="mx-auto max-w-5xl space-y-6 px-4 py-8 sm:px-6">
+      <main className="mx-auto w-full max-w-5xl flex-1 space-y-6 px-4 py-8 sm:px-6">
         <div className="flex flex-wrap items-center gap-2">
           {tabs.map((item) => (
             <button
@@ -79,11 +80,11 @@ export function AdminPage() {
             </button>
           ))}
         </div>
-        <div key={tab} className="animate-fade-up">
+        <FadeIn key={tab} inView={false} delay={0.04}>
           {tab === "users" && <AdminUsersPanel currentAdminId={me.id} />}
           {tab === "clients" && <AdminClientsPage />}
           {tab === "audit" && <AdminAuditPanel />}
-        </div>
+        </FadeIn>
       </main>
       <SiteFooter />
     </div>

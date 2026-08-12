@@ -52,6 +52,15 @@ async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
 }
 
 export const authApi = {
+  registerByInvite: (data: {
+    token: string;
+    nickname: string;
+    password: string;
+  }) =>
+    api<{ message: string }>("/api/v1/auth/invite/register", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
   register: (data: { email: string; password: string; nickname: string }) =>
     api<UserOut>("/api/v1/auth/register", { method: "POST", body: JSON.stringify(data) }),
   verifyEmail: (data: { email: string; code: string }) =>
@@ -123,6 +132,11 @@ export const meApi = {
       method: "POST",
       body: JSON.stringify(data),
     }),
+  deleteAccount: (current_password: string) =>
+    api<{ message: string }>("/api/v1/me/delete", {
+      method: "POST",
+      body: JSON.stringify({ current_password }),
+    }),
   sendPhoneBind: () =>
     api<{ message: string }>("/api/v1/me/phone/bind/send", {
       method: "POST",
@@ -184,8 +198,11 @@ export const auth2faApi = {
 
 export const twofaApi = {
   status: () => api<TwoFaStatus>("/api/v1/me/2fa/status"),
-  enableEmail: () =>
-    api<{ message: string }>("/api/v1/me/2fa/email/enable", { method: "POST" }),
+  enableEmail: (current_password: string) =>
+    api<{ message: string }>("/api/v1/me/2fa/email/enable", {
+      method: "POST",
+      body: JSON.stringify({ current_password }),
+    }),
   disableEmail: (current_password: string) =>
     api<{ message: string }>("/api/v1/me/2fa/email/disable", {
       method: "POST",
@@ -207,6 +224,22 @@ export const twofaApi = {
 export const adminUsersApi = {
   list: (q = "") =>
     api<AdminUserOut[]>(`/api/v1/admin/users${q ? `?q=${encodeURIComponent(q)}` : ""}`),
+  createAccount: (data: {
+    email: string;
+    nickname: string;
+    password: string;
+    role?: string;
+    status?: string;
+  }) =>
+    api<AdminUserOut>("/api/v1/admin/users", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+  invite: (data: { email: string; nickname?: string }) =>
+    api<{ message: string }>("/api/v1/admin/users/invite", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
   update: (id: string, data: { status?: string; role?: string }) =>
     api<AdminUserOut>(`/api/v1/admin/users/${id}`, {
       method: "PATCH",
@@ -220,6 +253,11 @@ export const adminUsersApi = {
   reset2fa: (id: string) =>
     api<{ message: string }>(`/api/v1/admin/users/${id}/reset-2fa`, {
       method: "POST",
+    }),
+  deleteAccount: (id: string, current_password: string) =>
+    api<{ message: string }>(`/api/v1/admin/users/${id}/delete`, {
+      method: "POST",
+      body: JSON.stringify({ current_password }),
     }),
 };
 

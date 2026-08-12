@@ -1,6 +1,9 @@
 import { useEffect, useState } from "react";
 
 import { adminBlocksApi, adminClientsApi } from "../api/client";
+import { ConfirmDialog } from "../components/ConfirmDialog";
+import { Modal } from "../components/Modal";
+import { useToast } from "../hooks/useToast";
 import type { ClientBlockOut, ClientOut } from "../api/types";
 
 export function AdminClientsPage() {
@@ -10,18 +13,17 @@ export function AdminClientsPage() {
   const [logoutUri, setLogoutUri] = useState("");
   const [redirectUris, setRedirectUris] = useState("");
   const [isPublic, setIsPublic] = useState(true);
-  const [secret, setSecret] = useState<string | null>(null);
-  const [error, setError] = useState("");
   const [blocks, setBlocks] = useState<Record<string, ClientBlockOut[]>>({});
   const [blockEmail, setBlockEmail] = useState<Record<string, string>>({});
   const [blockReason, setBlockReason] = useState<Record<string, string>>({});
   const [removeTarget, setRemoveTarget] = useState<ClientOut | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editDraft, setEditDraft] = useState<ClientOut | null>(null);
-  const [secretResult, setSecretResult] = useState<{
+  const [secretModal, setSecretModal] = useState<{
     name: string;
     secret: string;
   } | null>(null);
+  const toast = useToast();
 
   useEffect(() => {
     adminClientsApi
@@ -33,13 +35,13 @@ export function AdminClientsPage() {
         );
         setBlocks(Object.fromEntries(entries));
       })
-      .catch((err) => setError(err instanceof Error ? err.message : "加载失败"));
-  }, []);
+      .catch((err) =>
+        toast.error(err instanceof Error ? err.message : "加载失败"),
+      );
+  }, [toast]);
 
   async function handleCreate(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setError("");
-    setSecret(null);
     try {
       const result = await adminClientsApi.create({
         name,
@@ -52,18 +54,20 @@ export function AdminClientsPage() {
         public: isPublic,
       });
       setClients([result.client, ...clients]);
-      setSecret(result.client_secret);
+      setSecretModal({
+        name: result.client.name,
+        secret: result.client_secret ?? "",
+      });
       setName("");
       setHomeUrl("");
       setLogoutUri("");
       setRedirectUris("");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "创建失败");
+      toast.error(err instanceof Error ? err.message : "创建失败");
     }
   }
 
   async function addBlock(clientId: string) {
-    setError("");
     try {
       const created = await adminBlocksApi.add(clientId, {
         email: blockEmail[clientId] ?? "",
@@ -73,12 +77,11 @@ export function AdminClientsPage() {
       setBlockEmail({ ...blockEmail, [clientId]: "" });
       setBlockReason({ ...blockReason, [clientId]: "" });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "封禁失败");
+      toast.error(err instanceof Error ? err.message : "封禁失败");
     }
   }
 
   async function removeBlock(clientId: string, blockId: string) {
-    setError("");
     try {
       await adminBlocksApi.remove(clientId, blockId);
       setBlocks({
@@ -86,26 +89,25 @@ export function AdminClientsPage() {
         [clientId]: (blocks[clientId] ?? []).filter((block) => block.id !== blockId),
       });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "解封失败");
+      toast.error(err instanceof Error ? err.message : "解封失败");
     }
   }
 
   async function confirmRemove() {
     if (!removeTarget) return;
-    setError("");
     try {
       await adminClientsApi.remove(removeTarget.id);
       setClients(clients.filter((client) => client.id !== removeTarget.id));
       setRemoveTarget(null);
+      toast.success(`应用“${removeTarget.name}”已删除`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "删除失败");
+      toast.error(err instanceof Error ? err.message : "删除失败");
     }
   }
 
   function startEdit(client: ClientOut) {
     setEditingId(client.id);
     setEditDraft({ ...client });
-    setSecretResult(null);
   }
 
   function cancelEdit() {
@@ -119,7 +121,6 @@ export function AdminClientsPage() {
 
   async function saveEdit() {
     if (!editDraft) return;
-    setError("");
     try {
       const updated = await adminClientsApi.update(editDraft.id, {
         name: editDraft.name,
@@ -135,51 +136,55 @@ export function AdminClientsPage() {
       setClients(clients.map((client) => (client.id === updated.id ? updated : client)));
       setEditingId(null);
       setEditDraft(null);
+      toast.success(`应用“${updated.name}”已保存`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "保存失败");
+      toast.error(err instanceof Error ? err.message : "保存失败");
     }
   }
 
   async function toggleActive(client: ClientOut) {
-    setError("");
     try {
       const updated = await adminClientsApi.update(client.id, {
         is_active: !client.is_active,
       });
       setClients(clients.map((item) => (item.id === updated.id ? updated : item)));
+      toast.success(
+        `应用“${updated.name}”已${updated.is_active ? "启用" : "停用"}`,
+      );
     } catch (err) {
-      setError(err instanceof Error ? err.message : "操作失败");
+      toast.error(err instanceof Error ? err.message : "操作失败");
     }
   }
 
   async function resetSecret(client: ClientOut) {
-    setError("");
-    setSecretResult(null);
     try {
       const result = await adminClientsApi.resetSecret(client.id);
-      setSecretResult({
+      setSecretModal({
         name: client.name,
         secret: result.client_secret ?? "",
       });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "重置密钥失败");
+      toast.error(err instanceof Error ? err.message : "重置密钥失败");
+    }
+  }
+
+  async function copySecret() {
+    if (!secretModal) return;
+    if (!navigator.clipboard) {
+      toast.error("当前浏览器不支持一键复制，请手动选择复制");
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(secretModal.secret);
+      toast.success("client_secret 已复制到剪贴板");
+    } catch {
+      toast.error("复制失败，请手动选择复制");
     }
   }
 
   return (
     <section className="space-y-6">
       <h2 className="text-lg font-semibold text-foreground">授权网站管理</h2>
-
-      {secretResult && (
-        <p className="alert alert-warning">
-          <span className="break-all">
-            已重置 <strong>{secretResult.name}</strong> 的 client_secret（只显示一次）：
-            <code className="ml-1 rounded bg-surface-2 px-1.5 py-0.5 font-mono">
-              {secretResult.secret}
-            </code>
-          </span>
-        </p>
-      )}
 
       <form onSubmit={handleCreate} className="card space-y-4 p-6">
         <h3 className="text-sm font-semibold text-foreground">添加授权网站</h3>
@@ -228,42 +233,10 @@ export function AdminClientsPage() {
           />
           公开客户端（无 secret，仅 PKCE）
         </label>
-        {secret && (
-          <p className="alert alert-warning">
-            <span className="break-all">
-              请立即保存 client_secret（只显示一次）：
-              <code className="ml-1 rounded bg-surface-2 px-1.5 py-0.5 font-mono">
-                {secret}
-              </code>
-            </span>
-          </p>
-        )}
-        {error && (
-          <p className="alert alert-error" role="alert">
-            {error}
-          </p>
-        )}
         <button type="submit" className="btn btn-primary">
           创建应用
         </button>
       </form>
-
-      {removeTarget && (
-        <div className="alert alert-error animate-fade-up">
-          <span>
-            确定删除应用“{removeTarget.name}”吗？其授权记录与黑名单将一并删除。
-          </span>
-          <button onClick={confirmRemove} className="btn btn-danger">
-            确认删除
-          </button>
-          <button
-            onClick={() => setRemoveTarget(null)}
-            className="btn btn-secondary"
-          >
-            取消
-          </button>
-        </div>
-      )}
 
       <ul className="space-y-3">
         {clients.map((client) => (
@@ -476,6 +449,53 @@ export function AdminClientsPage() {
           </li>
         ))}
       </ul>
+
+      <ConfirmDialog
+        open={removeTarget !== null}
+        title="删除应用"
+        message={
+          removeTarget && (
+            <span>
+              确定删除应用“{removeTarget.name}”吗？其授权记录与黑名单将一并删除。
+            </span>
+          )
+        }
+        confirmLabel="确认删除"
+        onConfirm={confirmRemove}
+        onCancel={() => setRemoveTarget(null)}
+      />
+
+      <Modal
+        open={secretModal !== null}
+        onClose={() => setSecretModal(null)}
+        title={secretModal ? `${secretModal.name} 的 client_secret` : "client_secret"}
+        intent="warning"
+        footer={
+          <>
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={copySecret}
+            >
+              复制密钥
+            </button>
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={() => setSecretModal(null)}
+            >
+              我已保存
+            </button>
+          </>
+        }
+      >
+        <p className="mb-3 text-warning">
+          该密钥只显示一次，请立即保存到安全的位置。
+        </p>
+        <code className="block break-all rounded-lg bg-surface-2 p-3 font-mono text-xs text-foreground">
+          {secretModal?.secret}
+        </code>
+      </Modal>
     </section>
   );
 }

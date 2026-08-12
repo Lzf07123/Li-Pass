@@ -1,18 +1,21 @@
 import { useCallback, useEffect, useState } from "react";
 
 import { adminAuditApi } from "../api/client";
+import { useToast } from "../hooks/useToast";
 import type { AuditLogOut } from "../api/types";
 
 export function AdminAuditPanel() {
   const [logs, setLogs] = useState<AuditLogOut[]>([]);
-  const [error, setError] = useState("");
+  const toast = useToast();
 
   const load = useCallback(() => {
     adminAuditApi
       .list()
       .then(setLogs)
-      .catch((err) => setError(err instanceof Error ? err.message : "加载失败"));
-  }, []);
+      .catch((err) =>
+        toast.error(err instanceof Error ? err.message : "加载失败"),
+      );
+  }, [toast]);
 
   useEffect(() => {
     load();
@@ -26,11 +29,6 @@ export function AdminAuditPanel() {
           刷新
         </button>
       </div>
-      {error && (
-        <p className="alert alert-error" role="alert">
-          {error}
-        </p>
-      )}
       <div className="table-shell">
         <table>
           <thead>

@@ -3,9 +3,8 @@ import secrets
 from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta, timezone
 
-import redis
-
 from app.core.config import get_settings
+from app.core.redis import get_redis_client
 
 
 @dataclass
@@ -66,7 +65,7 @@ class InMemoryPendingRequestStore(PendingRequestStore):
 
 
 class RedisPendingRequestStore(PendingRequestStore):
-    def __init__(self, client: redis.Redis) -> None:
+    def __init__(self, client) -> None:
         self._client = client
 
     def _key(self, request_id: str) -> str:
@@ -96,12 +95,10 @@ def get_pending_request_store() -> PendingRequestStore:
     if settings.pending_request_store == "redis":
         global _redis_store
         if _redis_store is None:
-            _redis_store = RedisPendingRequestStore(
-                redis.Redis.from_url(settings.redis_url, decode_responses=True)
-            )
+            _redis_store = RedisPendingRequestStore(get_redis_client())
         return _redis_store
     raise ValueError(f"Unsupported pending request store: {settings.pending_request_store}")
 
 
 _memory_store = InMemoryPendingRequestStore()
-_redis_store: RedisPendingRequestStore | None = None
+_redis_store = None

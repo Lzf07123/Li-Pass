@@ -1,8 +1,7 @@
 import time
 
-import redis
-
 from app.core.config import get_settings
+from app.core.redis import get_redis_client
 
 
 class RateLimiter:
@@ -73,7 +72,5 @@ def get_rate_limiter() -> RateLimiter:
         return _memory_limiter
     global _redis_limiter
     if _redis_limiter is None:
-        _redis_limiter = RedisRateLimiter(
-            redis.Redis.from_url(settings.redis_url, decode_responses=True)
-        )
+        _redis_limiter = RedisRateLimiter(get_redis_client())
     return _redis_limiter

@@ -3,6 +3,8 @@ import { useSearchParams } from "react-router-dom";
 
 import { consentApi } from "../api/client";
 import { AuthShell } from "../components/AuthShell";
+import { Notice } from "../components/Notice";
+import { useToast } from "../hooks/useToast";
 import type { ConsentInfo } from "../api/types";
 
 const SCOPE_LABELS: Record<string, string> = {
@@ -17,6 +19,7 @@ export function ConsentPage() {
   const requestId = searchParams.get("request_id") ?? "";
   const [info, setInfo] = useState<ConsentInfo | null>(null);
   const [error, setError] = useState("");
+  const toast = useToast();
 
   useEffect(() => {
     if (!requestId) return;
@@ -27,14 +30,13 @@ export function ConsentPage() {
   }, [requestId]);
 
   async function decide(approve: boolean) {
-    setError("");
     try {
       const result = approve
         ? await consentApi.approve(requestId)
         : await consentApi.deny(requestId);
       window.location.href = result.redirect_url;
     } catch (err) {
-      setError(err instanceof Error ? err.message : "操作失败");
+      toast.error(err instanceof Error ? err.message : "操作失败");
     }
   }
 
@@ -81,11 +83,6 @@ export function ConsentPage() {
           <p className="text-xs text-muted">
             登录后将跳回 {info.client.name}，不会向对方泄露你的密码。
           </p>
-          {error && (
-            <p className="alert alert-error" role="alert">
-              {error}
-            </p>
-          )}
           <div className="flex gap-3">
             <button
               onClick={() => decide(true)}
@@ -102,7 +99,7 @@ export function ConsentPage() {
           </div>
         </div>
       ) : error ? (
-        <p className="py-4 text-center text-sm text-muted">{error}</p>
+        <Notice intent="error">{error}</Notice>
       ) : (
         <div className="space-y-3" aria-busy="true" aria-label="正在加载授权信息">
           <div className="shimmer h-20 rounded-xl" />

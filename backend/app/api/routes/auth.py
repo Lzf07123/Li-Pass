@@ -2,17 +2,20 @@ import uuid
 from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
-from sqlalchemy import select
+from sqlalchemy import select, update
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
 from app.core.db import get_db
+from app.models.account_invite import AccountInvite
 from app.models.otp import OtpPurpose
 from app.models.session import Session as SessionModel
 from app.models.user import User, UserStatus
 from app.schemas.auth import (
     ConfirmPasswordResetRequest,
     EmailVerifyRequest,
+    InviteRegisterRequest,
     LoginRequest,
     PasswordResetRequest,
     RegisterRequest,
@@ -21,7 +24,11 @@ from app.schemas.auth import (
     UserOut,
     serialize_user,
 )
-from app.security.passwords import hash_password, verify_password
+from app.security.passwords import (
+    hash_password,
+    password_needs_rehash,
+    verify_password,
+)
 from app.security.tokens import generate_token, hash_token
 from app.services.email import get_email_service
 from app.services.otps import create_otp, verify_otp
@@ -36,6 +43,12 @@ from app.services.twofa import (
 
 router = APIRouter(prefix="/api/v1/auth", tags=["auth"])
 settings = get_settings()
+
+
+def _as_utc(dt: datetime) -> datetime:
+    if dt.tzinfo is None:
+        return dt.replace(tzinfo=timezone.utc)
+    return dt.astimezone(timezone.utc)
 
 
 def _create_session_and_cookie(
@@ -127,6 +140,81 @@ def verify_email(
     return {"message": "邮箱已验证"}
 
 
+@router.post(
+    "/invite/register",
+    response_model=dict,
+    status_code=status.HTTP_201_CREATED,
+)
+def register_by_invite(
+    payload: InviteRegisterRequest,
+    request: Request,
+    db: Session = Depends(get_db),
+) -> dict:
+    ip = request.client.host if request.client else ""
+    if (
+        get_rate_limiter().hit(
+            "invite_register", ip, settings.register_rate_window_seconds
+        )
+        > settings.register_rate_limit
+    ):
+        raise HTTPException(status.HTTP_429_TOO_MANY_REQUESTS, "注册过于频繁，请稍后再试")
+
+    invite = db.scalar(
+        select(AccountInvite).where(
+            AccountInvite.token_hash == hash_token(payload.token)
+        )
+    )
+    now = datetime.now(timezone.utc)
+    if (
+        invite is None
+        or invite.used_at is not None
+        or _as_utc(invite.expires_at) < now
+    ):
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "邀请链接无效或已过期")
+    if db.scalar(select(User).where(User.email == invite.email)) is not None:
+        raise HTTPException(status.HTTP_409_CONFLICT, "该邮箱已注册")
+
+    # 原子消费邀请：并发请求只有一个能成功把 used_at 置位，
+    # 避免同一令牌被两个请求同时通过校验后重复建号或触发唯一约束 500。
+    claimed = db.execute(
+        update(AccountInvite)
+        .where(
+            AccountInvite.id == invite.id,
+            AccountInvite.used_at.is_(None),
+        )
+        .values(used_at=now)
+        .execution_options(synchronize_session=False)
+    )
+    if claimed.rowcount != 1:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "邀请链接无效或已过期")
+
+    user = User(
+        email=invite.email,
+        nickname=payload.nickname,
+        password_hash=hash_password(payload.password),
+        email_verified_at=now,
+    )
+    db.add(user)
+    try:
+        db.commit()
+    except IntegrityError:
+        # 与普通注册并发撞邮箱时回滚（邀请消费一并回滚），返回明确的冲突而非 500。
+        db.rollback()
+        raise HTTPException(status.HTTP_409_CONFLICT, "该邮箱已注册")
+    log_audit(
+        db,
+        "user",
+        str(user.id),
+        "user_register_by_invite",
+        target_type="user",
+        target_id=str(user.id),
+        ip=ip,
+        user_agent=request.headers.get("user-agent"),
+        detail={"email": invite.email},
+    )
+    return {"message": "账号已创建，请登录"}
+
+
 @router.post("/login")
 def login(
     payload: LoginRequest,
@@ -162,6 +250,10 @@ def login(
         if count > settings.login_rate_limit:
             raise HTTPException(status.HTTP_429_TOO_MANY_REQUESTS, "尝试次数过多，请稍后再试")
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "邮箱或密码错误")
+    if password_needs_rehash(user.password_hash):
+        # Argon2 参数升级：仅在密码验证通过后重哈希，不向客户端暴露任何信息。
+        user.password_hash = hash_password(payload.password)
+        db.commit()
     if user.status != UserStatus.active:
         # 与密码错误统一响应，避免泄露账号状态。
         get_rate_limiter().hit(

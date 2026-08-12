@@ -36,7 +36,11 @@ def list_clients(db: Session = Depends(get_db)) -> list[dict]:
 
 
 @router.post("", response_model=ClientSecretOut)
-def create_client(payload: ClientCreate, db: Session = Depends(get_db)) -> dict:
+def create_client(
+    payload: ClientCreate,
+    actor: User = Depends(get_current_admin),
+    db: Session = Depends(get_db),
+) -> dict:
     client_secret = None
     client_secret_hash = None
     if not payload.public:
@@ -56,6 +60,19 @@ def create_client(payload: ClientCreate, db: Session = Depends(get_db)) -> dict:
     db.add(client)
     db.commit()
     db.refresh(client)
+    log_audit(
+        db,
+        "admin",
+        str(actor.id),
+        "admin_create_client",
+        target_type="oauth_client",
+        target_id=str(client.id),
+        detail={
+            "name": client.name,
+            "public": payload.public,
+            "redirect_uris": client.redirect_uris,
+        },
+    )
     return {"client": serialize_client(client), "client_secret": client_secret}
 
 
@@ -69,7 +86,10 @@ def get_client(client_id: uuid.UUID, db: Session = Depends(get_db)) -> dict:
 
 @router.patch("/{client_id:uuid}", response_model=dict)
 def update_client(
-    client_id: uuid.UUID, payload: ClientUpdate, db: Session = Depends(get_db)
+    client_id: uuid.UUID,
+    payload: ClientUpdate,
+    actor: User = Depends(get_current_admin),
+    db: Session = Depends(get_db),
 ) -> dict:
     client = db.get(OAuthClient, client_id)
     if client is None:
@@ -78,20 +98,46 @@ def update_client(
         setattr(client, field, value)
     db.commit()
     db.refresh(client)
+    log_audit(
+        db,
+        "admin",
+        str(actor.id),
+        "admin_update_client",
+        target_type="oauth_client",
+        target_id=str(client.id),
+        detail={"name": client.name, "is_active": client.is_active},
+    )
     return serialize_client(client)
 
 
 @router.delete("/{client_id:uuid}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_client(client_id: uuid.UUID, db: Session = Depends(get_db)) -> None:
+def delete_client(
+    client_id: uuid.UUID,
+    actor: User = Depends(get_current_admin),
+    db: Session = Depends(get_db),
+) -> None:
     client = db.get(OAuthClient, client_id)
     if client is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "应用不存在")
+    log_audit(
+        db,
+        "admin",
+        str(actor.id),
+        "admin_delete_client",
+        target_type="oauth_client",
+        target_id=str(client.id),
+        detail={"name": client.name, "client_id": client.client_id},
+    )
     db.delete(client)
     db.commit()
 
 
 @router.post("/{client_id:uuid}/reset-secret", response_model=ClientSecretOut)
-def reset_secret(client_id, db: Session = Depends(get_db)) -> dict:
+def reset_secret(
+    client_id,
+    actor: User = Depends(get_current_admin),
+    db: Session = Depends(get_db),
+) -> dict:
     client = db.get(OAuthClient, client_id)
     if client is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "应用不存在")
@@ -100,6 +146,15 @@ def reset_secret(client_id, db: Session = Depends(get_db)) -> dict:
     client_secret = generate_client_secret()
     client.client_secret_hash = hash_token(client_secret)
     db.commit()
+    log_audit(
+        db,
+        "admin",
+        str(actor.id),
+        "admin_reset_client_secret",
+        target_type="oauth_client",
+        target_id=str(client.id),
+        detail={"name": client.name},
+    )
     return {"client": serialize_client(client), "client_secret": client_secret}
 
 

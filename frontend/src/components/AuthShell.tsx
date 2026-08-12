@@ -1,6 +1,9 @@
 import type { ReactNode } from "react";
 
-import { APP_TAGLINE } from "../lib/brand";
+import { APP_NAME, APP_TAGLINE } from "../lib/brand";
+import { AuroraBackground } from "./bits/AuroraBackground";
+import { BlurText } from "./bits/BlurText";
+import { ShinyText } from "./bits/ShinyText";
 import { Brand } from "./Brand";
 import { SiteFooter } from "./SiteFooter";
 import { ThemeToggle } from "./ThemeToggle";
@@ -15,36 +18,50 @@ export function AuthShell({
   children: ReactNode;
 }) {
   return (
-    <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-background px-4 py-10">
-      {/* 装饰性背景光晕 */}
-      <div aria-hidden="true" className="pointer-events-none absolute inset-0">
-        <div className="absolute -top-40 left-1/2 h-96 w-[44rem] -translate-x-1/2 rounded-full bg-primary/10 blur-3xl dark:bg-primary/10" />
-        <div className="absolute -bottom-32 -right-24 h-80 w-80 rounded-full bg-success/5 blur-3xl" />
-        <div className="absolute -left-24 top-1/3 h-64 w-64 rounded-full bg-primary/5 blur-3xl" />
-      </div>
+    <main className="relative flex min-h-screen flex-col overflow-hidden bg-background px-4 py-10">
+      {/* ReactBits 风格极光背景 */}
+      <AuroraBackground />
 
-      <div className="relative w-full max-w-md">
-        <div className="animate-fade-up mb-8 flex flex-col items-center gap-3 text-center">
-          <Brand className="h-12 w-12 drop-shadow-sm" />
-          <div>
-            <h1 className="text-[22px] font-semibold tracking-tight text-foreground">
-              {title}
-            </h1>
-            {subtitle && <p className="mt-1.5 text-sm text-muted">{subtitle}</p>}
+      <div className="relative flex flex-1 items-center justify-center">
+        <div className="w-full max-w-md">
+          <div
+            className="animate-fade-up-slow mb-8 flex flex-col items-center gap-3 text-center"
+            style={{ animationDelay: "0.05s" }}
+          >
+            <Brand className="h-12 w-12 drop-shadow-sm" />
+            <div>
+              <BlurText
+                text={title}
+                className="text-[22px] font-semibold tracking-tight text-foreground"
+              />
+              {subtitle && <p className="mt-1.5 text-sm text-muted">{subtitle}</p>}
+            </div>
+          </div>
+
+          <div className="animate-fade-up-slow" style={{ animationDelay: "0.18s" }}>
+            <div className="card p-6 sm:p-8">{children}</div>
           </div>
         </div>
+      </div>
 
-        <div className="animate-fade-up [animation-delay:70ms]">
-          <div className="card p-6 sm:p-8">{children}</div>
-        </div>
-
-        <div className="animate-fade-in mt-6 space-y-2 text-center [animation-delay:140ms]">
-          <p className="text-xs text-muted">{APP_TAGLINE}</p>
+      <div
+        className="animate-fade-up-slow relative text-center"
+        style={{ animationDelay: "0.32s" }}
+      >
+        <p className="text-xs text-muted">
+          <ShinyText text={`${APP_NAME} · ${APP_TAGLINE}`} duration={7} />
+        </p>
+        <div className="mt-2">
           <SiteFooter compact />
         </div>
       </div>
 
-      <ThemeToggle className="animate-fade-in absolute right-4 top-4 sm:right-6 sm:top-6 [animation-delay:180ms]" />
+      <div
+        className="animate-fade-up-slow absolute right-4 top-4 sm:right-6 sm:top-6"
+        style={{ animationDelay: "0.4s" }}
+      >
+        <ThemeToggle />
+      </div>
     </main>
   );
 }

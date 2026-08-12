@@ -10,6 +10,12 @@ class RegisterRequest(BaseModel):
     nickname: str = Field(min_length=1, max_length=80)
 
 
+class InviteRegisterRequest(BaseModel):
+    token: str = Field(min_length=20, max_length=200)
+    nickname: str = Field(min_length=1, max_length=80)
+    password: str = Field(min_length=8, max_length=128)
+
+
 class EmailVerifyRequest(BaseModel):
     email: EmailStr
     code: str = Field(min_length=6, max_length=6)

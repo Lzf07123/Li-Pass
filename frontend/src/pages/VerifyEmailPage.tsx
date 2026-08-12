@@ -1,24 +1,30 @@
 import { useState } from "react";
-import { Link, useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 
 import { authApi } from "../api/client";
 import { AuthShell } from "../components/AuthShell";
+import { useToast } from "../hooks/useToast";
 
 export function VerifyEmailPage() {
   const [searchParams] = useSearchParams();
   const email = searchParams.get("email") ?? "";
   const [code, setCode] = useState("");
-  const [message, setMessage] = useState("");
-  const [error, setError] = useState("");
+  const toast = useToast();
+  const navigate = useNavigate();
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setError("");
     try {
       const result = await authApi.verifyEmail({ email, code });
-      setMessage(result.message);
+      toast.success(result.message, {
+        duration: 8000,
+        action: {
+          label: "去登录",
+          onClick: () => navigate("/login"),
+        },
+      });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "验证失败");
+      toast.error(err instanceof Error ? err.message : "验证失败");
     }
   }
 
@@ -38,21 +44,6 @@ export function VerifyEmailPage() {
             required
           />
         </label>
-        {error && (
-          <p className="alert alert-error" role="alert">
-            {error}
-          </p>
-        )}
-        {message && (
-          <p className="alert alert-success">
-            <span>
-              {message}，{" "}
-              <Link to="/login" className="btn-link font-semibold">
-                去登录
-              </Link>
-            </span>
-          </p>
-        )}
         <button type="submit" className="btn btn-primary w-full">
           验证
         </button>

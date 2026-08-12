@@ -12,6 +12,9 @@ class EmailService(ABC):
     @abstractmethod
     def send_password_reset(self, to: str, code: str) -> None: ...
 
+    @abstractmethod
+    def send_invite(self, to: str, link: str) -> None: ...
+
 
 class ConsoleEmailService(EmailService):
     def _send(self, subject: str, to: str, code: str) -> None:
@@ -22,6 +25,9 @@ class ConsoleEmailService(EmailService):
 
     def send_password_reset(self, to: str, code: str) -> None:
         self._send("reset your password", to, code)
+
+    def send_invite(self, to: str, link: str) -> None:
+        print(f"[email:{get_settings().email_backend}] invite -> {to}: {link}")
 
 
 class SMTPEmailService(EmailService):
@@ -35,6 +41,14 @@ class SMTPEmailService(EmailService):
         from_name: str,
         use_tls: bool,
     ) -> None:
+        # SMTP_FROM 允许只填显示名：缺失邮箱地址时回退为认证邮箱，
+        # 避免 From 头变成 "LinPass <LinPass>" 这种无效地址。
+        if "@" not in from_addr and username and "@" in username:
+            from_addr = username
+        if "@" not in from_addr:
+            raise ValueError(
+                "SMTP_FROM 必须配置为邮箱地址，例如 noreply@example.com"
+            )
         self.host = host
         self.port = port
         self.username = username
@@ -51,19 +65,35 @@ class SMTPEmailService(EmailService):
         message.set_content(body)
         return message
 
+    def _connect(self) -> smtplib.SMTP:
+        # 465 为隐式 SSL（SMTP_SSL），587/25 为明文 + STARTTLS。
+        # 混用会导致 465 端口握手失败（服务端等待 TLS 而客户端发纯文本）。
+        if self.port == 465:
+            return smtplib.SMTP_SSL(self.host, self.port, timeout=15)
+        server = smtplib.SMTP(self.host, self.port, timeout=15)
+        if self.use_tls:
+            server.starttls()
+        return server
+
     def _send(self, to: str, subject: str, body: str) -> None:
-        with smtplib.SMTP(self.host, self.port, timeout=15) as server:
-            if self.use_tls:
-                server.starttls()
+        message = self._build_message(to, subject, body)
+        with self._connect() as server:
             if self.username:
                 server.login(self.username, self.password)
-            server.send_message(self._build_message(to, subject, body))
+            server.send_message(message)
 
     def send_verification(self, to: str, code: str) -> None:
         self._send(to, "LinPass SSO 邮箱验证码", f"你的验证码是 {code}，10 分钟内有效。")
 
     def send_password_reset(self, to: str, code: str) -> None:
         self._send(to, "LinPass SSO 重置密码", f"你的重置验证码是 {code}，10 分钟内有效。")
+
+    def send_invite(self, to: str, link: str) -> None:
+        self._send(
+            to,
+            "LinPass SSO 账号邀请",
+            f"你被邀请注册 LinPass SSO 账号，请点击以下链接完成注册（7 天内有效）：\n{link}",
+        )
 
 
 def get_email_service() -> EmailService:

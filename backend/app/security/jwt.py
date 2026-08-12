@@ -1,4 +1,5 @@
 import base64
+import time
 from datetime import datetime, timedelta, timezone
 from functools import lru_cache
 from pathlib import Path
@@ -8,6 +9,7 @@ from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
 
 from app.core.config import get_settings
+from app.security.crypto import atomic_write_bytes, read_key_bytes_with_retry
 
 KID = "portal-rs256-1"
 
@@ -16,18 +18,28 @@ KID = "portal-rs256-1"
 def _load_key_pair(path: str) -> tuple[object, object]:
     key_path = Path(path)
     if not key_path.exists():
-        key_path.parent.mkdir(parents=True, exist_ok=True)
         key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
-        key_path.write_bytes(
+        atomic_write_bytes(
+            key_path,
             key.private_bytes(
                 serialization.Encoding.PEM,
                 serialization.PrivateFormat.PKCS8,
                 serialization.NoEncryption(),
-            )
+            ),
         )
-        key_path.chmod(0o600)
-    private_key = serialization.load_pem_private_key(key_path.read_bytes(), password=None)
-    return private_key, private_key.public_key()
+    last_error: Exception | None = None
+    for _ in range(20):
+        try:
+            private_key = serialization.load_pem_private_key(
+                read_key_bytes_with_retry(key_path), password=None
+            )
+            return private_key, private_key.public_key()
+        except (ValueError, TypeError) as exc:
+            last_error = exc
+            time.sleep(0.05)
+    if last_error is not None:
+        raise last_error
+    raise ValueError(f"无法加载 JWT 私钥: {path}")
 
 
 def _b64(number: int) -> str:

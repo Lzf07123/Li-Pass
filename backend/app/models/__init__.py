@@ -1,3 +1,4 @@
+from app.models.account_invite import AccountInvite
 from app.models.authorization_code import AuthorizationCode
 from app.models.audit_log import AuditLog
 from app.models.base import Base
@@ -10,6 +11,7 @@ from app.models.user import User, UserRole, UserStatus
 from app.models.user_consent import UserConsent
 
 __all__ = [
+    "AccountInvite",
     "AuthorizationCode",
     "AuditLog",
     "Base",

@@ -2,6 +2,8 @@
 
 Portal OSS 使用 Docker Compose 部署。仓库**不内置反向代理**：前端与后端作为独立服务直接暴露，生产环境的 HTTPS、域名与路由由部署环境（K8s Ingress、云负载均衡、外部网关）负责。
 
+编排内的 `gateway` 是单域名网关（`/` 前端、`/api`、`/oauth2` 等）；后端与前端容器**只绑定宿主机回环地址**（`127.0.0.1:8000` / `127.0.0.1:5173`），仅供本机调试，生产对外的唯一入口是网关的 80 端口（HTTPS 由部署环境终止）。
+
 ## 架构
 
 ```text
@@ -20,10 +22,10 @@ Portal OSS 使用 Docker Compose 部署。仓库**不内置反向代理**：前�
 ```bash
 cp .env.example .env
 # 按需修改 .env（域名、Cookie、邮件、密码等；生产配置示例见 .env.example 底部注释）
-docker compose -f docker-compose.yaml --env-file .env up -d --build
+docker compose -f docker-compose.yaml --profile bundle --env-file .env up -d --build
 ```
 
-开发与生产共用这一份 `docker-compose.yaml`：本地直接 `docker compose up -d --build`；生产按上文配置 `.env` 后再启动即可。
+开发与生产共用这一份 `docker-compose.yaml`：本地直接 `docker compose --profile bundle up -d --build`；生产按上文配置 `.env` 后再启动即可。使用远程 PostgreSQL/Redis 时去掉 `--profile bundle`。
 
 启动后：
 
@@ -35,7 +37,7 @@ docker compose -f docker-compose.yaml --env-file .env up -d --build
 示例授权网站（仅本地演示）默认**不随生产栈启动**，需要时单独启用：
 
 ```bash
-docker compose --profile demo up -d --build demo-site
+docker compose --profile bundle --profile demo up -d --build
 # 演示网站：http://localhost:3001
 ```
 
@@ -67,7 +69,8 @@ docker compose -f docker-compose.yaml --env-file .env exec backend \
 | `ALLOWED_HOSTS` | 后端接受的 Host 白名单（JSON 数组；生产必填真实域名，防 Host 头注入/DNS rebinding） |
 | `SESSION_COOKIE_SECURE` | HTTPS 下必须 `true` |
 | `SESSION_COOKIE_SAMESITE` | 见下方「SameSite 与部署拓扑」 |
-| `DATABASE_URL` / `REDIS_URL` | 数据与缓存连接串 |
+| `SESSION_IDLE_DAYS` | 会话空闲超时天数（默认 7 天，超过即强制下线） |
+| `DATABASE_URL` / `REDIS_URL` | 数据与缓存连接串：留空时默认编排内 PostgreSQL/Redis（需 `bundle` profile）；填写远程地址即切换为远程实例 |
 | `PENDING_REQUEST_STORE` / `TWOFA_STORE` / `RATE_LIMITER` | 生产用 `redis` |
 | `JWT_PRIVATE_KEY_PATH` / `ENCRYPTION_KEY_PATH` | 密钥文件路径（生产必须为绝对路径，指向 `/app/keys` 卷） |
 | `EMAIL_BACKEND` | `console`（开发）或 `smtp`（生产） |
@@ -76,7 +79,32 @@ docker compose -f docker-compose.yaml --env-file .env exec backend \
 | `SMTP_FROM` / `SMTP_FROM_NAME` | 真实发件地址与发件人名称（生产必填 `SMTP_FROM`） |
 | `SMTP_USE_TLS` | 是否使用 STARTTLS（默认 `true`） |
 | `REDIS_PASSWORD` | Redis AUTH 口令，生产必须设置长度 ≥12 的强口令 |
-| `FORWARDED_ALLOW_IPS` | 反向代理 IP 白名单（默认 `127.0.0.1`），用于正确识别客户端 IP |
+| `FORWARDED_ALLOW_IPS` | 反向代理 IP/CIDR 白名单；编排内默认只信任网关固定 IP `172.30.0.2`（compose 固定子网），使用外部反代时改为其网关 IP 或网段 |
+
+## 编排内 / 远程数据库切换
+
+默认的全栈启动使用编排内服务，PostgreSQL 与 Redis 位于 `bundle` profile：
+
+```bash
+docker compose --profile bundle up -d --build
+```
+
+后端容器内默认连接串为：
+
+- `DATABASE_URL=postgresql+psycopg://…@postgres:5432/portal`
+- `REDIS_URL=redis://:…@redis:6379/0`
+
+若使用云数据库、托管 Redis 或自建远程实例，在 `.env` 中显式覆盖连接串，并去掉 `--profile bundle`，Compose 将不会启动编排内的 postgres/redis（backend 的 `depends_on` 已标记 `required: false`）：
+
+```bash
+# .env
+DATABASE_URL=postgresql+psycopg://user:password@db.example.com:5432/portal
+REDIS_URL=redis://:password@redis.example.com:6379/0
+
+docker compose up -d --build
+```
+
+两种模式可以随时切换，数据不互迁：编排内连接使用 `postgres-data-prod` / `redis-data-prod` 卷，远程连接完全由 `DATABASE_URL` / `REDIS_URL` 决定。
 
 生产邮箱配置示例：
 
@@ -119,6 +147,8 @@ docker run --rm -v portal-oss_backend-keys:/keys -v "$PWD":/backup alpine \
 - 生产环境强制密钥路径为绝对路径（默认 `/app/keys/…`），避免工作目录变化导致密钥漂移。
 
 ## PostgreSQL 备份与恢复
+
+以下命令仅适用于编排内 PostgreSQL（`--profile bundle`）；使用远程 PostgreSQL 时，请使用云厂商或实例自带的备份机制。
 
 备份：
 
@@ -171,7 +201,7 @@ Redis 已通过 `--appendonly yes` 显式开启 AOF（可用 `REDIS_APPENDONLY=n
    - `ALLOWED_HOSTS=["portal.example.com","127.0.0.1"]`（真实域名必填；`127.0.0.1` 供容器健康检查）
    - `SESSION_COOKIE_SECURE=true`
    - `SESSION_COOKIE_SAMESITE`：按「SameSite 与部署拓扑」选择 `lax` 或 `none`
-   - `FORWARDED_ALLOW_IPS`：填网关 IP，让限流/审计拿到真实客户端 IP
+   - `FORWARDED_ALLOW_IPS`：使用编排内网关时保持默认（`172.30.0.2`）；改用外部反代时填网关 IP/CIDR，让限流/审计拿到真实客户端 IP
 4. 重新构建并启动。
 
 ## 上线前安全清单

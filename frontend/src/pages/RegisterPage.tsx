@@ -3,23 +3,23 @@ import { Link, useNavigate } from "react-router-dom";
 
 import { authApi } from "../api/client";
 import { AuthShell } from "../components/AuthShell";
+import { useToast } from "../hooks/useToast";
 import { APP_NAME } from "../lib/brand";
 
 export function RegisterPage() {
   const [email, setEmail] = useState("");
   const [nickname, setNickname] = useState("");
   const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
+  const toast = useToast();
   const navigate = useNavigate();
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setError("");
     try {
       await authApi.register({ email, nickname, password });
       navigate(`/verify-email?email=${encodeURIComponent(email)}`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "注册失败");
+      toast.error(err instanceof Error ? err.message : "注册失败");
     }
   }
 
@@ -60,11 +60,6 @@ export function RegisterPage() {
             required
           />
         </label>
-        {error && (
-          <p className="alert alert-error" role="alert">
-            {error}
-          </p>
-        )}
         <button type="submit" className="btn btn-primary w-full">
           注册
         </button>

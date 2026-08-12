@@ -8,10 +8,10 @@ from datetime import datetime, timedelta, timezone
 import pyotp
 import qrcode
 import qrcode.image.svg
-import redis
 from sqlalchemy import select
 
 from app.core.config import get_settings
+from app.core.redis import get_redis_client
 from app.models.recovery_code import RecoveryCode
 from app.security.crypto import decrypt_str, encrypt_str, hmac_hex
 from app.security.tokens import hash_token
@@ -121,9 +121,7 @@ def get_twofa_store():
         return _memory_store
     global _redis_store
     if _redis_store is None:
-        _redis_store = RedisTwoFactorChallengeStore(
-            redis.Redis.from_url(settings.redis_url, decode_responses=True)
-        )
+        _redis_store = RedisTwoFactorChallengeStore(get_redis_client())
     return _redis_store
 
 

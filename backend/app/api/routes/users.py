@@ -1,21 +1,24 @@
+import logging
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile, status
-from sqlalchemy import select
+from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_session, get_current_user
 from app.core.config import get_settings
 from app.core.db import get_db
+from app.models.client_user_block import ClientUserBlock
 from app.models.oauth_client import OAuthClient
 from app.models.otp import OtpPurpose
 from app.models.session import Session as SessionModel
-from app.models.user import User
+from app.models.user import User, UserRole
 from app.models.user_consent import UserConsent
 from app.schemas.auth import (
     AppOut,
+    PasswordConfirm,
     PasswordChange,
     PhoneBind,
     ProfileUpdate,
@@ -24,13 +27,15 @@ from app.schemas.auth import (
     serialize_user,
 )
 from app.security.passwords import hash_password, verify_password
-from app.services.blocks import find_block
+from app.services.account_deletion import delete_user_account
+from app.services.avatar_cleanup import delete_avatar_file
 from app.services.audit import log_audit
 from app.services.email import get_email_service
 from app.services.otps import create_otp, verify_otp
 from app.services.rate_limit import get_rate_limiter
 
 router = APIRouter(prefix="/api/v1", tags=["users"])
+logger = logging.getLogger(__name__)
 
 
 _AVATAR_TYPES = {
@@ -64,11 +69,20 @@ def update_profile(
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> dict:
+    old_avatar = user.avatar_url
     if payload.nickname is not None:
         user.nickname = payload.nickname
     if payload.avatar_url is not None:
         user.avatar_url = payload.avatar_url
     db.commit()
+    # 头像地址被替换/改为外链/清空时，旧的本地上传文件不再被引用，立即删除。
+    if old_avatar and old_avatar != user.avatar_url:
+        upload_dir = Path(get_settings().avatar_upload_dir)
+        owner_dir = upload_dir / str(user.id)
+        try:
+            delete_avatar_file(upload_dir, old_avatar, owner_dir=owner_dir)
+        except OSError:
+            logger.warning("清理旧头像失败：%s", old_avatar, exc_info=True)
     return serialize_user(user)
 
 
@@ -95,6 +109,42 @@ def change_password(
     db.commit()
     log_audit(db, "user", str(user.id), "password_change")
     return {"message": "密码已修改，其他会话已退出"}
+
+
+@router.post("/me/delete")
+def delete_own_account(
+    payload: PasswordConfirm,
+    request: Request,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> dict:
+    # 注销账号不可逆：必须本人当前密码复核，防止会话被窃取后静默注销。
+    if not verify_password(payload.current_password, user.password_hash):
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "当前密码错误")
+    if user.role == UserRole.admin:
+        admin_count = db.scalar(
+            select(func.count()).select_from(User).where(User.role == UserRole.admin)
+        )
+        if admin_count is not None and admin_count <= 1:
+            raise HTTPException(
+                status.HTTP_400_BAD_REQUEST, "最后一位管理员不能注销账号"
+            )
+
+    user_id = str(user.id)
+    user_email = user.email
+    delete_user_account(db, user)
+    log_audit(
+        db,
+        "user",
+        user_id,
+        "user_delete_self",
+        target_type="user",
+        target_id=user_id,
+        ip=request.client.host if request.client else None,
+        user_agent=request.headers.get("user-agent"),
+        detail={"email": user_email},
+    )
+    return {"message": "账号已注销"}
 
 
 @router.post("/me/phone/bind/send")
@@ -190,9 +240,20 @@ def list_apps(
             OAuthClient.id.in_(client_ids), OAuthClient.is_active.is_(True)
         )
     ).all()
+    # 一次查询取回所有相关黑名单，替代“每个应用一次 find_block”的 N+1 查询。
+    blocks = db.scalars(
+        select(ClientUserBlock).where(
+            ClientUserBlock.client_id.in_(client_ids),
+            or_(
+                ClientUserBlock.user_id == user.id,
+                ClientUserBlock.email == user.email,
+            ),
+        )
+    ).all()
+    blocked_client_ids = {block.client_id for block in blocks}
     result = []
     for client in clients:
-        if find_block(db, client.id, user) is not None:
+        if client.id in blocked_client_ids:
             continue
         result.append(
             {
@@ -276,10 +337,10 @@ async def upload_avatar(
 
     old = user.avatar_url
     if old and old.startswith("/uploads/avatars/"):
-        old_path = (upload_dir / old.removeprefix("/uploads/avatars/")).resolve()
-        # 只允许删除当前用户自己目录下的旧头像，防止跨用户删除。
-        if old_path.is_relative_to(user_dir.resolve()) and old_path.is_file():
-            old_path.unlink()
+        try:
+            delete_avatar_file(upload_dir, old, owner_dir=user_dir)
+        except OSError:
+            logger.warning("清理旧头像失败：%s", old, exc_info=True)
 
     user.avatar_url = f"/uploads/avatars/{user.id}/{filename}"
     db.commit()

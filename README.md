@@ -59,17 +59,23 @@ portal-oss/
 全部五个里程碑（项目骨架与账号体系、OIDC 核心、用户中心与访问控制、2FA 与安全加固、生产部署与文档）已完成。最快捷的方式是一键启动全栈（含前端、后端与基础设施）：
 
 ```bash
-docker compose up -d --build
+docker compose --profile bundle up -d --build
 ```
 
 启动后通过单域名网关访问 http://localhost （前端 `/`、后端 API `/api`、OIDC `/oauth2`、演示站 `/demo`）；开发直连地址仍保留：前端 http://localhost:5173 、后端 API http://localhost:8000 （存活检查 `GET /healthz`，就绪检查 `GET /readyz`）。开发环境邮件验证码默认打印到后端容器日志（`docker compose logs backend | grep "code="`）。
+
+`bundle` profile 会一并启动编排内的 PostgreSQL 与 Redis。如果改用远程 PostgreSQL/Redis，只需在 `.env` 中配置 `DATABASE_URL` / `REDIS_URL`，并去掉 `--profile bundle`（编排内不再启动这两个服务）：
+
+```bash
+docker compose up -d --build
+```
 
 如需在宿主机上分别运行各服务，按以下步骤执行：
 
 1. 启动基础设施：
 
    ```bash
-   docker compose up -d postgres redis
+   docker compose --profile bundle up -d postgres redis
    ```
 
 2. 启动后端（Python 3.11+）：
@@ -110,15 +116,17 @@ docker compose up -d --build
 
 ```bash
 cp .env.example .env
-docker compose -f docker-compose.yaml --env-file .env up -d --build
+docker compose -f docker-compose.yaml --profile bundle --env-file .env up -d --build
 ```
+
+> 使用远程 PostgreSQL/Redis 时去掉 `--profile bundle`，并在 `.env` 中设置 `DATABASE_URL` / `REDIS_URL`。
 
 详细部署、密钥备份与 HTTPS 说明见 [docs/deployment.md](docs/deployment.md)。
 
 示例授权网站（OIDC 演示，端口 3001）：
 
 ```bash
-docker compose --profile demo up -d --build demo-site
+docker compose --profile bundle --profile demo up -d --build
 docker compose exec backend python -m scripts.seed_demo_client
 ```
 

@@ -1,0 +1,110 @@
+import { useState } from "react";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
+
+import { authApi } from "../api/client";
+import { AuthShell } from "../components/AuthShell";
+import { Notice } from "../components/Notice";
+import { useToast } from "../hooks/useToast";
+
+export function InviteRegisterPage() {
+  const [searchParams] = useSearchParams();
+  const token = searchParams.get("token") ?? "";
+  const [nickname, setNickname] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [busy, setBusy] = useState(false);
+  const toast = useToast();
+  const navigate = useNavigate();
+
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (busy) return;
+    if (password.length < 8) {
+      toast.error("密码至少 8 位");
+      return;
+    }
+    if (password !== confirmPassword) {
+      toast.error("两次输入的密码不一致");
+      return;
+    }
+    setBusy(true);
+    try {
+      const result = await authApi.registerByInvite({
+        token,
+        nickname,
+        password,
+      });
+      toast.success(result.message);
+      navigate("/login");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "注册失败");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  if (!token) {
+    return (
+      <AuthShell title="受邀注册" subtitle="请使用管理员发送的邀请链接完成注册">
+        <Notice intent="error">邀请链接无效：缺少令牌参数。</Notice>
+        <p className="mt-4 text-center text-sm">
+          <Link to="/login" className="btn-link">
+            返回登录
+          </Link>
+        </p>
+      </AuthShell>
+    );
+  }
+
+  return (
+    <AuthShell title="受邀注册" subtitle="你已被邀请加入，设置密码即可激活账号">
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <label className="block">
+          <span className="label">昵称</span>
+          <input
+            value={nickname}
+            onChange={(e) => setNickname(e.target.value)}
+            className="input"
+            autoComplete="nickname"
+            required
+            autoFocus
+          />
+        </label>
+        <label className="block">
+          <span className="label">密码</span>
+          <input
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            className="input"
+            minLength={8}
+            autoComplete="new-password"
+            placeholder="至少 8 位"
+            required
+          />
+        </label>
+        <label className="block">
+          <span className="label">确认密码</span>
+          <input
+            type="password"
+            value={confirmPassword}
+            onChange={(e) => setConfirmPassword(e.target.value)}
+            className="input"
+            minLength={8}
+            autoComplete="new-password"
+            required
+          />
+        </label>
+        <button type="submit" className="btn btn-primary w-full" disabled={busy}>
+          {busy ? "处理中…" : "完成注册"}
+        </button>
+        <p className="text-center text-sm text-muted">
+          已有账号？{" "}
+          <Link to="/login" className="btn-link">
+            去登录
+          </Link>
+        </p>
+      </form>
+    </AuthShell>
+  );
+}

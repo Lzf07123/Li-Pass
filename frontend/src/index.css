@@ -5,7 +5,7 @@
 
 @theme {
   --font-sans:
-    ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
+    "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
     "Helvetica Neue", Arial, "Noto Sans", "PingFang SC", "Hiragino Sans GB",
     "Microsoft YaHei", sans-serif;
 
@@ -236,19 +236,190 @@
     @apply bg-primary-soft text-primary dark:text-sky-200;
   }
 
-  /* 提示条 */
-  .alert {
-    @apply flex items-start gap-2 rounded-lg border p-3 text-sm;
+  /* 页面内持久提示条（与弹窗通知同一视觉语言） */
+  .notice {
+    @apply flex items-start gap-2.5 rounded-xl border p-3.5 text-sm;
     animation: portal-fade-up var(--motion-base) var(--ease-out) both;
   }
-  .alert-success {
+  .notice-icon {
+    @apply mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full;
+  }
+  .notice-success {
     @apply border-success/25 bg-success-soft text-success;
   }
-  .alert-warning {
+  .notice-success .notice-icon {
+    @apply bg-success/10 text-success;
+  }
+  .notice-warning {
     @apply border-warning/30 bg-warning-soft text-warning;
   }
-  .alert-error {
+  .notice-warning .notice-icon {
+    @apply bg-warning/10 text-warning;
+  }
+  .notice-error {
     @apply border-destructive/25 bg-destructive-soft text-destructive;
+  }
+  .notice-error .notice-icon {
+    @apply bg-destructive/10 text-destructive;
+  }
+  .notice-info {
+    @apply border-primary/25 bg-primary-soft text-primary;
+  }
+  .notice-info .notice-icon {
+    @apply bg-primary/10 text-primary;
+  }
+
+  /* ========== Toast 弹窗通知 ========== */
+  /* 层级约定：Toast（z-80）必须高于 Modal 遮罩（z-70），
+     否则弹窗内触发的成功/错误提示会被遮罩盖住而不可见。 */
+  .toast-viewport {
+    @apply pointer-events-none fixed inset-x-0 top-4 z-[80] flex flex-col items-center gap-2 px-4 sm:top-5;
+  }
+  .toast {
+    @apply pointer-events-auto relative flex w-full max-w-md items-start gap-3 overflow-hidden rounded-xl border border-border bg-surface p-3.5 pr-10 text-left;
+    box-shadow:
+      0 2px 8px rgba(2, 6, 23, 0.08),
+      0 12px 32px rgba(2, 6, 23, 0.14);
+  }
+  .toast-icon {
+    @apply flex h-8 w-8 shrink-0 items-center justify-center rounded-full;
+  }
+  .toast-title {
+    @apply text-sm font-semibold text-foreground;
+  }
+  .toast-message {
+    @apply mt-0.5 text-sm text-foreground/80;
+  }
+  .toast-message code {
+    @apply rounded bg-surface-2 px-1 py-0.5 font-mono text-xs;
+  }
+  .toast-close {
+    @apply absolute right-2 top-2 rounded-md p-1 text-muted transition-colors hover:bg-surface-2 hover:text-foreground;
+  }
+  .toast-action {
+    @apply shrink-0 self-center rounded-md px-2 py-1 text-xs font-semibold text-primary transition-colors hover:bg-primary-soft;
+  }
+  .toast-progress {
+    @apply absolute bottom-0 left-0 h-0.5 w-full origin-left;
+    animation-name: toast-progress;
+    animation-timing-function: linear;
+    animation-fill-mode: forwards;
+  }
+  .toast:hover .toast-progress {
+    animation-play-state: paused;
+  }
+
+  .toast-success {
+    @apply border-l-4 border-l-success;
+  }
+  .toast-success .toast-icon {
+    @apply bg-success-soft text-success;
+  }
+  .toast-success .toast-progress {
+    @apply bg-success/60;
+  }
+
+  .toast-error {
+    @apply border-l-4 border-l-destructive;
+  }
+  .toast-error .toast-icon {
+    @apply bg-destructive-soft text-destructive;
+  }
+  .toast-error .toast-progress {
+    @apply bg-destructive/60;
+  }
+  .toast-error .toast-action {
+    @apply text-destructive hover:bg-destructive-soft;
+  }
+
+  .toast-warning {
+    @apply border-l-4 border-l-warning;
+  }
+  .toast-warning .toast-icon {
+    @apply bg-warning-soft text-warning;
+  }
+  .toast-warning .toast-progress {
+    @apply bg-warning/60;
+  }
+
+  .toast-info {
+    @apply border-l-4 border-l-primary;
+  }
+  .toast-info .toast-icon {
+    @apply bg-primary-soft text-primary;
+  }
+  .toast-info .toast-progress {
+    @apply bg-primary/50;
+  }
+
+  .toast-enter {
+    animation: toast-in 320ms var(--ease-spring) both;
+  }
+  .toast-leave {
+    animation: toast-out 220ms var(--ease-in) both;
+  }
+
+  /* ========== Modal 弹窗 ========== */
+  .modal-backdrop {
+    @apply fixed inset-0 z-[70] flex items-center justify-center bg-slate-950/45 p-4 backdrop-blur-sm;
+  }
+  .modal-backdrop-in {
+    animation: modal-backdrop-in 200ms var(--ease-out) both;
+  }
+  .modal-backdrop-out {
+    animation: modal-backdrop-out 180ms var(--ease-in) both;
+  }
+  .modal-panel {
+    @apply relative w-full overflow-hidden rounded-2xl border border-border bg-surface text-left;
+    box-shadow:
+      0 4px 16px rgba(2, 6, 23, 0.1),
+      0 24px 64px rgba(2, 6, 23, 0.22);
+    outline: none;
+  }
+  .modal-panel-in {
+    animation: modal-panel-in 260ms var(--ease-spring) both;
+  }
+  .modal-panel-out {
+    animation: modal-panel-out 180ms var(--ease-in) both;
+  }
+  .modal-accent {
+    @apply h-1 w-full;
+  }
+  .modal-icon {
+    @apply flex h-9 w-9 shrink-0 items-center justify-center rounded-full;
+  }
+  .modal-body {
+    @apply mt-3 text-sm text-muted;
+  }
+  .modal-close {
+    @apply absolute right-3 top-3 rounded-md p-1 text-muted transition-colors hover:bg-surface-2 hover:text-foreground;
+  }
+  .modal-footer {
+    @apply flex flex-wrap items-center justify-end gap-2 border-t border-border bg-surface-2/60 px-5 py-3.5 sm:px-6;
+  }
+  .modal-info .modal-accent {
+    @apply bg-primary;
+  }
+  .modal-info .modal-icon {
+    @apply bg-primary-soft text-primary;
+  }
+  .modal-success .modal-accent {
+    @apply bg-success;
+  }
+  .modal-success .modal-icon {
+    @apply bg-success-soft text-success;
+  }
+  .modal-warning .modal-accent {
+    @apply bg-warning;
+  }
+  .modal-warning .modal-icon {
+    @apply bg-warning-soft text-warning;
+  }
+  .modal-danger .modal-accent {
+    @apply bg-destructive;
+  }
+  .modal-danger .modal-icon {
+    @apply bg-destructive-soft text-destructive;
   }
 
   /* 表格容器 */
@@ -305,6 +476,90 @@
     }
   }
 
+  @keyframes toast-in {
+    from {
+      opacity: 0;
+      transform: translateY(-14px) scale(0.96);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+  }
+
+  @keyframes toast-out {
+    from {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+    to {
+      opacity: 0;
+      transform: translateY(-8px) scale(0.97);
+    }
+  }
+
+  @keyframes toast-progress {
+    from {
+      transform: scaleX(1);
+    }
+    to {
+      transform: scaleX(0);
+    }
+  }
+
+  @keyframes modal-backdrop-in {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+
+  @keyframes modal-backdrop-out {
+    from {
+      opacity: 1;
+    }
+    to {
+      opacity: 0;
+    }
+  }
+
+  @keyframes modal-panel-in {
+    from {
+      opacity: 0;
+      transform: translateY(12px) scale(0.96);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+  }
+
+  @keyframes modal-panel-out {
+    from {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+    to {
+      opacity: 0;
+      transform: translateY(8px) scale(0.97);
+    }
+  }
+
+  @keyframes portal-blur-in {
+    from {
+      opacity: 0;
+      transform: translateY(12px);
+      filter: blur(8px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+      filter: blur(0);
+    }
+  }
+
   @keyframes portal-shimmer {
     0% {
       background-position: -200% 0;
@@ -321,6 +576,10 @@
 
   .animate-fade-up {
     animation: portal-fade-up 300ms var(--ease-out) both;
+  }
+
+  .animate-fade-up-slow {
+    animation: portal-fade-up 500ms var(--ease-out) both;
   }
 
   .animate-fade-in {
@@ -364,5 +623,122 @@
   }
   .card-interactive:active {
     transform: translateY(0) scale(0.985);
+  }
+
+  /* ReactBits 风格：渐变文字扫光（background-position 动画） */
+  .shiny-text {
+    display: inline-block;
+    background-position: 150% center;
+    animation: portal-shiny-flow var(--motion-slow) var(--ease-out) infinite;
+  }
+
+  /* ReactBits 风格：极光背景（三层弥散光斑缓慢漂移）。
+     光斑本身是径向渐变，边缘已足够柔和，不再叠加 blur(72px)——
+     大尺寸 blur 每帧都要做离屏模糊，是移动端/低端机的主要 GPU 开销。 */
+  .aurora-blob {
+    position: absolute;
+    border-radius: 9999px;
+    opacity: 0.5;
+    will-change: transform;
+  }
+  .aurora-blob-1 {
+    top: -16rem;
+    left: 50%;
+    width: 42rem;
+    height: 42rem;
+    margin-left: -21rem;
+    background: radial-gradient(
+      circle at 35% 35%,
+      rgba(3, 105, 161, 0.2) 0%,
+      rgba(14, 165, 233, 0.12) 42%,
+      transparent 70%
+    );
+    animation: aurora-drift-1 16s ease-in-out infinite alternate;
+  }
+  .aurora-blob-2 {
+    right: -10rem;
+    bottom: -12rem;
+    width: 30rem;
+    height: 30rem;
+    background: radial-gradient(
+      circle at 60% 40%,
+      rgba(22, 163, 74, 0.12) 0%,
+      rgba(14, 165, 233, 0.08) 45%,
+      transparent 70%
+    );
+    animation: aurora-drift-2 20s ease-in-out infinite alternate;
+  }
+  .aurora-blob-3 {
+    left: -8rem;
+    top: 38%;
+    width: 26rem;
+    height: 26rem;
+    background: radial-gradient(
+      circle at 40% 60%,
+      rgba(2, 132, 199, 0.14) 0%,
+      rgba(99, 102, 241, 0.08) 45%,
+      transparent 70%
+    );
+    animation: aurora-drift-3 24s ease-in-out infinite alternate;
+  }
+  .dark .aurora-blob-1 {
+    background: radial-gradient(
+      circle at 35% 35%,
+      rgba(56, 189, 248, 0.16) 0%,
+      rgba(14, 165, 233, 0.08) 42%,
+      transparent 70%
+    );
+  }
+  .dark .aurora-blob-2 {
+    background: radial-gradient(
+      circle at 60% 40%,
+      rgba(74, 222, 128, 0.08) 0%,
+      rgba(56, 189, 248, 0.06) 45%,
+      transparent 70%
+    );
+  }
+  .dark .aurora-blob-3 {
+    background: radial-gradient(
+      circle at 40% 60%,
+      rgba(56, 189, 248, 0.12) 0%,
+      rgba(129, 140, 248, 0.07) 45%,
+      transparent 70%
+    );
+  }
+}
+
+@layer utilities {
+  @keyframes portal-shiny-flow {
+    0% {
+      background-position: 150% center;
+    }
+    100% {
+      background-position: -50% center;
+    }
+  }
+
+  @keyframes aurora-drift-1 {
+    from {
+      transform: translate3d(-4%, -3%, 0) scale(1);
+    }
+    to {
+      transform: translate3d(5%, 4%, 0) scale(1.08);
+    }
+  }
+  @keyframes aurora-drift-2 {
+    from {
+      transform: translate3d(3%, 2%, 0) scale(1.02);
+    }
+    to {
+      transform: translate3d(-5%, -3%, 0) scale(0.96);
+    }
+  }
+  @keyframes aurora-drift-3 {
+    from {
+      transform: translate3d(-2%, 3%, 0) rotate(-3deg) scale(1);
+    }
+    to {
+      transform: translate3d(4%, -4%, 0) rotate(4deg) scale(1.06);
+    }
   }
 }

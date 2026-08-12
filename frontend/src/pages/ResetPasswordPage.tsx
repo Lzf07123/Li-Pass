@@ -1,8 +1,9 @@
 import { useState } from "react";
-import { Link, useSearchParams } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 
 import { authApi } from "../api/client";
 import { AuthShell } from "../components/AuthShell";
+import { useToast } from "../hooks/useToast";
 
 export function ResetPasswordPage() {
   const [searchParams] = useSearchParams();
@@ -10,15 +11,13 @@ export function ResetPasswordPage() {
   const [code, setCode] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [message, setMessage] = useState("");
-  const [error, setError] = useState("");
+  const toast = useToast();
+  const navigate = useNavigate();
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setError("");
-    setMessage("");
     if (newPassword !== confirmPassword) {
-      setError("两次输入的新密码不一致");
+      toast.error("两次输入的新密码不一致");
       return;
     }
     try {
@@ -27,12 +26,18 @@ export function ResetPasswordPage() {
         code,
         new_password: newPassword,
       });
-      setMessage(result.message);
+      toast.success(result.message, {
+        duration: 8000,
+        action: {
+          label: "去登录",
+          onClick: () => navigate("/login"),
+        },
+      });
       setCode("");
       setNewPassword("");
       setConfirmPassword("");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "重置失败");
+      toast.error(err instanceof Error ? err.message : "重置失败");
     }
   }
 
@@ -87,21 +92,6 @@ export function ResetPasswordPage() {
             required
           />
         </label>
-        {error && (
-          <p className="alert alert-error" role="alert">
-            {error}
-          </p>
-        )}
-        {message && (
-          <p className="alert alert-success">
-            <span>
-              {message}，{" "}
-              <Link to="/login" className="btn-link font-semibold">
-                去登录
-              </Link>
-            </span>
-          </p>
-        )}
         <button type="submit" className="btn btn-primary w-full">
           重置密码
         </button>

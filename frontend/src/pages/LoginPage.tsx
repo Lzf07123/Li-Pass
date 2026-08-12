@@ -1,9 +1,11 @@
 import { useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 
-import { API_BASE_URL, auth2faApi, authApi } from "../api/client";
+import { auth2faApi, authApi } from "../api/client";
 import { AuthShell } from "../components/AuthShell";
+import { useToast } from "../hooks/useToast";
 import { APP_NAME } from "../lib/brand";
+import { isSafeNext } from "../lib/navigation";
 
 const METHOD_LABELS: Record<string, string> = {
   email_otp: "邮箱验证码",
@@ -11,33 +13,15 @@ const METHOD_LABELS: Record<string, string> = {
   recovery: "恢复码",
 };
 
-export function isSafeNext(value: string | null): boolean {
-  if (!value) return false;
-  // 相对路径放行（排除 //host 协议相对地址）
-  if (value.startsWith("/") && !value.startsWith("//")) return true;
-  try {
-    const target = new URL(value, window.location.origin);
-    const apiOrigin = API_BASE_URL
-      ? new URL(API_BASE_URL, window.location.origin).origin
-      : window.location.origin;
-    return (
-      (target.protocol === "http:" || target.protocol === "https:") &&
-      (target.origin === window.location.origin || target.origin === apiOrigin)
-    );
-  } catch {
-    return false;
-  }
-}
-
 export function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
   const [challenge, setChallenge] = useState<{ id: string; methods: string[] } | null>(
     null
   );
   const [code, setCode] = useState("");
   const [method, setMethod] = useState("");
+  const toast = useToast();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const rawNext = searchParams.get("next");
@@ -45,7 +29,6 @@ export function LoginPage() {
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setError("");
     try {
       const result = await authApi.login({ email, password });
       if (result.requires_2fa && result.challenge_id) {
@@ -66,14 +49,13 @@ export function LoginPage() {
         }
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "登录失败");
+      toast.error(err instanceof Error ? err.message : "登录失败");
     }
   }
 
   async function verifyCode(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!challenge) return;
-    setError("");
     try {
       await auth2faApi.verify(challenge.id, method, code);
       if (next) {
@@ -82,17 +64,16 @@ export function LoginPage() {
         navigate(next || "/");
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "验证失败");
+      toast.error(err instanceof Error ? err.message : "验证失败");
     }
   }
 
   async function sendCode() {
     if (!challenge) return;
-    setError("");
     try {
       await auth2faApi.send(challenge.id);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "发送失败");
+      toast.error(err instanceof Error ? err.message : "发送失败");
     }
   }
 
@@ -137,7 +118,6 @@ export function LoginPage() {
               required
             />
           </label>
-          {error && <p className="alert alert-error" role="alert">{error}</p>}
           <button type="submit" className="btn btn-primary w-full">
             验证
           </button>
@@ -180,7 +160,6 @@ export function LoginPage() {
             required
           />
         </label>
-        {error && <p className="alert alert-error" role="alert">{error}</p>}
         <button type="submit" className="btn btn-primary w-full">
           登录
         </button>

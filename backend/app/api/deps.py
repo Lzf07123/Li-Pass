@@ -1,7 +1,7 @@
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from fastapi import Depends, HTTPException, Request, status
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
@@ -9,6 +9,10 @@ from app.core.db import get_db
 from app.models.session import Session as SessionModel
 from app.models.user import User, UserRole, UserStatus
 from app.security.tokens import hash_token
+
+# 会话最近活动时间只需低频刷新：写操作（UPDATE + COMMIT）比读查询贵得多，
+# 高频接口（/me、/oauth2/authorize 等）不应为每个请求都触发一次数据库写入。
+_LAST_USED_REFRESH_INTERVAL = timedelta(minutes=5)
 
 
 def _as_utc(dt: datetime) -> datetime:
@@ -18,7 +22,17 @@ def _as_utc(dt: datetime) -> datetime:
     return dt.astimezone(timezone.utc)
 
 
-def get_current_session(request: Request, db: Session = Depends(get_db)) -> SessionModel:
+def _load_identity(request: Request, db: Session) -> tuple[SessionModel, User]:
+    """单请求内缓存鉴权结果，避免会话/用户被重复查询。
+
+    一个请求里常同时依赖 session 与 user（例如授权确认、会话列表），
+    此前每次依赖解析都会分别查一次 sessions 和 users 表；
+    现在同一请求只查一次，后续依赖直接复用 request.state。
+    """
+    cached = getattr(request.state, "auth_identity", None)
+    if cached is not None:
+        return cached
+
     settings = get_settings()
     token = request.cookies.get(settings.session_cookie_name)
     if not token:
@@ -28,27 +42,43 @@ def get_current_session(request: Request, db: Session = Depends(get_db)) -> Sess
         select(SessionModel).where(SessionModel.token_hash == hash_token(token))
     )
     now = datetime.now(timezone.utc)
+    idle_cutoff = now - timedelta(days=settings.session_idle_days)
     if (
         session is None
         or session.revoked_at is not None
         or _as_utc(session.expires_at) < now
+        or _as_utc(session.last_used_at) < idle_cutoff
     ):
+        if session is not None and session.revoked_at is None:
+            # 超时会话直接吊销，避免留下永不活跃的“僵尸”会话记录。
+            session.revoked_at = now
+            db.commit()
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Session expired")
 
     user = db.get(User, session.user_id)
     if user is None or user.status != UserStatus.active:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "User unavailable")
 
-    session.last_used_at = now
-    db.commit()
+    # 低频刷新最近活动时间：超过 5 分钟才写一次；刚写过的不再产生写事务。
+    if now - _as_utc(session.last_used_at) >= _LAST_USED_REFRESH_INTERVAL:
+        db.execute(
+            update(SessionModel)
+            .where(SessionModel.id == session.id)
+            .values(last_used_at=now)
+        )
+        db.commit()
+
+    request.state.auth_identity = (session, user)
+    return session, user
+
+
+def get_current_session(request: Request, db: Session = Depends(get_db)) -> SessionModel:
+    session, _ = _load_identity(request, db)
     return session
 
 
 def get_current_user(request: Request, db: Session = Depends(get_db)) -> User:
-    session = get_current_session(request, db)
-    user = db.get(User, session.user_id)
-    if user is None or user.status != UserStatus.active:
-        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "User unavailable")
+    _, user = _load_identity(request, db)
     return user
 
 

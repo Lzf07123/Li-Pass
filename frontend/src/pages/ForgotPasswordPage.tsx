@@ -1,22 +1,29 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 
 import { authApi } from "../api/client";
 import { AuthShell } from "../components/AuthShell";
+import { useToast } from "../hooks/useToast";
 
 export function ForgotPasswordPage() {
   const [email, setEmail] = useState("");
-  const [message, setMessage] = useState("");
-  const [error, setError] = useState("");
+  const toast = useToast();
+  const navigate = useNavigate();
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setError("");
     try {
       const result = await authApi.requestPasswordReset({ email });
-      setMessage(result.message);
+      toast.success(result.message, {
+        duration: 8000,
+        action: {
+          label: "去设置新密码",
+          onClick: () =>
+            navigate(`/reset-password?email=${encodeURIComponent(email)}`),
+        },
+      });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "发送失败");
+      toast.error(err instanceof Error ? err.message : "发送失败");
     }
   }
 
@@ -34,25 +41,6 @@ export function ForgotPasswordPage() {
             required
           />
         </label>
-        {error && (
-          <p className="alert alert-error" role="alert">
-            {error}
-          </p>
-        )}
-        {message && (
-          <div className="alert alert-success">
-            <p>{message}</p>
-            <p>
-              收到验证码后，{" "}
-              <Link
-                to={`/reset-password?email=${encodeURIComponent(email)}`}
-                className="btn-link font-semibold"
-              >
-                去设置新密码
-              </Link>
-            </p>
-          </div>
-        )}
         <button type="submit" className="btn btn-primary w-full">
           发送重置验证码
         </button>

@@ -18,6 +18,7 @@ class Settings(BaseSettings):
     session_cookie_secure: bool = False
     session_cookie_samesite: str = "lax"
     session_ttl_days: int = 30
+    session_idle_days: int = 7
     cors_origins: list[str] = ["http://localhost:5173"]
     allowed_hosts: list[str] = ["localhost", "127.0.0.1", "testserver"]
     email_backend: str = "console"
@@ -51,8 +52,15 @@ class Settings(BaseSettings):
     email_verify_rate_window_seconds: int = 3600
     twofa_verify_rate_limit: int = 60
     twofa_verify_rate_window_seconds: int = 900
+    invite_ttl_days: int = 7
     avatar_upload_dir: str = "uploads/avatars"
     avatar_max_size_mb: int = 5
+    avatar_cleanup_interval_seconds: int = 21600
+    # 过期 OTP/授权码的保留期：默认 7 天，过期即对业务无意义，
+    # 保留一小段窗口便于排查后即可安全清理，防止表无限增长。
+    ephemeral_retention_hours: int = 168
+    db_pool_size: int = 5
+    db_max_overflow: int = 10
 
     @model_validator(mode="after")
     def _validate_production(self):
@@ -68,6 +76,12 @@ class Settings(BaseSettings):
             raise ValueError("SMTP_PORT 必须在 1–65535 之间")
         if not self.allowed_hosts:
             raise ValueError("ALLOWED_HOSTS 不能为空")
+        if self.db_pool_size < 1 or self.db_max_overflow < 0:
+            raise ValueError("DB_POOL_SIZE 必须 ≥1，DB_MAX_OVERFLOW 必须 ≥0")
+        if self.ephemeral_retention_hours < 1:
+            raise ValueError("EPHEMERAL_RETENTION_HOURS 必须 ≥1")
+        if self.session_idle_days < 1:
+            raise ValueError("SESSION_IDLE_DAYS 必须 ≥1")
         if self.environment != "production":
             return self
         for field in ("jwt_issuer", "frontend_base_url", "database_url", "redis_url"):
