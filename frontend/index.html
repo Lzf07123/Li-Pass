@@ -31,6 +31,20 @@
         } catch (e) {}
       })();
     </script>
+    <style>
+      /* 兜底背景：CSS bundle 未就绪时避免刷新瞬间白屏 */
+      html,
+      body,
+      #root {
+        background-color: #f8fafc;
+        min-height: 100%;
+      }
+      html.dark,
+      html.dark body,
+      html.dark #root {
+        background-color: #0b1220;
+      }
+    </style>
   </head>
   <body>
     <div id="root"></div>
