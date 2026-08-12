@@ -1,5 +1,7 @@
 from fastapi import FastAPI
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 
 from app.api.routes import admin_clients as admin_clients_routes
 from app.api.routes import admin_users as admin_users_routes
@@ -26,6 +28,21 @@ def create_app() -> FastAPI:
     @app.get("/healthz")
     def healthz() -> dict[str, str]:
         return {"status": "ok"}
+
+    @app.exception_handler(RequestValidationError)
+    async def validation_exception_handler(request, exc: RequestValidationError):
+        errors = exc.errors()
+        first = errors[0] if errors else {}
+        loc = [str(part) for part in first.get("loc", []) if part not in ("body", "query", "path")]
+        field = ".".join(loc)
+        msg = str(first.get("msg", ""))
+        if field == "email":
+            detail = "邮箱格式不正确"
+        elif "min_length" in msg or "max_length" in msg:
+            detail = "输入长度不符合要求"
+        else:
+            detail = f"请求参数错误：{field} {msg}"
+        return JSONResponse(status_code=422, content={"detail": detail})
 
     @app.middleware("http")
     async def security_headers(request, call_next):

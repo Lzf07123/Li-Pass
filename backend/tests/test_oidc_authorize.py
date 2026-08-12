@@ -20,7 +20,8 @@ def test_authorize_with_session_redirects_to_consent(client, db_session, capture
     register_and_login(client, captured_email)
     response = client.get("/oauth2/authorize", params=authorize_params())
     assert response.status_code == 302
-    assert "/consent?request_id=" in response.headers["location"]
+    location = response.headers["location"]
+    assert location.startswith("http://localhost:5173/consent?request_id=")
 
 
 def test_authorize_with_existing_consent_auto_approves(client, db_session, captured_email) -> None:
@@ -47,7 +48,9 @@ def test_authorize_invalid_redirect_uri(client, db_session) -> None:
         params=authorize_params({"redirect_uri": "http://evil.example/cb"}),
     )
     assert response.status_code == 302
-    assert response.headers["location"].startswith("/?error=invalid_redirect_uri")
+    assert response.headers["location"].startswith(
+        "http://localhost:5173/?error=invalid_redirect_uri"
+    )
 
 
 def test_authorize_requires_pkce(client, db_session, captured_email) -> None:

@@ -26,8 +26,21 @@ async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
     return undefined as T;
   }
   if (!response.ok) {
-    const body = (await response.json().catch(() => ({}))) as { detail?: string };
-    throw new Error(body.detail ?? `请求失败：${response.status}`);
+    const body = (await response.json().catch(() => ({}))) as {
+      detail?: unknown;
+    };
+    if (typeof body.detail === "string") {
+      throw new Error(body.detail);
+    }
+    if (Array.isArray(body.detail)) {
+      throw new Error(
+        body.detail
+          .map((item) => (item && typeof item === "object" ? String((item as { msg?: unknown }).msg ?? "") : String(item)))
+          .filter(Boolean)
+          .join("；")
+      );
+    }
+    throw new Error(`请求失败：${response.status}`);
   }
   return response.json() as Promise<T>;
 }

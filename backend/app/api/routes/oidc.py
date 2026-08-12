@@ -48,14 +48,21 @@ def authorize(
     code_challenge_method: str = Query("S256"),
     db: Session = Depends(get_db),
 ):
+    frontend = get_settings().frontend_base_url
     if response_type != "code":
-        return RedirectResponse("/?error=unsupported_response_type", status_code=302)
+        return RedirectResponse(
+            f"{frontend}/?error=unsupported_response_type", status_code=302
+        )
 
     client = db.scalar(select(OAuthClient).where(OAuthClient.client_id == client_id))
     if client is None or not client.is_active:
-        return RedirectResponse("/?error=unauthorized_client", status_code=302)
+        return RedirectResponse(
+            f"{frontend}/?error=unauthorized_client", status_code=302
+        )
     if redirect_uri not in client.redirect_uris:
-        return RedirectResponse("/?error=invalid_redirect_uri", status_code=302)
+        return RedirectResponse(
+            f"{frontend}/?error=invalid_redirect_uri", status_code=302
+        )
 
     requested = scope.split() if scope else list(client.scopes)
     if "openid" not in requested or not set(requested).issubset(set(client.scopes)):
@@ -117,7 +124,9 @@ def authorize(
         code_challenge_method=code_challenge_method,
     )
     request_id = get_pending_request_store().create(pending)
-    return RedirectResponse(f"/consent?request_id={request_id}", status_code=302)
+    return RedirectResponse(
+        f"{frontend}/consent?request_id={request_id}", status_code=302
+    )
 
 
 @router.get("/.well-known/openid-configuration")
