@@ -14,6 +14,7 @@ from app.models.session import Session as SessionModel
 from app.models.user import User, UserStatus
 from app.schemas.auth import (
     ConfirmPasswordResetRequest,
+    EmailResendRequest,
     EmailVerifyRequest,
     InviteRegisterRequest,
     LoginRequest,
@@ -138,6 +139,29 @@ def verify_email(
     user.email_verified_at = datetime.now(timezone.utc)
     db.commit()
     return {"message": "邮箱已验证"}
+
+
+@router.post("/email/verify/resend")
+def resend_verify_email(
+    payload: EmailResendRequest,
+    request: Request,
+    db: Session = Depends(get_db),
+) -> dict:
+    ip = request.client.host if request.client else ""
+    if (
+        get_rate_limiter().hit(
+            "email_resend", ip, settings.email_verify_rate_window_seconds
+        )
+        > settings.email_verify_rate_limit
+    ):
+        raise HTTPException(status.HTTP_429_TOO_MANY_REQUESTS, "发送过于频繁，请稍后再试")
+    email = payload.email.lower()
+    user = db.scalar(select(User).where(User.email == email))
+    if user is not None and user.email_verified_at is None:
+        code = create_otp(db, OtpPurpose.register, email)
+        get_email_service().send_verification(email, code)
+    # 与注册接口一致：已注册且已验证/不存在的邮箱返回相同文案，避免账号枚举。
+    return {"message": "如果该邮箱尚未验证，验证邮件已发送"}
 
 
 @router.post(

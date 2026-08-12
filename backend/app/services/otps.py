@@ -1,7 +1,7 @@
 import secrets
 from datetime import datetime, timedelta, timezone
 
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.orm import Session
 
 from app.models.otp import Otp, OtpPurpose
@@ -21,6 +21,17 @@ def _as_utc(dt: datetime) -> datetime:
 def create_otp(
     db: Session, purpose: OtpPurpose, target: str, ttl_minutes: int = OTP_TTL_MINUTES
 ) -> str:
+    # 同用途同邮箱只保留一封有效验证码：先作废旧码再生成新码，
+    # 避免重发后旧码仍可用，或 verify_otp 在时间并列时取到旧码。
+    db.execute(
+        update(Otp)
+        .where(
+            Otp.purpose == purpose,
+            Otp.target == target.lower(),
+            Otp.consumed_at.is_(None),
+        )
+        .values(consumed_at=datetime.now(timezone.utc))
+    )
     code = generate_otp_code()
     db.add(
         Otp(

@@ -70,6 +70,11 @@ export const authApi = {
       method: "POST",
       body: JSON.stringify(data),
     }),
+  resendVerifyEmail: (email: string) =>
+    api<{ message: string }>("/api/v1/auth/email/verify/resend", {
+      method: "POST",
+      body: JSON.stringify({ email }),
+    }),
   login: (data: { email: string; password: string }) =>
     api<
       UserOut & {

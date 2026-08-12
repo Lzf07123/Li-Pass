@@ -9,6 +9,7 @@ export function VerifyEmailPage() {
   const [searchParams] = useSearchParams();
   const email = searchParams.get("email") ?? "";
   const [code, setCode] = useState("");
+  const [resending, setResending] = useState(false);
   const toast = useToast();
   const navigate = useNavigate();
 
@@ -25,6 +26,19 @@ export function VerifyEmailPage() {
       });
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "验证失败");
+    }
+  }
+
+  async function resend() {
+    if (resending || !email) return;
+    setResending(true);
+    try {
+      const result = await authApi.resendVerifyEmail(email);
+      toast.success(result.message);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "重新发送失败");
+    } finally {
+      setResending(false);
     }
   }
 
@@ -46,6 +60,14 @@ export function VerifyEmailPage() {
         </label>
         <button type="submit" className="btn btn-primary w-full">
           验证
+        </button>
+        <button
+          type="button"
+          onClick={() => void resend()}
+          disabled={resending || !email}
+          className="btn btn-secondary w-full"
+        >
+          {resending ? "发送中…" : "重新发送验证码"}
         </button>
       </form>
     </AuthShell>
