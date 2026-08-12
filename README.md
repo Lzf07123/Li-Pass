@@ -49,7 +49,7 @@ portal-oss/
 │   └── tests/
 ├── examples/demo-site/      # 示例授权网站
 ├── docs/                    # 设计文档与对接文档
-└── compose.yaml             # frontend + backend + postgres + redis（不含反向代理）
+└── docker-compose.yaml      # frontend + backend + postgres + redis（不含反向代理）
 ```
 
 ## 快速开始（开发环境）
@@ -107,8 +107,8 @@ docker compose up -d --build
 ### 生产形态启动
 
 ```bash
-cp .env.production.example .env.production
-docker compose -f compose.prod.yaml --env-file .env.production up -d --build
+cp .env.example .env
+docker compose -f docker-compose.prod.yaml --env-file .env up -d --build
 ```
 
 详细部署、密钥备份与 HTTPS 说明见 [docs/deployment.md](docs/deployment.md)。
