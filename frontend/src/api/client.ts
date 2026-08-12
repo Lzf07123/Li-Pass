@@ -327,5 +327,25 @@ export const adminUsersApi = {
 };
 
 export const adminAuditApi = {
-  list: (limit = 100) => api<AuditLogOut[]>(`/api/v1/admin/audit-logs?limit=${limit}`),
+  list: (params: AuditQuery = {}) => {
+    const search = new URLSearchParams();
+    if (params.category) search.set("category", params.category);
+    if (params.action) search.set("action", params.action);
+    if (params.actor_id) search.set("actor_id", params.actor_id);
+    if (params.start) search.set("start", params.start);
+    if (params.end) search.set("end", params.end);
+    search.set("limit", String(params.limit ?? 100));
+    search.set("offset", String(params.offset ?? 0));
+    return api<AuditLogOut[]>(`/api/v1/admin/audit-logs?${search.toString()}`);
+  },
 };
+
+export interface AuditQuery {
+  category?: string;
+  action?: string;
+  actor_id?: string;
+  start?: string;
+  end?: string;
+  limit?: number;
+  offset?: number;
+}
