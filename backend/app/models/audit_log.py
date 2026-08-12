@@ -14,6 +14,7 @@ class AuditLog(Base):
     actor_type: Mapped[str] = mapped_column(String(20), default="user")
     actor_id: Mapped[str | None] = mapped_column(String(64), index=True)
     action: Mapped[str] = mapped_column(String(80), index=True)
+    category: Mapped[str | None] = mapped_column(String(30), index=True)
     target_type: Mapped[str | None] = mapped_column(String(40))
     target_id: Mapped[str | None] = mapped_column(String(64))
     ip: Mapped[str | None] = mapped_column(String(64))
