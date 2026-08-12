@@ -155,14 +155,16 @@ def resend_verify_email(
     db: Session = Depends(get_db),
 ) -> dict:
     ip = request.client.host if request.client else ""
+    email = payload.email.lower()
     if (
         get_rate_limiter().hit(
-            "email_resend", ip, settings.email_verify_rate_window_seconds
+            "email_resend",
+            f"{email}:{ip}",
+            settings.email_verify_rate_window_seconds,
         )
         > settings.email_verify_rate_limit
     ):
         raise HTTPException(status.HTTP_429_TOO_MANY_REQUESTS, "发送过于频繁，请稍后再试")
-    email = payload.email.lower()
     user = db.scalar(select(User).where(User.email == email))
     if user is not None and user.email_verified_at is None:
         code = create_otp(db, OtpPurpose.register, email)

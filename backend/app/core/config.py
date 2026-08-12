@@ -91,6 +91,8 @@ class Settings(BaseSettings):
             raise ValueError("SESSION_IDLE_DAYS 必须 ≥1")
         if self.session_default_ttl_days < 1:
             raise ValueError("SESSION_DEFAULT_TTL_DAYS 必须 ≥1")
+        if self.session_default_ttl_days > self.session_ttl_days:
+            raise ValueError("SESSION_DEFAULT_TTL_DAYS 不能大于 SESSION_TTL_DAYS")
         if self.environment != "production":
             return self
         for field in ("jwt_issuer", "frontend_base_url", "database_url", "redis_url"):
