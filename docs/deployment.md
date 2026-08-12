@@ -56,6 +56,25 @@ python -m venv .venv  # 或复用已有虚拟环境
 | `PENDING_REQUEST_STORE` / `TWOFA_STORE` / `RATE_LIMITER` | 生产用 `redis` |
 | `JWT_PRIVATE_KEY_PATH` / `ENCRYPTION_KEY_PATH` | 密钥文件路径（生产指向 `/app/keys` 卷） |
 | `EMAIL_BACKEND` | `console`（开发）或 SMTP 实现（生产） |
+| `SMTP_HOST` / `SMTP_PORT` | SMTP 服务器地址与端口（生产必填） |
+| `SMTP_USERNAME` / `SMTP_PASSWORD` | SMTP 登录凭据（按需） |
+| `SMTP_FROM` / `SMTP_FROM_NAME` | 真实发件地址与发件人名称（生产必填 `SMTP_FROM`） |
+| `SMTP_USE_TLS` | 是否使用 STARTTLS（默认 `true`） |
+
+生产邮箱配置示例：
+
+```text
+EMAIL_BACKEND=smtp
+SMTP_HOST=smtp.example.com
+SMTP_PORT=587
+SMTP_USERNAME=noreply@example.com
+SMTP_PASSWORD=******
+SMTP_FROM=noreply@example.com
+SMTP_FROM_NAME=Portal OSS
+SMTP_USE_TLS=true
+```
+
+邮件内容包含 6 位验证码，10 分钟有效；发送接口受每小时 5 次/邮箱的限流保护。
 
 ## 密钥管理
 

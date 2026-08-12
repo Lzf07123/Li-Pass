@@ -18,6 +18,13 @@ class Settings(BaseSettings):
     session_ttl_days: int = 30
     cors_origins: list[str] = ["http://localhost:5173"]
     email_backend: str = "console"
+    smtp_host: str = ""
+    smtp_port: int = 587
+    smtp_username: str = ""
+    smtp_password: str = ""
+    smtp_from: str = ""
+    smtp_from_name: str = "Portal OSS"
+    smtp_use_tls: bool = True
     frontend_base_url: str = "http://localhost:5173"
     jwt_issuer: str = "http://localhost:8000"
     jwt_private_key_path: str = "jwt_private.pem"
