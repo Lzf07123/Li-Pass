@@ -3,7 +3,7 @@ import { useCallback, useEffect, useState } from "react";
 import { adminUsersApi } from "../api/client";
 import type { AdminUserOut } from "../api/types";
 
-export function AdminUsersPanel() {
+export function AdminUsersPanel({ currentAdminId }: { currentAdminId: string }) {
   const [users, setUsers] = useState<AdminUserOut[]>([]);
   const [query, setQuery] = useState("");
   const [message, setMessage] = useState("");
@@ -171,7 +171,12 @@ export function AdminUsersPanel() {
               <td className="p-2">{user.role}</td>
               <td className="p-2">{user.status}</td>
               <td className="space-x-2 p-2">
-                <button onClick={() => toggleStatus(user)} className="rounded bg-gray-200 p-1">
+                <button
+                  onClick={() => toggleStatus(user)}
+                  disabled={user.id === currentAdminId}
+                  title={user.id === currentAdminId ? "不能禁用自己" : undefined}
+                  className="rounded bg-gray-200 p-1 disabled:opacity-50"
+                >
                   {user.status === "active" ? "禁用" : "启用"}
                 </button>
                 <button

@@ -62,11 +62,17 @@ def list_users(
 def update_user(
     user_id: uuid.UUID,
     payload: AdminUserUpdate,
+    actor: User = Depends(get_current_admin),
     db: Session = Depends(get_db),
 ) -> dict:
     user = db.get(User, user_id)
     if user is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "用户不存在")
+    if user.id == actor.id:
+        if payload.status == UserStatus.disabled:
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, "不能禁用自己")
+        if payload.role is not None and payload.role != UserRole.admin:
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, "不能取消自己的管理员角色")
     if payload.status is not None:
         user.status = payload.status
     if payload.role is not None:

@@ -1,3 +1,5 @@
+from sqlalchemy import select
+
 from app.models.user import User, UserRole
 from app.security.passwords import hash_password
 
@@ -76,3 +78,23 @@ def test_admin_disable_and_reset_password(client, db_session) -> None:
         ).status_code
         == 200
     )
+
+
+def test_admin_cannot_disable_self(client, db_session) -> None:
+    login_admin(client, db_session)
+    admin = db_session.scalar(
+        select(User).where(User.email == "admin@example.com")
+    )
+    response = client.patch(
+        f"/api/v1/admin/users/{admin.id}",
+        json={"status": "disabled"},
+    )
+    assert response.status_code == 400
+    assert response.json()["detail"] == "不能禁用自己"
+
+    response = client.patch(
+        f"/api/v1/admin/users/{admin.id}",
+        json={"role": "user"},
+    )
+    assert response.status_code == 400
+    assert response.json()["detail"] == "不能取消自己的管理员角色"

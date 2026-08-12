@@ -63,7 +63,7 @@ export function AdminPage() {
             </button>
           ))}
         </div>
-        {tab === "users" && <AdminUsersPanel />}
+        {tab === "users" && <AdminUsersPanel currentAdminId={me.id} />}
         {tab === "clients" && <AdminClientsPage />}
         {tab === "audit" && <AdminAuditPanel />}
       </div>

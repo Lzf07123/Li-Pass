@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -159,5 +159,63 @@ describe("AdminPage", () => {
     expect(JSON.parse(String((resetCall?.[1] as RequestInit | undefined)?.body))).toEqual({
       new_password: "newpassword456",
     });
+  });
+
+  it("自己的禁用按钮不可用", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            id: "1",
+            email: "admin@example.com",
+            nickname: "Admin",
+            email_verified: true,
+            phone: null,
+            role: "admin",
+            status: "active",
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } }
+        )
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify([
+            {
+              id: "1",
+              email: "admin@example.com",
+              nickname: "Admin",
+              phone: null,
+              email_verified: true,
+              role: "admin",
+              status: "active",
+              created_at: "2026-08-12T00:00:00Z",
+            },
+            {
+              id: "2",
+              email: "bob@example.com",
+              nickname: "Bob",
+              phone: null,
+              email_verified: true,
+              role: "user",
+              status: "active",
+              created_at: "2026-08-12T00:00:00Z",
+            },
+          ]),
+          { status: 200, headers: { "Content-Type": "application/json" } }
+        )
+      );
+    vi.stubGlobal("fetch", fetchMock);
+    render(
+      <MemoryRouter>
+        <AdminPage />
+      </MemoryRouter>
+    );
+    await waitFor(() => expect(screen.getByText("admin@example.com")).toBeInTheDocument());
+    const adminRow = screen.getByText("admin@example.com").closest("tr");
+    expect(adminRow).not.toBeNull();
+    expect(
+      within(adminRow as HTMLElement).getByRole("button", { name: "禁用" })
+    ).toBeDisabled();
   });
 });
