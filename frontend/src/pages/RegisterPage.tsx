@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 
 import { authApi } from "../api/client";
+import { AuthSkeleton } from "../components/AuthSkeleton";
 import { AuthShell } from "../components/AuthShell";
 import { Notice } from "../components/Notice";
 import { useToast } from "../hooks/useToast";
@@ -48,11 +49,7 @@ export function RegisterPage() {
   }
 
   if (registrationStatus === "loading") {
-    return (
-      <AuthShell title={`注册 ${APP_NAME} 账号`} subtitle="一个账号，登录所有授权网站">
-        <p className="text-center text-sm text-muted">加载中…</p>
-      </AuthShell>
-    );
+    return <AuthSkeleton />;
   }
 
   if (registrationStatus === "closed") {

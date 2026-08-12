@@ -4,6 +4,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { authApi } from "../api/client";
 import type { UserOut } from "../api/types";
 import { AppHeader } from "../components/AppHeader";
+import { PageSkeleton } from "../components/PageSkeleton";
 import { SiteFooter } from "../components/SiteFooter";
 import { FadeIn } from "../components/bits/FadeIn";
 import { AdminAuditPanel } from "./AdminAuditPanel";
@@ -26,14 +27,7 @@ export function AdminPage() {
   }, [navigate]);
 
   if (!me) {
-    return (
-      <div className="min-h-screen bg-background">
-        <AppHeader title="管理后台" />
-        <main className="mx-auto max-w-5xl px-4 py-10 sm:px-6">
-          <p className="text-sm text-muted">加载中…</p>
-        </main>
-      </div>
-    );
+    return <PageSkeleton title="管理后台" />;
   }
   if (me.role !== "admin") {
     return (

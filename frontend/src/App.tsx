@@ -1,7 +1,9 @@
 import { lazy, Suspense } from "react";
 import { BrowserRouter, Navigate, Route, Routes, useLocation } from "react-router-dom";
 
+import { AuthSkeleton } from "./components/AuthSkeleton";
 import { GuestOnly } from "./components/GuestOnly";
+import { PageSkeleton } from "./components/PageSkeleton";
 
 // 路由级代码分割：首屏只加载当前页面，管理后台/授权确认等低频页面按需下载
 const LoginPage = lazy(() =>
@@ -45,11 +47,25 @@ const DashboardPage = lazy(() =>
   import("./pages/DashboardPage").then((m) => ({ default: m.DashboardPage }))
 );
 
+const AUTH_ROUTES = new Set([
+  "/login",
+  "/register",
+  "/invite",
+  "/forgot-password",
+  "/reset-password",
+  "/verify-email",
+  "/consent",
+]);
+
 function PageFallback() {
+  const { pathname } = useLocation();
+
+  if (AUTH_ROUTES.has(pathname)) {
+    return <AuthSkeleton />;
+  }
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background">
-      <div aria-busy="true" className="shimmer h-24 w-72 rounded-2xl" />
-    </div>
+    <PageSkeleton />
   );
 }
 

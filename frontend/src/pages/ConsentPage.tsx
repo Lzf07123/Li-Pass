@@ -101,10 +101,36 @@ export function ConsentPage() {
       ) : error ? (
         <Notice intent="error">{error}</Notice>
       ) : (
-        <div className="space-y-3" aria-busy="true" aria-label="正在加载授权信息">
-          <div className="shimmer h-20 rounded-xl" />
-          <div className="shimmer h-32 rounded-xl" />
-          <div className="shimmer h-10 rounded-xl" />
+        <div
+          className="animate-fade-up space-y-4"
+          aria-busy="true"
+          aria-label="正在加载授权信息"
+        >
+          {/* 客户端信息卡片 */}
+          <div className="flex items-center gap-3 rounded-xl border border-border bg-surface-2/60 p-4">
+            <div className="shimmer h-11 w-11 shrink-0 rounded-lg" />
+            <div className="min-w-0 flex-1 space-y-2">
+              <div className="shimmer h-4 w-2/5 rounded" />
+              <div className="shimmer h-3.5 w-3/5 rounded" />
+            </div>
+          </div>
+
+          <div className="shimmer h-4 w-52 rounded" />
+
+          {/* 权限范围列表 */}
+          <div className="space-y-3 rounded-xl border border-border bg-surface-2/60 p-4">
+            <div className="shimmer h-4 w-3/4 rounded" />
+            <div className="shimmer h-4 w-2/3 rounded" />
+            <div className="shimmer h-4 w-5/6 rounded" />
+          </div>
+
+          <div className="shimmer h-3.5 w-64 rounded" />
+
+          {/* 操作按钮 */}
+          <div className="flex gap-3">
+            <div className="shimmer h-11 flex-1 rounded-lg" />
+            <div className="shimmer h-11 flex-1 rounded-lg" />
+          </div>
         </div>
       )}
     </AuthShell>

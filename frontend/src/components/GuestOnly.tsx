@@ -4,6 +4,7 @@ import { Navigate, useLocation } from "react-router-dom";
 
 import { authApi } from "../api/client";
 import { isSafeNext } from "../lib/navigation";
+import { AuthSkeleton } from "./AuthSkeleton";
 
 /**
  * 认证页守卫：已登录用户访问登录/注册/找回密码等页面时，
@@ -35,11 +36,7 @@ export function GuestOnly({ children }: { children: ReactNode }) {
   }
 
   if (status === "loading") {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-background">
-        <div aria-busy="true" className="shimmer h-24 w-72 rounded-2xl" />
-      </div>
-    );
+    return <AuthSkeleton />;
   }
 
   return <>{children}</>;
