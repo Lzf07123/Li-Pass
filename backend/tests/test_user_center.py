@@ -4,7 +4,7 @@ from app.models.oauth_client import OAuthClient
 from app.models.user import User
 from app.models.user_consent import UserConsent
 from app.security.passwords import verify_password
-from tests.helpers import create_client, register_and_login
+from tests.helpers import authorize_params, create_client, register_and_login
 
 
 def test_update_profile_and_password(client, captured_email, db_session) -> None:
@@ -69,3 +69,22 @@ def test_apps_plaza_lists_consented(client, captured_email, db_session) -> None:
     assert len(apps) == 1
     assert apps[0]["client_id"] == "cli_demo"
     assert apps[0]["home_url"] == "http://localhost:3001"
+
+
+def test_apps_plaza_revoke_consent(client, captured_email, db_session) -> None:
+    client_model = create_client(db_session)
+    register_and_login(client, captured_email)
+    user = db_session.scalar(select(User).where(User.email == "a@example.com"))
+    db_session.add(
+        UserConsent(user_id=user.id, client_id=client_model.id, scopes=["openid"])
+    )
+    db_session.commit()
+    assert len(client.get("/api/v1/apps").json()) == 1
+
+    response = client.delete("/api/v1/apps/cli_demo")
+    assert response.status_code == 204
+    assert client.get("/api/v1/apps").json() == []
+
+    response = client.get("/oauth2/authorize", params=authorize_params())
+    assert response.status_code == 302
+    assert "/consent?request_id=" in response.headers["location"]

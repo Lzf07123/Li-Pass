@@ -91,6 +91,17 @@ export function DashboardPage() {
     }
   }
 
+  async function revokeApp(clientId: string) {
+    if (!window.confirm("确定取消对该应用的授权吗？")) return;
+    setError("");
+    try {
+      await appsApi.revoke(clientId);
+      setApps(apps.filter((app) => app.client_id !== clientId));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "取消授权失败");
+    }
+  }
+
   async function logout() {
     await authApi.logout();
     navigate("/login");
@@ -364,6 +375,12 @@ export function DashboardPage() {
                     进入
                   </a>
                 )}
+                <button
+                  onClick={() => revokeApp(app.client_id)}
+                  className="ml-2 rounded bg-gray-200 p-2 text-sm"
+                >
+                  取消授权
+                </button>
               </div>
             ))}
           </div>

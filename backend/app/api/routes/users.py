@@ -160,3 +160,35 @@ def list_apps(
             }
         )
     return result
+
+
+@router.delete("/apps/{client_id}", status_code=status.HTTP_204_NO_CONTENT)
+def revoke_app(
+    client_id: str,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> None:
+    client = db.scalar(
+        select(OAuthClient).where(
+            OAuthClient.client_id == client_id, OAuthClient.is_active.is_(True)
+        )
+    )
+    if client is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "应用不存在")
+    consent = db.scalar(
+        select(UserConsent).where(
+            UserConsent.user_id == user.id, UserConsent.client_id == client.id
+        )
+    )
+    if consent is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "尚未授权该应用")
+    db.delete(consent)
+    db.commit()
+    log_audit(
+        db,
+        "user",
+        str(user.id),
+        "app_consent_revoke",
+        target_type="oauth_client",
+        target_id=str(client.id),
+    )

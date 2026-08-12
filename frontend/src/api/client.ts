@@ -118,6 +118,10 @@ export const sessionsApi = {
 
 export const appsApi = {
   list: () => api<AppOut[]>("/api/v1/apps"),
+  revoke: (clientId: string) =>
+    api<void>(`/api/v1/apps/${clientId}`, {
+      method: "DELETE",
+    }),
 };
 
 export const adminBlocksApi = {
