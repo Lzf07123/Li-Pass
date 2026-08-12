@@ -14,7 +14,7 @@ from app.models.user_consent import UserConsent
 from app.services.avatar_cleanup import delete_avatar_file
 
 
-def delete_user_account(db: Session, user: User) -> None:
+def delete_user_account(db: Session, user: User, *, commit: bool = True) -> None:
     """永久删除用户及其全部关联数据（不含审计日志，审计记录保留以便追溯）。
 
     显式删除而非依赖数据库外键级联：PostgreSQL 开启外键时行为一致，
@@ -40,4 +40,5 @@ def delete_user_account(db: Session, user: User) -> None:
             pass
 
     db.delete(user)
-    db.commit()
+    if commit:
+        db.commit()

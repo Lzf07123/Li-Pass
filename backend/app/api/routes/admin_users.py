@@ -59,6 +59,27 @@ class AdminInviteUser(BaseModel):
     nickname: str | None = Field(default=None, min_length=1, max_length=80)
 
 
+class AdminBatchUserUpdate(BaseModel):
+    user_ids: list[uuid.UUID] = Field(min_length=1, max_length=200)
+    status: UserStatus | None = None
+    role: UserRole | None = None
+
+
+class AdminBatchDeleteUser(BaseModel):
+    user_ids: list[uuid.UUID] = Field(min_length=1, max_length=200)
+    current_password: str = Field(min_length=1, max_length=128)
+
+
+class AdminBatchInviteUser(BaseModel):
+    emails: list[EmailStr] = Field(min_length=1, max_length=100)
+
+
+def _as_utc(dt: datetime) -> datetime:
+    if dt.tzinfo is None:
+        return dt.replace(tzinfo=timezone.utc)
+    return dt.astimezone(timezone.utc)
+
+
 def _serialize_user(user: User) -> dict:
     return {
         "id": str(user.id),
@@ -132,14 +153,23 @@ def invite_user(
     settings = get_settings()
     if (
         get_rate_limiter().hit(
-            "admin_invite", ip, settings.register_rate_window_seconds
+            "admin_invite", ip, settings.admin_invite_rate_window_seconds
         )
-        > settings.register_rate_limit
+        > settings.admin_invite_rate_limit
     ):
         raise HTTPException(status.HTTP_429_TOO_MANY_REQUESTS, "发送邀请过于频繁，请稍后再试")
     email = payload.email.lower()
     if db.scalar(select(User).where(User.email == email)) is not None:
         raise HTTPException(status.HTTP_409_CONFLICT, "该邮箱已注册")
+    now = datetime.now(timezone.utc)
+    pending = db.scalar(
+        select(AccountInvite).where(
+            AccountInvite.email == email,
+            AccountInvite.used_at.is_(None),
+        )
+    )
+    if pending is not None and _as_utc(pending.expires_at) > now:
+        raise HTTPException(status.HTTP_409_CONFLICT, "该邮箱已收到邀请，请勿重复发送")
 
     token = generate_token()
     invite = AccountInvite(
@@ -147,8 +177,7 @@ def invite_user(
         nickname=payload.nickname,
         token_hash=hash_token(token),
         created_by=actor.id,
-        expires_at=datetime.now(timezone.utc)
-        + timedelta(days=settings.invite_ttl_days),
+        expires_at=now + timedelta(days=settings.invite_ttl_days),
     )
     db.add(invite)
     db.commit()
@@ -176,6 +205,141 @@ def invite_user(
         detail={"email": email},
     )
     return {"message": "邀请邮件已发送"}
+
+
+@router.post("/users/batch/invite")
+def batch_invite_users(
+    payload: AdminBatchInviteUser,
+    request: Request,
+    actor: User = Depends(get_current_admin),
+    db: Session = Depends(get_db),
+) -> dict:
+    ip = request.client.host if request.client else ""
+    settings = get_settings()
+    emails = list(dict.fromkeys(email.lower() for email in payload.emails))
+    if (
+        get_rate_limiter().hit(
+            "admin_invite",
+            ip,
+            settings.admin_invite_rate_window_seconds,
+            len(emails),
+        )
+        > settings.admin_invite_rate_limit
+    ):
+        raise HTTPException(status.HTTP_429_TOO_MANY_REQUESTS, "发送邀请过于频繁，请稍后再试")
+
+    now = datetime.now(timezone.utc)
+    existing = set(
+        db.scalars(select(User.email).where(User.email.in_(emails)))
+    )
+    pending_rows = db.scalars(
+        select(AccountInvite).where(
+            AccountInvite.email.in_(emails),
+            AccountInvite.used_at.is_(None),
+        )
+    ).all()
+    pending_emails = {
+        row.email for row in pending_rows if _as_utc(row.expires_at) > now
+    }
+
+    invited: list[str] = []
+    skipped: list[dict] = []
+    failed: list[dict] = []
+    for email in emails:
+        if email in existing:
+            skipped.append({"email": email, "reason": "already_registered"})
+            continue
+        if email in pending_emails:
+            skipped.append({"email": email, "reason": "already_invited"})
+            continue
+
+        token = generate_token()
+        invite = AccountInvite(
+            email=email,
+            nickname=None,
+            token_hash=hash_token(token),
+            created_by=actor.id,
+            expires_at=now + timedelta(days=settings.invite_ttl_days),
+        )
+        db.add(invite)
+        db.commit()
+        link = f"{settings.frontend_base_url.rstrip('/')}/invite?token={token}"
+        try:
+            get_email_service().send_invite(email, link)
+        except Exception:
+            # 单封邮件失败只回滚该封邀请，不影响其余批量邀请。
+            logger.exception("邀请邮件发送失败：%s", email)
+            db.delete(invite)
+            db.commit()
+            failed.append({"email": email, "reason": "邮件发送失败"})
+        else:
+            invited.append(email)
+
+    log_audit(
+        db,
+        "admin",
+        str(actor.id),
+        "admin_batch_invite_user",
+        target_type="user",
+        target_id=None,
+        ip=ip,
+        user_agent=request.headers.get("user-agent"),
+        detail={
+            "invited": invited,
+            "skipped": skipped,
+            "failed": failed,
+        },
+    )
+    return {"invited": invited, "skipped": skipped, "failed": failed}
+
+
+@router.patch("/users/batch", response_model=dict)
+def batch_update_users(
+    payload: AdminBatchUserUpdate,
+    actor: User = Depends(get_current_admin),
+    db: Session = Depends(get_db),
+) -> dict:
+    if payload.status is None and payload.role is None:
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST, "至少指定一项要修改的状态或角色"
+        )
+    user_ids = list(dict.fromkeys(payload.user_ids))
+    users = db.scalars(select(User).where(User.id.in_(user_ids))).all()
+    by_id = {user.id: user for user in users}
+    missing = [str(uid) for uid in user_ids if uid not in by_id]
+    if missing:
+        raise HTTPException(
+            status.HTTP_404_NOT_FOUND,
+            f"部分用户不存在：{','.join(missing[:5])}",
+        )
+    if actor.id in by_id:
+        if payload.status == UserStatus.disabled:
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, "不能批量禁用自己")
+        if payload.role is not None and payload.role != UserRole.admin:
+            raise HTTPException(
+                status.HTTP_400_BAD_REQUEST, "不能批量取消自己的管理员角色"
+            )
+
+    for user in users:
+        if payload.status is not None:
+            user.status = payload.status
+        if payload.role is not None:
+            user.role = payload.role
+    db.commit()
+    log_audit(
+        db,
+        "admin",
+        str(actor.id),
+        "admin_batch_update_user",
+        target_type="user",
+        target_id=None,
+        detail={
+            "emails": [user.email for user in users],
+            "status": payload.status.value if payload.status else None,
+            "role": payload.role.value if payload.role else None,
+        },
+    )
+    return {"updated": [_serialize_user(user) for user in users]}
 
 
 @router.patch("/users/{user_id:uuid}", response_model=dict)
@@ -282,6 +446,56 @@ def reset_twofa(
         target_id=str(user.id),
     )
     return {"message": "已重置该用户的二次验证"}
+
+
+@router.post("/users/batch/delete")
+def batch_delete_users(
+    payload: AdminBatchDeleteUser,
+    request: Request,
+    actor: User = Depends(get_current_admin),
+    db: Session = Depends(get_db),
+) -> dict:
+    if not verify_password(payload.current_password, actor.password_hash):
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "当前密码错误")
+    user_ids = list(dict.fromkeys(payload.user_ids))
+    users = db.scalars(select(User).where(User.id.in_(user_ids))).all()
+    by_id = {user.id: user for user in users}
+    missing = [str(uid) for uid in user_ids if uid not in by_id]
+    if missing:
+        raise HTTPException(
+            status.HTTP_404_NOT_FOUND,
+            f"部分用户不存在：{','.join(missing[:5])}",
+        )
+    if actor.id in by_id:
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST, "不能批量删除自己的账号，请使用账号注销功能"
+        )
+    admins = [user for user in users if user.role == UserRole.admin]
+    if admins:
+        raise HTTPException(
+            status.HTTP_403_FORBIDDEN,
+            "不能直接删除管理员账号，请先将其降级为普通用户",
+        )
+
+    deleted = [{"id": str(user.id), "email": user.email} for user in users]
+    for user in users:
+        delete_user_account(db, user, commit=False)
+    db.commit()
+    log_audit(
+        db,
+        "admin",
+        str(actor.id),
+        "admin_batch_delete_user",
+        target_type="user",
+        target_id=None,
+        ip=request.client.host if request.client else None,
+        user_agent=request.headers.get("user-agent"),
+        detail={
+            "ids": [item["id"] for item in deleted],
+            "emails": [item["email"] for item in deleted],
+        },
+    )
+    return {"message": f"已删除 {len(deleted)} 个账号", "deleted": deleted}
 
 
 @router.post("/users/{user_id:uuid}/delete")

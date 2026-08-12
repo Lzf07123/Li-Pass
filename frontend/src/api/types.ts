@@ -109,6 +109,17 @@ export interface AdminUserOut {
   created_at: string;
 }
 
+export interface BatchInviteResult {
+  invited: string[];
+  skipped: { email: string; reason: string }[];
+  failed: { email: string; reason: string }[];
+}
+
+export interface BatchDeleteResult {
+  message: string;
+  deleted: { id: string; email: string }[];
+}
+
 export interface AuditLogOut {
   id: string;
   actor_type: string;

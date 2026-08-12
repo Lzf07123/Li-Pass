@@ -5,7 +5,9 @@ from app.core.redis import get_redis_client
 
 
 class RateLimiter:
-    def hit(self, scope: str, key: str, window_seconds: int) -> int:
+    def hit(
+        self, scope: str, key: str, window_seconds: int, increment: int = 1
+    ) -> int:
         raise NotImplementedError
 
     def reset(self, scope: str, key: str) -> None:
@@ -31,12 +33,14 @@ class MemoryRateLimiter(RateLimiter):
         for key in expired:
             self._items.pop(key, None)
 
-    def hit(self, scope: str, key: str, window_seconds: int) -> int:
+    def hit(
+        self, scope: str, key: str, window_seconds: int, increment: int = 1
+    ) -> int:
         now = time.monotonic()
         self._sweep(now)
         self._prune(scope, key, now)
         count, expires = self._items.get((scope, key), (0, now + window_seconds))
-        count += 1
+        count += increment
         self._items[(scope, key)] = (count, expires)
         return count
 
@@ -51,10 +55,12 @@ class RedisRateLimiter(RateLimiter):
     def _key(self, scope: str, key: str) -> str:
         return f"rl:{scope}:{key}"
 
-    def hit(self, scope: str, key: str, window_seconds: int) -> int:
+    def hit(
+        self, scope: str, key: str, window_seconds: int, increment: int = 1
+    ) -> int:
         redis_key = self._key(scope, key)
-        count = self._client.incr(redis_key)
-        if count == 1:
+        count = self._client.incrby(redis_key, increment)
+        if count == increment:
             self._client.expire(redis_key, window_seconds)
         return count
 

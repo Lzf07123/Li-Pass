@@ -27,7 +27,19 @@ export function AdminUsersPanel({ currentAdminId }: { currentAdminId: string }) 
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteNickname, setInviteNickname] = useState("");
   const [inviteBusy, setInviteBusy] = useState(false);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [bulkBusy, setBulkBusy] = useState<"status" | "delete" | null>(null);
+  const [batchDeleteOpen, setBatchDeleteOpen] = useState(false);
+  const [batchDeletePassword, setBatchDeletePassword] = useState("");
+  const [batchInviteOpen, setBatchInviteOpen] = useState(false);
+  const [batchInviteText, setBatchInviteText] = useState("");
+  const [batchInviteBusy, setBatchInviteBusy] = useState(false);
   const toast = useToast();
+
+  const selectableUsers = users.filter((user) => user.id !== currentAdminId);
+  const allSelected =
+    selectableUsers.length > 0 &&
+    selectableUsers.every((user) => selected.has(user.id));
 
   const load = useCallback((q = "") => {
     adminUsersApi
@@ -44,6 +56,7 @@ export function AdminUsersPanel({ currentAdminId }: { currentAdminId: string }) 
 
   function search(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    setSelected(new Set());
     load(query);
   }
 
@@ -191,6 +204,102 @@ export function AdminUsersPanel({ currentAdminId }: { currentAdminId: string }) 
     }
   }
 
+  function toggleSelect(id: string) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  }
+
+  function toggleSelectAll() {
+    if (allSelected) {
+      setSelected(new Set());
+    } else {
+      setSelected(new Set(selectableUsers.map((user) => user.id)));
+    }
+  }
+
+  async function runBatchStatus(status: "active" | "disabled") {
+    const ids = Array.from(selected);
+    if (ids.length === 0 || bulkBusy !== null) return;
+    setBulkBusy("status");
+    try {
+      const result = await adminUsersApi.batchUpdate(ids, { status });
+      setSelected(new Set());
+      await load(query);
+      toast.success(
+        `已${status === "active" ? "启用" : "禁用"} ${result.updated.length} 个账号`,
+      );
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "批量操作失败");
+    } finally {
+      setBulkBusy(null);
+    }
+  }
+
+  async function submitBatchDelete(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const ids = Array.from(selected);
+    if (ids.length === 0 || bulkBusy !== null) return;
+    if (!batchDeletePassword) {
+      toast.error("请输入你的当前密码以确认批量删除");
+      return;
+    }
+    setBulkBusy("delete");
+    try {
+      const result = await adminUsersApi.batchDelete(ids, batchDeletePassword);
+      setBatchDeleteOpen(false);
+      setBatchDeletePassword("");
+      setSelected(new Set());
+      await load(query);
+      toast.success(result.message);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "批量删除失败");
+    } finally {
+      setBulkBusy(null);
+    }
+  }
+
+  async function submitBatchInvite(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (batchInviteBusy) return;
+    const emails = batchInviteText
+      .split(/\r?\n/)
+      .map((item) => item.trim())
+      .filter(Boolean);
+    if (emails.length === 0) {
+      toast.error("请至少填写一个邮箱");
+      return;
+    }
+    setBatchInviteBusy(true);
+    try {
+      const result = await adminUsersApi.batchInvite(emails);
+      setBatchInviteOpen(false);
+      setBatchInviteText("");
+      const summary = [`已发送 ${result.invited.length} 封邀请`];
+      if (result.skipped.length > 0) {
+        summary.push(`跳过 ${result.skipped.length} 个（已注册或已邀请）`);
+      }
+      toast.success(summary.join("，"));
+      if (result.failed.length > 0) {
+        toast.error(
+          `${result.failed.length} 封发送失败：${result.failed
+            .map((item) => item.email)
+            .join("、")}`,
+        );
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "批量邀请失败");
+    } finally {
+      setBatchInviteBusy(false);
+    }
+  }
+
   return (
     <section className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -201,6 +310,15 @@ export function AdminUsersPanel({ currentAdminId }: { currentAdminId: string }) 
           </button>
           <button onClick={openInvite} className="btn btn-secondary">
             邀请注册
+          </button>
+          <button
+            onClick={() => {
+              setBatchInviteText("");
+              setBatchInviteOpen(true);
+            }}
+            className="btn btn-secondary"
+          >
+            批量邀请
           </button>
           <form onSubmit={search} className="flex w-full gap-2 sm:w-auto">
             <input
@@ -216,10 +334,56 @@ export function AdminUsersPanel({ currentAdminId }: { currentAdminId: string }) 
         </div>
       </div>
 
+      {selected.size > 0 && (
+        <div className="flex flex-wrap items-center gap-2 rounded-xl border border-primary/30 bg-primary-soft px-4 py-2">
+          <span className="text-sm font-medium text-foreground">
+            已选 {selected.size} 个账号
+          </span>
+          <button
+            onClick={() => void runBatchStatus("active")}
+            disabled={bulkBusy !== null}
+            className="btn btn-secondary px-2.5 py-1.5 text-xs"
+          >
+            批量启用
+          </button>
+          <button
+            onClick={() => void runBatchStatus("disabled")}
+            disabled={bulkBusy !== null}
+            className="btn btn-secondary px-2.5 py-1.5 text-xs"
+          >
+            批量禁用
+          </button>
+          <button
+            onClick={() => {
+              setBatchDeletePassword("");
+              setBatchDeleteOpen(true);
+            }}
+            disabled={bulkBusy !== null}
+            className="btn btn-danger px-2.5 py-1.5 text-xs"
+          >
+            批量删除
+          </button>
+          <button
+            onClick={() => setSelected(new Set())}
+            className="btn-link text-xs"
+          >
+            取消选择
+          </button>
+        </div>
+      )}
+
       <div className="table-shell">
         <table>
           <thead>
             <tr>
+              <th className="w-10">
+                <input
+                  type="checkbox"
+                  checked={allSelected}
+                  onChange={toggleSelectAll}
+                  aria-label="全选用户"
+                />
+              </th>
               <th>邮箱</th>
               <th>昵称</th>
               <th>角色</th>
@@ -230,6 +394,15 @@ export function AdminUsersPanel({ currentAdminId }: { currentAdminId: string }) 
           <tbody>
             {users.map((user) => (
               <tr key={user.id}>
+                <td>
+                  <input
+                    type="checkbox"
+                    checked={selected.has(user.id)}
+                    disabled={user.id === currentAdminId}
+                    onChange={() => toggleSelect(user.id)}
+                    aria-label={`选择 ${user.email}`}
+                  />
+                </td>
                 <td>{user.email}</td>
                 <td>{user.nickname}</td>
                 <td>
@@ -536,6 +709,107 @@ export function AdminUsersPanel({ currentAdminId }: { currentAdminId: string }) 
           </label>
           <p className="text-xs text-muted">
             受邀者将收到一封含唯一链接的邮件，点击后自行设置昵称与密码完成注册，邮箱即时验证。
+          </p>
+        </form>
+      </Modal>
+
+      <Modal
+        open={batchDeleteOpen}
+        onClose={() => {
+          if (bulkBusy !== "delete") setBatchDeleteOpen(false);
+        }}
+        title="批量删除账号"
+        intent="danger"
+        footer={
+          <>
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={() => setBatchDeleteOpen(false)}
+              disabled={bulkBusy === "delete"}
+            >
+              取消
+            </button>
+            <button
+              type="submit"
+              form="batch-delete-user-form"
+              className="btn btn-danger"
+              disabled={bulkBusy === "delete"}
+            >
+              {bulkBusy === "delete" ? "处理中…" : "永久删除"}
+            </button>
+          </>
+        }
+      >
+        <form
+          id="batch-delete-user-form"
+          onSubmit={submitBatchDelete}
+          className="space-y-3"
+        >
+          <p className="text-foreground">
+            将永久删除选中的 {selected.size} 个账号及其会话、授权记录、恢复码与头像等全部数据，
+            此操作不可恢复。
+          </p>
+          <label className="block">
+            <span className="label">你的当前密码</span>
+            <input
+              type="password"
+              value={batchDeletePassword}
+              onChange={(e) => setBatchDeletePassword(e.target.value)}
+              placeholder="输入管理员当前密码确认"
+              className="input"
+              autoComplete="current-password"
+              autoFocus
+            />
+          </label>
+        </form>
+      </Modal>
+
+      <Modal
+        open={batchInviteOpen}
+        onClose={() => {
+          if (!batchInviteBusy) setBatchInviteOpen(false);
+        }}
+        title="批量邀请注册"
+        intent="info"
+        footer={
+          <>
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={() => setBatchInviteOpen(false)}
+              disabled={batchInviteBusy}
+            >
+              取消
+            </button>
+            <button
+              type="submit"
+              form="batch-invite-user-form"
+              className="btn btn-primary"
+              disabled={batchInviteBusy}
+            >
+              {batchInviteBusy ? "处理中…" : "发送邀请"}
+            </button>
+          </>
+        }
+      >
+        <form
+          id="batch-invite-user-form"
+          onSubmit={submitBatchInvite}
+          className="space-y-3"
+        >
+          <label className="block">
+            <span className="label">受邀邮箱（每行一个）</span>
+            <textarea
+              value={batchInviteText}
+              onChange={(e) => setBatchInviteText(e.target.value)}
+              className="input min-h-32 resize-y"
+              placeholder={"alice@example.com\nbob@example.com"}
+              autoFocus
+            />
+          </label>
+          <p className="text-xs text-muted">
+            每个邮箱将收到一封含唯一链接的邀请邮件；已注册或已有未消费邀请的邮箱会自动跳过。
           </p>
         </form>
       </Modal>

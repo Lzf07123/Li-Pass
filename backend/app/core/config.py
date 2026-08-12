@@ -46,6 +46,8 @@ class Settings(BaseSettings):
     otp_send_window_seconds: int = 3600
     register_rate_limit: int = 10
     register_rate_window_seconds: int = 3600
+    admin_invite_rate_limit: int = 100
+    admin_invite_rate_window_seconds: int = 3600
     password_reset_rate_limit: int = 5
     password_reset_rate_window_seconds: int = 3600
     email_verify_rate_limit: int = 30
@@ -78,6 +80,10 @@ class Settings(BaseSettings):
             raise ValueError("ALLOWED_HOSTS 不能为空")
         if self.db_pool_size < 1 or self.db_max_overflow < 0:
             raise ValueError("DB_POOL_SIZE 必须 ≥1，DB_MAX_OVERFLOW 必须 ≥0")
+        if self.admin_invite_rate_limit < 1 or self.admin_invite_rate_window_seconds < 1:
+            raise ValueError(
+                "ADMIN_INVITE_RATE_LIMIT/ADMIN_INVITE_RATE_WINDOW_SECONDS 必须 ≥1"
+            )
         if self.ephemeral_retention_hours < 1:
             raise ValueError("EPHEMERAL_RETENTION_HOURS 必须 ≥1")
         if self.session_idle_days < 1:

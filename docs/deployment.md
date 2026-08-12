@@ -72,6 +72,7 @@ docker compose -f docker-compose.yaml --env-file .env exec backend \
 | `SESSION_IDLE_DAYS` | 会话空闲超时天数（默认 7 天，超过即强制下线） |
 | `DATABASE_URL` / `REDIS_URL` | 数据与缓存连接串：留空时默认编排内 PostgreSQL/Redis（需 `bundle` profile）；填写远程地址即切换为远程实例 |
 | `PENDING_REQUEST_STORE` / `TWOFA_STORE` / `RATE_LIMITER` | 生产用 `redis` |
+| `ADMIN_INVITE_RATE_LIMIT` / `ADMIN_INVITE_RATE_WINDOW_SECONDS` | 管理端邀请限流（按来源 IP 计，批量邀请按人数累计；默认 100 次/小时） |
 | `JWT_PRIVATE_KEY_PATH` / `ENCRYPTION_KEY_PATH` | 密钥文件路径（生产必须为绝对路径，指向 `/app/keys` 卷） |
 | `EMAIL_BACKEND` | `console`（开发）或 `smtp`（生产） |
 | `SMTP_HOST` / `SMTP_PORT` | SMTP 服务器地址与端口（生产必填） |

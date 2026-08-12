@@ -2,6 +2,8 @@ import type {
   AdminUserOut,
   AppOut,
   AuditLogOut,
+  BatchDeleteResult,
+  BatchInviteResult,
   ClientCreate,
   ClientBlockOut,
   ClientOut,
@@ -239,6 +241,24 @@ export const adminUsersApi = {
     api<{ message: string }>("/api/v1/admin/users/invite", {
       method: "POST",
       body: JSON.stringify(data),
+    }),
+  batchInvite: (emails: string[]) =>
+    api<BatchInviteResult>("/api/v1/admin/users/batch/invite", {
+      method: "POST",
+      body: JSON.stringify({ emails }),
+    }),
+  batchUpdate: (
+    ids: string[],
+    data: { status?: string; role?: string },
+  ) =>
+    api<{ updated: AdminUserOut[] }>("/api/v1/admin/users/batch", {
+      method: "PATCH",
+      body: JSON.stringify({ user_ids: ids, ...data }),
+    }),
+  batchDelete: (ids: string[], current_password: string) =>
+    api<BatchDeleteResult>("/api/v1/admin/users/batch/delete", {
+      method: "POST",
+      body: JSON.stringify({ user_ids: ids, current_password }),
     }),
   update: (id: string, data: { status?: string; role?: string }) =>
     api<AdminUserOut>(`/api/v1/admin/users/${id}`, {

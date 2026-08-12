@@ -85,6 +85,8 @@ services:
       PENDING_REQUEST_STORE: ${PENDING_REQUEST_STORE:-redis}
       TWOFA_STORE: ${TWOFA_STORE:-redis}
       RATE_LIMITER: ${RATE_LIMITER:-redis}
+      ADMIN_INVITE_RATE_LIMIT: ${ADMIN_INVITE_RATE_LIMIT:-100}
+      ADMIN_INVITE_RATE_WINDOW_SECONDS: ${ADMIN_INVITE_RATE_WINDOW_SECONDS:-3600}
       # 只信任编排内网关的固定 IP（见下方 gateway.networks），
       # 防止同网段内其他容器伪造 X-Forwarded-For 绕过限流/污染审计 IP；
       # 自定义网络/外部反代时按实际网关地址覆盖。
