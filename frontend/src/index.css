@@ -634,6 +634,22 @@
     color: #ffffff;
   }
 
+  @keyframes portal-breath {
+    0%,
+    100% {
+      opacity: 1;
+      transform: scale(1);
+    }
+    50% {
+      opacity: 0.72;
+      transform: scale(0.997);
+    }
+  }
+
+  .animate-breath {
+    animation: portal-breath 800ms var(--ease-out) both;
+  }
+
   /* 路由切换：整页淡入上移，避免生硬跳转 */
   .page-enter {
     animation: portal-fade-up var(--motion-slow) var(--ease-out) both;
