@@ -129,4 +129,44 @@ describe("DashboardPage", () => {
     );
     Object.defineProperty(window, "location", { value: originalLocation, configurable: true });
   });
+
+  it("管理员可见管理后台入口", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            id: "1",
+            email: "admin@example.com",
+            nickname: "Admin",
+            email_verified: true,
+            phone: null,
+            role: "admin",
+            status: "active",
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } }
+        )
+      )
+      .mockResolvedValueOnce(new Response(JSON.stringify([]), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify([]), { status: 200 }))
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            email_otp_enabled: false,
+            totp_enabled: false,
+            recovery_codes_remaining: 0,
+          }),
+          { status: 200 }
+        )
+      );
+    vi.stubGlobal("fetch", fetchMock);
+    render(
+      <MemoryRouter>
+        <DashboardPage />
+      </MemoryRouter>
+    );
+    await waitFor(() =>
+      expect(screen.getByRole("link", { name: "管理后台" })).toBeInTheDocument()
+    );
+  });
 });

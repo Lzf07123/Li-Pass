@@ -1,5 +1,7 @@
 import type {
+  AdminUserOut,
   AppOut,
+  AuditLogOut,
   ClientCreate,
   ClientBlockOut,
   ClientOut,
@@ -171,4 +173,27 @@ export const twofaApi = {
       method: "POST",
       body: JSON.stringify({ current_password }),
     }),
+};
+
+export const adminUsersApi = {
+  list: (q = "") =>
+    api<AdminUserOut[]>(`/api/v1/admin/users${q ? `?q=${encodeURIComponent(q)}` : ""}`),
+  update: (id: string, data: { status?: string; role?: string }) =>
+    api<AdminUserOut>(`/api/v1/admin/users/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    }),
+  resetPassword: (id: string, new_password: string) =>
+    api<{ message: string }>(`/api/v1/admin/users/${id}/reset-password`, {
+      method: "POST",
+      body: JSON.stringify({ new_password }),
+    }),
+  reset2fa: (id: string) =>
+    api<{ message: string }>(`/api/v1/admin/users/${id}/reset-2fa`, {
+      method: "POST",
+    }),
+};
+
+export const adminAuditApi = {
+  list: (limit = 100) => api<AuditLogOut[]>(`/api/v1/admin/audit-logs?limit=${limit}`),
 };

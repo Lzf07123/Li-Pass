@@ -84,3 +84,26 @@ export interface TotpSetup {
   otpauth_uri: string;
   qr_data_url: string;
 }
+
+export interface AdminUserOut {
+  id: string;
+  email: string;
+  nickname: string;
+  phone: string | null;
+  email_verified: boolean;
+  role: string;
+  status: string;
+  created_at: string;
+}
+
+export interface AuditLogOut {
+  id: string;
+  actor_type: string;
+  actor_id: string | null;
+  action: string;
+  target_type: string | null;
+  target_id: string | null;
+  ip: string | null;
+  detail: Record<string, unknown> | null;
+  created_at: string;
+}

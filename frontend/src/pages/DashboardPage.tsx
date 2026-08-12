@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 
 import { appsApi, authApi, meApi, sessionsApi, twofaApi } from "../api/client";
 import type { AppOut, SessionOut, TotpSetup, TwoFaStatus, UserOut } from "../api/types";
@@ -174,9 +174,16 @@ export function DashboardPage() {
       <div className="mx-auto max-w-4xl space-y-6">
         <div className="flex items-center justify-between">
           <h1 className="text-2xl font-bold">用户中心</h1>
-          <button onClick={logout} className="rounded bg-red-600 p-2 text-white">
-            退出登录
-          </button>
+          <div className="flex items-center gap-3">
+            {user?.role === "admin" && (
+              <Link to="/admin" className="rounded bg-blue-600 p-2 text-white">
+                管理后台
+              </Link>
+            )}
+            <button onClick={logout} className="rounded bg-red-600 p-2 text-white">
+              退出登录
+            </button>
+          </div>
         </div>
         {message && <p className="rounded bg-green-50 p-2 text-green-700">{message}</p>}
         {error && <p className="rounded bg-red-50 p-2 text-red-700">{error}</p>}
