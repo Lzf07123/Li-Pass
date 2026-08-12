@@ -14,6 +14,7 @@
 __pycache__/
 *.py[cod]
 *.egg-info/
+*.tsbuildinfo
 .venv/
 venv/
 env/
@@ -24,6 +25,9 @@ env/
 htmlcov/
 build/
 dist/
+test-results/
+playwright-report/
+.nyc_output/
 
 # Node
 node_modules/
@@ -35,6 +39,7 @@ coverage/
 # 环境变量与密钥（保留 .env.example）
 .env
 .env.*
+.envrc
 !.env.example
 !.env.production.example
 
