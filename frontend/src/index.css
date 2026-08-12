@@ -613,6 +613,27 @@
     }
   }
 
+  @keyframes portal-spin {
+    to {
+      transform: rotate(360deg);
+    }
+  }
+
+  .spinner {
+    display: inline-block;
+    height: 1rem;
+    width: 1rem;
+    border-radius: 9999px;
+    border: 2px solid currentColor;
+    border-top-color: transparent;
+    animation: portal-spin 0.8s linear infinite;
+  }
+
+  .btn-success-flash {
+    background: var(--portal-success);
+    color: #ffffff;
+  }
+
   /* 路由切换：整页淡入上移，避免生硬跳转 */
   .page-enter {
     animation: portal-fade-up var(--motion-slow) var(--ease-out) both;
