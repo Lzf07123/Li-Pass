@@ -107,7 +107,7 @@ def change_password(
     for session in others:
         session.revoked_at = datetime.now(timezone.utc)
     db.commit()
-    log_audit(db, "user", str(user.id), "password_change")
+    log_audit(db, "user", str(user.id), "password_change", category="user")
     return {"message": "密码已修改，其他会话已退出"}
 
 
@@ -139,6 +139,7 @@ def delete_own_account(
         "user",
         user_id,
         "user_delete_self",
+        category="user",
         target_type="user",
         target_id=user_id,
         ip=request.client.host if request.client else None,
@@ -313,6 +314,7 @@ def revoke_app(
         "user",
         str(user.id),
         "app_consent_revoke",
+        category="consent",
         target_type="oauth_client",
         target_id=str(client.id),
     )

@@ -74,6 +74,7 @@ def create_client_block(
         "client",
         client.client_id,
         "block_add",
+        category="admin_block",
         detail={"email": block.email, "user_id": str(block.user_id) if block.user_id else None},
     )
     return _serialize(block)
@@ -90,4 +91,10 @@ def delete_client_block(
     if block is None or block.client_id != client.id:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "封禁记录不存在")
     remove_block(db, block.id)
-    log_audit(db, "client", client.client_id, "block_remove")
+    log_audit(
+        db,
+        "client",
+        client.client_id,
+        "block_remove",
+        category="admin_block",
+    )

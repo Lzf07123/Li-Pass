@@ -296,6 +296,7 @@ def register_by_invite(
         "user",
         str(user.id),
         "user_register_by_invite",
+        category="auth",
         target_type="user",
         target_id=str(user.id),
         ip=ip,
@@ -334,6 +335,7 @@ def login(
             "user",
             str(user.id) if user else None,
             "login_failed",
+            category="security",
             ip=ip,
             user_agent=user_agent,
         )
@@ -354,6 +356,7 @@ def login(
             "user",
             str(user.id),
             "login_failed",
+            category="security",
             detail={"reason": "disabled"},
             ip=ip,
             user_agent=user_agent,
@@ -382,6 +385,7 @@ def login(
             "user",
             str(user.id),
             "login_step1",
+            category="auth",
             ip=ip,
             user_agent=user_agent,
         )
@@ -407,6 +411,7 @@ def login(
         "user",
         str(user.id),
         "login",
+        category="auth",
         ip=ip,
         user_agent=user_agent,
     )
@@ -509,6 +514,7 @@ def verify_twofa(
             "user",
             str(challenge.user_id),
             "2fa_login_failed",
+            category="security",
             detail={
                 "method": payload.method,
                 "reason": "invalid_code",
@@ -533,6 +539,7 @@ def verify_twofa(
         "user",
         str(user.id),
         "2fa_login",
+        category="auth",
         detail={"method": payload.method},
         ip=request.client.host if request.client else None,
         user_agent=request.headers.get("user-agent"),
@@ -620,5 +627,5 @@ def confirm_password_reset(
     for session in sessions:
         session.revoked_at = now
     db.commit()
-    log_audit(db, "user", str(user.id), "password_reset")
+    log_audit(db, "user", str(user.id), "password_reset", category="auth")
     return {"message": "密码已重置"}
