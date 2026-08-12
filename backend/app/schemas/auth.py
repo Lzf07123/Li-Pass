@@ -75,6 +75,15 @@ class AppOut(BaseModel):
     home_url: str | None
 
 
+class TwoFaTotpEnable(BaseModel):
+    code: str = Field(min_length=6, max_length=6)
+    secret: str = Field(min_length=16, max_length=128)
+
+
+class PasswordConfirm(BaseModel):
+    current_password: str = Field(min_length=1, max_length=128)
+
+
 def serialize_user(user) -> dict:
     return {
         "id": str(user.id),
