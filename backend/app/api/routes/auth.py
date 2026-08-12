@@ -408,9 +408,11 @@ def verify_twofa(
     store = get_twofa_store()
     challenge = store.get(payload.challenge_id)
     if challenge is None:
+        logger.warning("2FA 验证失败：挑战不存在或已过期")
         raise HTTPException(status.HTTP_404_NOT_FOUND, "挑战不存在或已过期")
     if challenge.attempts >= 5:
         store.delete(payload.challenge_id)
+        logger.warning("2FA 验证失败：尝试次数过多 user=%s", challenge.user_id)
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "尝试次数过多")
     user = db.get(User, uuid.UUID(challenge.user_id))
     if user is None or user.status != UserStatus.active:
@@ -427,6 +429,19 @@ def verify_twofa(
     if not ok:
         challenge.attempts += 1
         store.save(payload.challenge_id, challenge)
+        log_audit(
+            db,
+            "user",
+            str(challenge.user_id),
+            "2fa_login_failed",
+            detail={
+                "method": payload.method,
+                "reason": "invalid_code",
+                "attempts": challenge.attempts,
+            },
+            ip=request.client.host if request.client else None,
+            user_agent=request.headers.get("user-agent"),
+        )
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "验证码无效")
 
     store.delete(payload.challenge_id)
