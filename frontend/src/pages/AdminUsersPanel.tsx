@@ -8,6 +8,12 @@ export function AdminUsersPanel() {
   const [query, setQuery] = useState("");
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [passwordTarget, setPasswordTarget] = useState<AdminUserOut | null>(null);
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmTarget, setConfirmTarget] = useState<{
+    user: AdminUserOut;
+    action: "toggle" | "reset2fa";
+  } | null>(null);
 
   const load = useCallback((q = "") => {
     adminUsersApi
@@ -26,37 +32,65 @@ export function AdminUsersPanel() {
   }
 
   async function toggleStatus(user: AdminUserOut) {
+    setConfirmTarget({ user, action: "toggle" });
+  }
+
+  async function runToggle(user: AdminUserOut) {
     setError("");
     setMessage("");
     try {
       const nextStatus = user.status === "active" ? "disabled" : "active";
       const updated = await adminUsersApi.update(user.id, { status: nextStatus });
       setUsers(users.map((item) => (item.id === updated.id ? updated : item)));
+      setConfirmTarget(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : "操作失败");
     }
   }
 
-  async function resetPassword(user: AdminUserOut) {
-    const newPassword = window.prompt(`为 ${user.email} 设置新密码（至少 8 位）：`);
-    if (!newPassword) return;
+  function startResetPassword(user: AdminUserOut) {
+    setPasswordTarget(user);
+    setNewPassword("");
+  }
+
+  async function submitResetPassword(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!passwordTarget || newPassword.length < 8) {
+      setError("新密码至少 8 位");
+      return;
+    }
     setError("");
     try {
-      const result = await adminUsersApi.resetPassword(user.id, newPassword);
+      const result = await adminUsersApi.resetPassword(passwordTarget.id, newPassword);
       setMessage(result.message);
+      setPasswordTarget(null);
+      setNewPassword("");
     } catch (err) {
       setError(err instanceof Error ? err.message : "重置失败");
     }
   }
 
-  async function reset2fa(user: AdminUserOut) {
-    if (!window.confirm(`确定重置 ${user.email} 的二次验证吗？`)) return;
+  function startReset2fa(user: AdminUserOut) {
+    setConfirmTarget({ user, action: "reset2fa" });
+  }
+
+  async function runReset2fa(user: AdminUserOut) {
     setError("");
     try {
       const result = await adminUsersApi.reset2fa(user.id);
       setMessage(result.message);
+      setConfirmTarget(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : "重置失败");
+    }
+  }
+
+  function runConfirm() {
+    if (!confirmTarget) return;
+    if (confirmTarget.action === "toggle") {
+      void runToggle(confirmTarget.user);
+    } else {
+      void runReset2fa(confirmTarget.user);
     }
   }
 
@@ -76,6 +110,49 @@ export function AdminUsersPanel() {
       </form>
       {message && <p className="mb-2 rounded bg-green-50 p-2 text-green-700">{message}</p>}
       {error && <p className="mb-2 rounded bg-red-50 p-2 text-red-700">{error}</p>}
+      {passwordTarget && (
+        <form
+          onSubmit={submitResetPassword}
+          className="mb-3 flex items-center gap-2 rounded border border-blue-200 bg-blue-50 p-3"
+        >
+          <span className="text-sm">为 {passwordTarget.email} 设置新密码：</span>
+          <input
+            type="password"
+            value={newPassword}
+            onChange={(e) => setNewPassword(e.target.value)}
+            placeholder="至少 8 位"
+            className="flex-1 rounded border p-2"
+            autoFocus
+          />
+          <button type="submit" className="rounded bg-blue-600 p-2 text-white">
+            确认重置
+          </button>
+          <button
+            type="button"
+            onClick={() => setPasswordTarget(null)}
+            className="rounded bg-gray-200 p-2"
+          >
+            取消
+          </button>
+        </form>
+      )}
+      {confirmTarget && (
+        <div className="mb-3 flex items-center gap-2 rounded border border-yellow-300 bg-yellow-50 p-3">
+          <span className="text-sm">
+            确定{confirmTarget.action === "toggle" ? "禁用/启用" : "重置 2FA"}
+            {confirmTarget.user.email} 吗？
+          </span>
+          <button onClick={runConfirm} className="rounded bg-blue-600 p-2 text-white">
+            确认
+          </button>
+          <button
+            onClick={() => setConfirmTarget(null)}
+            className="rounded bg-gray-200 p-2"
+          >
+            取消
+          </button>
+        </div>
+      )}
       <table className="w-full text-left text-sm">
         <thead>
           <tr className="border-b">
@@ -97,10 +174,16 @@ export function AdminUsersPanel() {
                 <button onClick={() => toggleStatus(user)} className="rounded bg-gray-200 p-1">
                   {user.status === "active" ? "禁用" : "启用"}
                 </button>
-                <button onClick={() => resetPassword(user)} className="rounded bg-gray-200 p-1">
+                <button
+                  onClick={() => startResetPassword(user)}
+                  className="rounded bg-gray-200 p-1"
+                >
                   重置密码
                 </button>
-                <button onClick={() => reset2fa(user)} className="rounded bg-gray-200 p-1">
+                <button
+                  onClick={() => startReset2fa(user)}
+                  className="rounded bg-gray-200 p-1"
+                >
                   重置 2FA
                 </button>
               </td>

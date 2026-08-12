@@ -97,4 +97,67 @@ describe("AdminPage", () => {
     );
     await waitFor(() => expect(screen.getByText("无权访问管理后台")).toBeInTheDocument());
   });
+
+  it("重置密码通过内联表单提交", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            id: "1",
+            email: "admin@example.com",
+            nickname: "Admin",
+            email_verified: true,
+            phone: null,
+            role: "admin",
+            status: "active",
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } }
+        )
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify([
+            {
+              id: "2",
+              email: "bob@example.com",
+              nickname: "Bob",
+              phone: null,
+              email_verified: true,
+              role: "user",
+              status: "active",
+              created_at: "2026-08-12T00:00:00Z",
+            },
+          ]),
+          { status: 200, headers: { "Content-Type": "application/json" } }
+        )
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({ message: "密码已重置，该用户所有会话已退出" }),
+          { status: 200, headers: { "Content-Type": "application/json" } }
+        )
+      );
+    vi.stubGlobal("fetch", fetchMock);
+    render(
+      <MemoryRouter>
+        <AdminPage />
+      </MemoryRouter>
+    );
+    await waitFor(() => expect(screen.getByText("bob@example.com")).toBeInTheDocument());
+    fireEvent.click(screen.getByRole("button", { name: "重置密码" }));
+    const input = await screen.findByPlaceholderText("至少 8 位");
+    fireEvent.change(input, { target: { value: "newpassword456" } });
+    fireEvent.click(screen.getByRole("button", { name: "确认重置" }));
+    await waitFor(() =>
+      expect(screen.getByText("密码已重置，该用户所有会话已退出")).toBeInTheDocument()
+    );
+    const resetCall = fetchMock.mock.calls.find(
+      (call) => String(call[0]).includes("/reset-password")
+    );
+    expect(String(resetCall?.[0])).toContain("/api/v1/admin/users/2/reset-password");
+    expect(JSON.parse(String((resetCall?.[1] as RequestInit | undefined)?.body))).toEqual({
+      new_password: "newpassword456",
+    });
+  });
 });
