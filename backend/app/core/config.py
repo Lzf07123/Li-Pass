@@ -40,6 +40,8 @@ class Settings(BaseSettings):
     login_rate_window_seconds: int = 900
     otp_send_limit: int = 5
     otp_send_window_seconds: int = 3600
+    avatar_upload_dir: str = "uploads/avatars"
+    avatar_max_size_mb: int = 5
 
     @model_validator(mode="after")
     def _validate_production(self):

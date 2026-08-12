@@ -37,6 +37,7 @@ class UserOut(BaseModel):
     email: EmailStr
     nickname: str
     email_verified: bool
+    avatar_url: str | None = None
     phone: str | None = None
     role: str
     status: str
@@ -100,6 +101,7 @@ def serialize_user(user) -> dict:
         "email": user.email,
         "nickname": user.nickname,
         "email_verified": user.email_verified_at is not None,
+        "avatar_url": user.avatar_url,
         "phone": user.phone,
         "role": user.role.value,
         "status": user.status.value,

@@ -1,11 +1,13 @@
 import uuid
 from datetime import datetime, timezone
+from pathlib import Path
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_session, get_current_user
+from app.core.config import get_settings
 from app.core.db import get_db
 from app.models.oauth_client import OAuthClient
 from app.models.session import Session as SessionModel
@@ -25,6 +27,26 @@ from app.services.blocks import find_block
 from app.services.audit import log_audit
 
 router = APIRouter(prefix="/api/v1", tags=["users"])
+
+
+_AVATAR_TYPES = {
+    "image/jpeg": ".jpg",
+    "image/png": ".png",
+    "image/gif": ".gif",
+    "image/webp": ".webp",
+}
+
+
+def _avatar_ext(content: bytes) -> str | None:
+    if content.startswith(b"\xff\xd8\xff"):
+        return ".jpg"
+    if content.startswith(b"\x89PNG\r\n\x1a\n"):
+        return ".png"
+    if content.startswith(b"GIF8"):
+        return ".gif"
+    if content.startswith(b"RIFF") and content[8:12] == b"WEBP":
+        return ".webp"
+    return None
 
 
 @router.get("/me", response_model=UserOut)
@@ -193,3 +215,39 @@ def revoke_app(
         target_id=str(client.id),
     )
     return {"logout_uri": client.logout_uri}
+
+
+@router.post("/me/avatar", response_model=UserOut)
+async def upload_avatar(
+    file: UploadFile = File(...),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> dict:
+    settings = get_settings()
+    if file.content_type not in _AVATAR_TYPES:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "仅支持 JPG/PNG/GIF/WebP 图片")
+    content = await file.read()
+    ext = _avatar_ext(content)
+    if ext is None:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "图片文件内容无效")
+    max_bytes = settings.avatar_max_size_mb * 1024 * 1024
+    if len(content) > max_bytes:
+        raise HTTPException(
+            status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            f"头像大小不能超过 {settings.avatar_max_size_mb} MB",
+        )
+
+    upload_dir = Path(settings.avatar_upload_dir)
+    upload_dir.mkdir(parents=True, exist_ok=True)
+    filename = f"{uuid.uuid4().hex}{ext}"
+    (upload_dir / filename).write_bytes(content)
+
+    old = user.avatar_url
+    if old and old.startswith("/uploads/avatars/"):
+        old_path = upload_dir / old.removeprefix("/uploads/avatars/")
+        if old_path.is_file():
+            old_path.unlink()
+
+    user.avatar_url = f"/uploads/avatars/{filename}"
+    db.commit()
+    return serialize_user(user)

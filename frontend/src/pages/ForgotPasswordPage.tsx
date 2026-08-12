@@ -34,7 +34,20 @@ export function ForgotPasswordPage() {
           />
         </label>
         {error && <p className="text-red-600">{error}</p>}
-        {message && <p className="text-green-600">{message}</p>}
+        {message && (
+          <div className="space-y-2 rounded bg-green-50 p-3 text-sm text-green-700">
+            <p>{message}</p>
+            <p>
+              收到验证码后，{" "}
+              <Link
+                to={`/reset-password?email=${encodeURIComponent(email)}`}
+                className="font-semibold text-blue-600"
+              >
+                去设置新密码
+              </Link>
+            </p>
+          </div>
+        )}
         <button type="submit" className="w-full rounded bg-blue-600 p-2 text-white">
           发送重置验证码
         </button>

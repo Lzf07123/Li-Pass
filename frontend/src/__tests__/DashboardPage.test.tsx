@@ -54,6 +54,7 @@ describe("DashboardPage", () => {
     );
     await waitFor(() => expect(screen.getByDisplayValue("Alice")).toBeInTheDocument());
     await waitFor(() => expect(screen.getByText("Demo")).toBeInTheDocument());
+    expect(screen.getByRole("button", { name: "上传头像" })).toBeInTheDocument();
   });
 
   it("取消授权后应用从广场移除", async () => {

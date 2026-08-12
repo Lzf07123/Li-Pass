@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from fastapi.staticfiles import StaticFiles
 
 from app.api.routes import admin_clients as admin_clients_routes
 from app.api.routes import admin_users as admin_users_routes
@@ -55,6 +56,12 @@ def create_app() -> FastAPI:
             "img-src 'self' data:; style-src 'self' 'unsafe-inline'"
         )
         return response
+
+    app.mount(
+        "/uploads/avatars",
+        StaticFiles(directory=settings.avatar_upload_dir, check_dir=False),
+        name="uploads",
+    )
 
     app.include_router(auth_routes.router)
     app.include_router(user_routes.router)

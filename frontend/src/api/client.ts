@@ -6,6 +6,7 @@ import type {
   ClientBlockOut,
   ClientOut,
   ClientSecretOut,
+  ClientUpdate,
   ConsentInfo,
   SessionOut,
   TotpSetup,
@@ -13,14 +14,17 @@ import type {
   UserOut,
 } from "./types";
 
-const BASE_URL: string = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000";
+const BASE_URL: string = import.meta.env.VITE_API_BASE_URL ?? "";
+export const API_BASE_URL = BASE_URL;
 
 async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
   const response = await fetch(`${BASE_URL}${path}`, {
     ...init,
     credentials: "include",
     headers: {
-      "Content-Type": "application/json",
+      ...(init.body instanceof FormData
+        ? {}
+        : { "Content-Type": "application/json" }),
       ...(init.headers ?? {}),
     },
   });
@@ -100,6 +104,15 @@ export const adminClientsApi = {
     api<void>(`/api/v1/admin/clients/${id}`, {
       method: "DELETE",
     }),
+  update: (id: string, data: ClientUpdate) =>
+    api<ClientOut>(`/api/v1/admin/clients/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    }),
+  resetSecret: (id: string) =>
+    api<ClientSecretOut>(`/api/v1/admin/clients/${id}/reset-secret`, {
+      method: "POST",
+    }),
 };
 
 export const meApi = {
@@ -115,6 +128,14 @@ export const meApi = {
       method: "POST",
       body: JSON.stringify(data),
     }),
+  uploadAvatar: (file: File) => {
+    const form = new FormData();
+    form.append("file", file);
+    return api<UserOut>("/api/v1/me/avatar", {
+      method: "POST",
+      body: form,
+    });
+  },
 };
 
 export const sessionsApi = {

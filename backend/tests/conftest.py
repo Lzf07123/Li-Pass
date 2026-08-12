@@ -4,6 +4,9 @@ import tempfile
 os.environ.setdefault(
     "JWT_PRIVATE_KEY_PATH", os.path.join(tempfile.gettempdir(), "portal-test-jwt.pem")
 )
+os.environ.setdefault(
+    "AVATAR_UPLOAD_DIR", os.path.join(tempfile.gettempdir(), "portal-test-avatars")
+)
 
 import pytest
 from fastapi.testclient import TestClient

@@ -17,6 +17,12 @@ export function AdminClientsPage() {
   const [blockEmail, setBlockEmail] = useState<Record<string, string>>({});
   const [blockReason, setBlockReason] = useState<Record<string, string>>({});
   const [removeTarget, setRemoveTarget] = useState<ClientOut | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editDraft, setEditDraft] = useState<ClientOut | null>(null);
+  const [secretResult, setSecretResult] = useState<{
+    name: string;
+    secret: string;
+  } | null>(null);
 
   useEffect(() => {
     adminClientsApi
@@ -97,9 +103,79 @@ export function AdminClientsPage() {
     }
   }
 
+  function startEdit(client: ClientOut) {
+    setEditingId(client.id);
+    setEditDraft({ ...client });
+    setSecretResult(null);
+  }
+
+  function cancelEdit() {
+    setEditingId(null);
+    setEditDraft(null);
+  }
+
+  function updateDraft(patch: Partial<ClientOut>) {
+    setEditDraft((draft) => (draft ? { ...draft, ...patch } : draft));
+  }
+
+  async function saveEdit() {
+    if (!editDraft) return;
+    setError("");
+    try {
+      const updated = await adminClientsApi.update(editDraft.id, {
+        name: editDraft.name,
+        description: editDraft.description,
+        logo_url: editDraft.logo_url || null,
+        home_url: editDraft.home_url || null,
+        logout_uri: editDraft.logout_uri || null,
+        redirect_uris: editDraft.redirect_uris,
+        scopes: editDraft.scopes,
+        require_consent_every_time: editDraft.require_consent_every_time,
+        is_active: editDraft.is_active,
+      });
+      setClients(clients.map((client) => (client.id === updated.id ? updated : client)));
+      setEditingId(null);
+      setEditDraft(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "保存失败");
+    }
+  }
+
+  async function toggleActive(client: ClientOut) {
+    setError("");
+    try {
+      const updated = await adminClientsApi.update(client.id, {
+        is_active: !client.is_active,
+      });
+      setClients(clients.map((item) => (item.id === updated.id ? updated : item)));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "操作失败");
+    }
+  }
+
+  async function resetSecret(client: ClientOut) {
+    setError("");
+    setSecretResult(null);
+    try {
+      const result = await adminClientsApi.resetSecret(client.id);
+      setSecretResult({
+        name: client.name,
+        secret: result.client_secret ?? "",
+      });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "重置密钥失败");
+    }
+  }
+
   return (
-    <main className="min-h-screen bg-gray-50 p-8">
+    <div className="min-h-screen bg-gray-50 p-8">
       <h1 className="mb-6 text-2xl font-bold">授权网站管理</h1>
+      {secretResult && (
+        <p className="mb-4 rounded bg-yellow-50 p-2 text-sm">
+          已重置 <strong>{secretResult.name}</strong> 的 client_secret（只显示一次）：
+          <code>{secretResult.secret}</code>
+        </p>
+      )}
       <form onSubmit={handleCreate} className="mb-8 space-y-3 rounded-xl bg-white p-6 shadow">
         <label className="block">
           名称
@@ -125,7 +201,7 @@ export function AdminClientsPage() {
             value={homeUrl}
             onChange={(e) => setHomeUrl(e.target.value)}
             className="mt-1 w-full rounded border p-2"
-            placeholder="http://localhost:3001"
+            placeholder="https://your-site.example"
           />
         </label>
         <label className="block">
@@ -134,7 +210,7 @@ export function AdminClientsPage() {
             value={logoutUri}
             onChange={(e) => setLogoutUri(e.target.value)}
             className="mt-1 w-full rounded border p-2"
-            placeholder="http://localhost:3001/logout"
+            placeholder="https://your-site.example/logout"
           />
         </label>
         <label className="flex items-center gap-2">
@@ -176,16 +252,175 @@ export function AdminClientsPage() {
           <li key={client.id} className="rounded-xl bg-white p-4 shadow">
             <div className="flex items-center justify-between">
               <div>
-                <p className="font-semibold">{client.name}</p>
+                <p className="font-semibold">
+                  {client.name}
+                  <span
+                    className={`ml-2 rounded px-1.5 py-0.5 text-xs ${
+                      client.is_active
+                        ? "bg-green-100 text-green-700"
+                        : "bg-gray-200 text-gray-600"
+                    }`}
+                  >
+                    {client.is_active ? "启用中" : "已停用"}
+                  </span>
+                </p>
                 <p className="text-sm text-gray-500">{client.client_id}</p>
+                {client.description && (
+                  <p className="mt-1 text-sm text-gray-600">{client.description}</p>
+                )}
               </div>
-              <button
-                onClick={() => setRemoveTarget(client)}
-                className="rounded bg-red-600 p-2 text-sm text-white"
-              >
-                删除应用
-              </button>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => startEdit(client)}
+                  className="rounded bg-gray-200 p-2 text-sm"
+                >
+                  编辑
+                </button>
+                <button
+                  onClick={() => toggleActive(client)}
+                  className="rounded bg-gray-200 p-2 text-sm"
+                >
+                  {client.is_active ? "停用" : "启用"}
+                </button>
+                {!client.is_active && (
+                  <span className="self-center text-xs text-gray-400">
+                    已停用，无法发起授权
+                  </span>
+                )}
+                <button
+                  onClick={() => setRemoveTarget(client)}
+                  className="rounded bg-red-600 p-2 text-sm text-white"
+                >
+                  删除应用
+                </button>
+              </div>
             </div>
+            {client.require_consent_every_time && (
+              <p className="mt-2 text-xs text-amber-600">
+                配置：每次授权都需用户确认
+              </p>
+            )}
+            {editingId === client.id && editDraft && (
+              <fieldset className="mt-3 space-y-3 rounded border border-blue-200 bg-blue-50 p-3">
+                <legend className="px-1 text-sm font-semibold text-blue-700">
+                  编辑应用
+                </legend>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <label className="block text-sm">
+                    名称
+                    <input
+                      value={editDraft.name}
+                      onChange={(e) => updateDraft({ name: e.target.value })}
+                      className="mt-1 w-full rounded border p-2"
+                    />
+                  </label>
+                  <label className="block text-sm">
+                    图标地址
+                    <input
+                      value={editDraft.logo_url ?? ""}
+                      onChange={(e) => updateDraft({ logo_url: e.target.value || null })}
+                      placeholder="https://…/logo.png"
+                      className="mt-1 w-full rounded border p-2"
+                    />
+                  </label>
+                </div>
+                <label className="block text-sm">
+                  描述
+                  <input
+                    value={editDraft.description}
+                    onChange={(e) => updateDraft({ description: e.target.value })}
+                    className="mt-1 w-full rounded border p-2"
+                  />
+                </label>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <label className="block text-sm">
+                    首页地址
+                    <input
+                      value={editDraft.home_url ?? ""}
+                      onChange={(e) => updateDraft({ home_url: e.target.value || null })}
+                      className="mt-1 w-full rounded border p-2"
+                    />
+                  </label>
+                  <label className="block text-sm">
+                    登出地址
+                    <input
+                      value={editDraft.logout_uri ?? ""}
+                      onChange={(e) => updateDraft({ logout_uri: e.target.value || null })}
+                      className="mt-1 w-full rounded border p-2"
+                    />
+                  </label>
+                </div>
+                <label className="block text-sm">
+                  回调地址（每行一个）
+                  <textarea
+                    value={editDraft.redirect_uris.join("\n")}
+                    onChange={(e) =>
+                      updateDraft({
+                        redirect_uris: e.target.value
+                          .split("\n")
+                          .map((item) => item.trim())
+                          .filter(Boolean),
+                      })
+                    }
+                    className="mt-1 w-full rounded border p-2"
+                  />
+                </label>
+                <label className="block text-sm">
+                  授权范围（逗号分隔）
+                  <input
+                    value={editDraft.scopes.join(", ")}
+                    onChange={(e) =>
+                      updateDraft({
+                        scopes: e.target.value
+                          .split(/[,，\s]+/)
+                          .map((item) => item.trim())
+                          .filter(Boolean),
+                      })
+                    }
+                    className="mt-1 w-full rounded border p-2"
+                  />
+                </label>
+                <label className="flex items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={editDraft.require_consent_every_time}
+                    onChange={(e) =>
+                      updateDraft({ require_consent_every_time: e.target.checked })
+                    }
+                  />
+                  每次授权都需用户确认
+                </label>
+                <label className="flex items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={editDraft.is_active}
+                    onChange={(e) => updateDraft({ is_active: e.target.checked })}
+                  />
+                  启用该网站（停用后无法发起授权）
+                </label>
+                <div className="flex gap-2">
+                  <button
+                    onClick={saveEdit}
+                    className="rounded bg-blue-600 p-2 text-sm text-white"
+                  >
+                    保存修改
+                  </button>
+                  <button
+                    onClick={cancelEdit}
+                    className="rounded bg-gray-200 p-2 text-sm"
+                  >
+                    取消
+                  </button>
+                  <button
+                    onClick={() => resetSecret(client)}
+                    className="ml-auto rounded bg-amber-600 p-2 text-sm text-white"
+                    title="为机密客户端重新生成 client_secret"
+                  >
+                    重置密钥
+                  </button>
+                </div>
+              </fieldset>
+            )}
             <div className="mt-3 border-t pt-3">
               <p className="mb-2 text-sm font-semibold">黑名单</p>
               <ul className="mb-2 space-y-1">
@@ -231,6 +466,6 @@ export function AdminClientsPage() {
           </li>
         ))}
       </ul>
-    </main>
+    </div>
   );
 }

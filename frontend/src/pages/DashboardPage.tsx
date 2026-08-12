@@ -1,7 +1,14 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 
-import { appsApi, authApi, meApi, sessionsApi, twofaApi } from "../api/client";
+import {
+  API_BASE_URL,
+  appsApi,
+  authApi,
+  meApi,
+  sessionsApi,
+  twofaApi,
+} from "../api/client";
 import type { AppOut, SessionOut, TotpSetup, TwoFaStatus, UserOut } from "../api/types";
 
 export function DashboardPage() {
@@ -9,6 +16,7 @@ export function DashboardPage() {
   const [apps, setApps] = useState<AppOut[]>([]);
   const [sessions, setSessions] = useState<SessionOut[]>([]);
   const [nickname, setNickname] = useState("");
+  const [avatarUrl, setAvatarUrl] = useState("");
   const [phone, setPhone] = useState("");
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -19,6 +27,7 @@ export function DashboardPage() {
   const [recoveryCodes, setRecoveryCodes] = useState<string[] | null>(null);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -27,6 +36,7 @@ export function DashboardPage() {
       .then((data) => {
         setUser(data);
         setNickname(data.nickname);
+        setAvatarUrl(data.avatar_url ?? "");
       })
       .catch(() => navigate("/login"));
     appsApi.list().then(setApps).catch(() => undefined);
@@ -43,8 +53,12 @@ export function DashboardPage() {
     setError("");
     setMessage("");
     try {
-      const updated = await meApi.updateProfile({ nickname });
+      const updated = await meApi.updateProfile({
+        nickname,
+        avatar_url: avatarUrl || null,
+      });
       setUser(updated);
+      setAvatarUrl(updated.avatar_url ?? "");
       setMessage("资料已保存");
     } catch (err) {
       showError(err, "保存失败");
@@ -78,6 +92,22 @@ export function DashboardPage() {
       setMessage("手机号已绑定");
     } catch (err) {
       showError(err, "绑定失败");
+    }
+  }
+
+  async function uploadAvatar(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!avatarFile) return;
+    setError("");
+    setMessage("");
+    try {
+      const updated = await meApi.uploadAvatar(avatarFile);
+      setUser(updated);
+      setAvatarUrl(updated.avatar_url ?? "");
+      setAvatarFile(null);
+      setMessage("头像已更新");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "上传失败");
     }
   }
 
@@ -189,26 +219,67 @@ export function DashboardPage() {
         {error && <p className="rounded bg-red-50 p-2 text-red-700">{error}</p>}
 
         {user && (
-          <section className="rounded-xl bg-white p-6 shadow">
-            <h2 className="mb-3 font-semibold">基本资料</h2>
-            <p className="mb-3 text-sm text-gray-500">
-              邮箱：{user.email}（已验证：{user.email_verified ? "是" : "否"}）｜手机：
-              {user.phone ?? "未绑定"}
-            </p>
-            <form onSubmit={saveProfile} className="flex items-end gap-2">
-              <label className="block flex-1">
-                昵称
-                <input
-                  value={nickname}
-                  onChange={(e) => setNickname(e.target.value)}
-                  className="mt-1 w-full rounded border p-2"
-                />
-              </label>
-              <button type="submit" className="rounded bg-blue-600 p-2 text-white">
-                保存
-              </button>
-            </form>
-          </section>
+          <>
+            {!user.email_verified && (
+              <p className="rounded border border-amber-300 bg-amber-50 p-3 text-sm text-amber-800">
+                邮箱尚未验证：完成验证后才能授权登录接入网站。
+                <Link
+                  to={`/verify-email?email=${encodeURIComponent(user.email)}`}
+                  className="ml-2 font-semibold text-blue-600"
+                >
+                  去验证
+                </Link>
+              </p>
+            )}
+            <section className="rounded-xl bg-white p-6 shadow">
+              <h2 className="mb-3 font-semibold">基本资料</h2>
+              <p className="mb-3 text-sm text-gray-500">
+                邮箱：{user.email}（已验证：{user.email_verified ? "是" : "否"}）｜手机：
+                {user.phone ?? "未绑定"}
+              </p>
+              <div className="mb-3 flex items-center gap-3">
+                {user.avatar_url ? (
+                  <img
+                    src={`${API_BASE_URL}${user.avatar_url}`}
+                    alt="头像"
+                    className="h-12 w-12 rounded-full object-cover"
+                  />
+                ) : (
+                  <span className="flex h-12 w-12 items-center justify-center rounded-full bg-blue-100 text-lg font-bold text-blue-600">
+                    {(user.nickname || user.email).slice(0, 1).toUpperCase()}
+                  </span>
+                )}
+                <p className="text-sm text-gray-500">本地上传头像</p>
+              </div>
+              <form onSubmit={uploadAvatar} className="mb-3 flex items-end gap-2">
+                <label className="block flex-1">
+                  选择图片（JPG/PNG/GIF/WebP，≤5MB）
+                  <input
+                    type="file"
+                    accept="image/jpeg,image/png,image/gif,image/webp"
+                    onChange={(e) => setAvatarFile(e.target.files?.[0] ?? null)}
+                    className="mt-1 w-full rounded border p-2"
+                  />
+                </label>
+                <button type="submit" className="rounded bg-blue-600 p-2 text-white">
+                  上传头像
+                </button>
+              </form>
+              <form onSubmit={saveProfile} className="flex items-end gap-2">
+                <label className="block flex-1">
+                  昵称
+                  <input
+                    value={nickname}
+                    onChange={(e) => setNickname(e.target.value)}
+                    className="mt-1 w-full rounded border p-2"
+                  />
+                </label>
+                <button type="submit" className="rounded bg-blue-600 p-2 text-white">
+                  保存
+                </button>
+              </form>
+            </section>
+          </>
         )}
 
         <section className="rounded-xl bg-white p-6 shadow">
@@ -376,7 +447,20 @@ export function DashboardPage() {
           <div className="grid gap-3 sm:grid-cols-2">
             {apps.map((app) => (
               <div key={app.client_id} className="rounded border p-4">
-                <p className="font-semibold">{app.name}</p>
+                <div className="mb-2 flex items-center gap-2">
+                  {app.logo_url ? (
+                    <img
+                      src={app.logo_url}
+                      alt={`${app.name} 图标`}
+                      className="h-8 w-8 rounded object-contain"
+                    />
+                  ) : (
+                    <span className="flex h-8 w-8 items-center justify-center rounded bg-blue-100 text-sm font-bold text-blue-600">
+                      {app.name.slice(0, 1).toUpperCase()}
+                    </span>
+                  )}
+                  <p className="font-semibold">{app.name}</p>
+                </div>
                 <p className="mb-2 text-sm text-gray-500">{app.description}</p>
                 {app.home_url && (
                   <a

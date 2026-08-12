@@ -3,6 +3,7 @@ export interface UserOut {
   email: string;
   nickname: string;
   email_verified: boolean;
+  avatar_url: string | null;
   phone: string | null;
   role: string;
   status: string;
@@ -39,6 +40,18 @@ export interface ClientCreate {
   scopes?: string[];
   require_consent_every_time?: boolean;
   public?: boolean;
+}
+
+export interface ClientUpdate {
+  name?: string;
+  description?: string;
+  logo_url?: string | null;
+  home_url?: string | null;
+  logout_uri?: string | null;
+  redirect_uris?: string[];
+  scopes?: string[];
+  require_consent_every_time?: boolean;
+  is_active?: boolean;
 }
 
 export interface ClientSecretOut {

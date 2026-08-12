@@ -26,6 +26,10 @@ export function VerifyEmailPage() {
       <form onSubmit={handleSubmit} className="w-96 space-y-4 rounded-xl bg-white p-8 shadow">
         <h1 className="text-2xl font-bold">验证邮箱</h1>
         <p className="text-gray-600">验证码已发送到 {email || "你的邮箱"}</p>
+        <p className="text-xs text-gray-500">
+          验证码 10 分钟内有效。开发环境会打印在后端控制台（
+          <code>docker compose logs backend | grep "code="</code>）。
+        </p>
         <label className="block">
           验证码
           <input

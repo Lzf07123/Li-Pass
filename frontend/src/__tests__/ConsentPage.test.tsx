@@ -41,7 +41,9 @@ describe("ConsentPage", () => {
         <ConsentPage />
       </MemoryRouter>
     );
-    await waitFor(() => expect(screen.getByText("Demo")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getAllByText("Demo").length).toBeGreaterThan(0));
+    expect(screen.getByText("OpenID 身份标识")).toBeInTheDocument();
+    expect(screen.getByText("昵称与头像等基本资料")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "同意授权" }));
     await waitFor(() =>
       expect(window.location.href).toBe("http://localhost:3001/callback?code=abc")

@@ -50,6 +50,9 @@ logs/
 postgres-data/
 redis-data/
 
+# 本地上传
+uploads/
+
 # 临时与备份
 *.tmp
 *.bak
