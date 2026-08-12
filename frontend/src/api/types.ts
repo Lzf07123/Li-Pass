@@ -3,6 +3,7 @@ export interface UserOut {
   email: string;
   nickname: string;
   email_verified: boolean;
+  phone: string | null;
   role: string;
   status: string;
 }
@@ -19,6 +20,7 @@ export interface ClientOut {
   name: string;
   description: string;
   logo_url: string | null;
+  home_url: string | null;
   redirect_uris: string[];
   scopes: string[];
   require_consent_every_time: boolean;
@@ -30,6 +32,7 @@ export interface ClientCreate {
   name: string;
   description?: string;
   logo_url?: string | null;
+  home_url?: string | null;
   redirect_uris: string[];
   scopes?: string[];
   require_consent_every_time?: boolean;
@@ -39,4 +42,31 @@ export interface ClientCreate {
 export interface ClientSecretOut {
   client: ClientOut;
   client_secret: string | null;
+}
+
+export interface SessionOut {
+  id: string;
+  device_name: string;
+  ip: string;
+  user_agent: string;
+  created_at: string;
+  last_used_at: string;
+  expires_at: string;
+  current: boolean;
+}
+
+export interface AppOut {
+  client_id: string;
+  name: string;
+  description: string;
+  logo_url: string | null;
+  home_url: string | null;
+}
+
+export interface ClientBlockOut {
+  id: string;
+  user_id: string | null;
+  email: string | null;
+  reason: string;
+  created_at: string;
 }

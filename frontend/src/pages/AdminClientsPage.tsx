@@ -1,20 +1,31 @@
 import { useEffect, useState } from "react";
 
 import { adminClientsApi } from "../api/client";
-import type { ClientOut } from "../api/types";
+import { adminBlocksApi } from "../api/client";
+import type { ClientBlockOut, ClientOut } from "../api/types";
 
 export function AdminClientsPage() {
   const [clients, setClients] = useState<ClientOut[]>([]);
   const [name, setName] = useState("");
+  const [homeUrl, setHomeUrl] = useState("");
   const [redirectUris, setRedirectUris] = useState("");
   const [isPublic, setIsPublic] = useState(true);
   const [secret, setSecret] = useState<string | null>(null);
   const [error, setError] = useState("");
+  const [blocks, setBlocks] = useState<Record<string, ClientBlockOut[]>>({});
+  const [blockEmail, setBlockEmail] = useState<Record<string, string>>({});
+  const [blockReason, setBlockReason] = useState<Record<string, string>>({});
 
   useEffect(() => {
     adminClientsApi
       .list()
-      .then(setClients)
+      .then(async (list) => {
+        setClients(list);
+        const entries = await Promise.all(
+          list.map(async (client) => [client.id, await adminBlocksApi.list(client.id)] as const)
+        );
+        setBlocks(Object.fromEntries(entries));
+      })
       .catch((err) => setError(err instanceof Error ? err.message : "加载失败"));
   }, []);
 
@@ -25,6 +36,7 @@ export function AdminClientsPage() {
     try {
       const result = await adminClientsApi.create({
         name,
+        home_url: homeUrl || null,
         redirect_uris: redirectUris
           .split("\n")
           .map((item) => item.trim())
@@ -34,9 +46,38 @@ export function AdminClientsPage() {
       setClients([result.client, ...clients]);
       setSecret(result.client_secret);
       setName("");
+      setHomeUrl("");
       setRedirectUris("");
     } catch (err) {
       setError(err instanceof Error ? err.message : "创建失败");
+    }
+  }
+
+  async function addBlock(clientId: string) {
+    setError("");
+    try {
+      const created = await adminBlocksApi.add(clientId, {
+        email: blockEmail[clientId] ?? "",
+        reason: blockReason[clientId] ?? "",
+      });
+      setBlocks({ ...blocks, [clientId]: [created, ...(blocks[clientId] ?? [])] });
+      setBlockEmail({ ...blockEmail, [clientId]: "" });
+      setBlockReason({ ...blockReason, [clientId]: "" });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "封禁失败");
+    }
+  }
+
+  async function removeBlock(clientId: string, blockId: string) {
+    setError("");
+    try {
+      await adminBlocksApi.remove(clientId, blockId);
+      setBlocks({
+        ...blocks,
+        [clientId]: (blocks[clientId] ?? []).filter((block) => block.id !== blockId),
+      });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "解封失败");
     }
   }
 
@@ -62,6 +103,15 @@ export function AdminClientsPage() {
             required
           />
         </label>
+        <label className="block">
+          首页地址（应用广场“进入”链接）
+          <input
+            value={homeUrl}
+            onChange={(e) => setHomeUrl(e.target.value)}
+            className="mt-1 w-full rounded border p-2"
+            placeholder="http://localhost:3001"
+          />
+        </label>
         <label className="flex items-center gap-2">
           <input
             type="checkbox"
@@ -85,6 +135,48 @@ export function AdminClientsPage() {
           <li key={client.id} className="rounded-xl bg-white p-4 shadow">
             <p className="font-semibold">{client.name}</p>
             <p className="text-sm text-gray-500">{client.client_id}</p>
+            <div className="mt-3 border-t pt-3">
+              <p className="mb-2 text-sm font-semibold">黑名单</p>
+              <ul className="mb-2 space-y-1">
+                {(blocks[client.id] ?? []).map((block) => (
+                  <li key={block.id} className="flex items-center justify-between text-sm">
+                    <span>
+                      {block.email ?? block.user_id}（{block.reason || "无原因"}）
+                    </span>
+                    <button
+                      onClick={() => removeBlock(client.id, block.id)}
+                      className="text-red-600"
+                    >
+                      解封
+                    </button>
+                  </li>
+                ))}
+              </ul>
+              <div className="flex gap-2">
+                <input
+                  value={blockEmail[client.id] ?? ""}
+                  onChange={(e) =>
+                    setBlockEmail({ ...blockEmail, [client.id]: e.target.value })
+                  }
+                  placeholder="封禁邮箱"
+                  className="flex-1 rounded border p-1 text-sm"
+                />
+                <input
+                  value={blockReason[client.id] ?? ""}
+                  onChange={(e) =>
+                    setBlockReason({ ...blockReason, [client.id]: e.target.value })
+                  }
+                  placeholder="原因"
+                  className="flex-1 rounded border p-1 text-sm"
+                />
+                <button
+                  onClick={() => addBlock(client.id)}
+                  className="rounded bg-red-600 p-1 text-sm text-white"
+                >
+                  封禁
+                </button>
+              </div>
+            </div>
           </li>
         ))}
       </ul>
