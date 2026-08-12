@@ -21,6 +21,7 @@ export function LoginPage() {
   );
   const [code, setCode] = useState("");
   const [method, setMethod] = useState("");
+  const [rememberMe, setRememberMe] = useState(false);
   const toast = useToast();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -30,7 +31,7 @@ export function LoginPage() {
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     try {
-      const result = await authApi.login({ email, password });
+      const result = await authApi.login({ email, password, remember_me: rememberMe });
       if (result.requires_2fa && result.challenge_id) {
         const methods = result.methods ?? [];
         setChallenge({ id: result.challenge_id, methods });
@@ -159,6 +160,15 @@ export function LoginPage() {
             autoComplete="current-password"
             required
           />
+        </label>
+        <label className="flex cursor-pointer items-center gap-2 text-sm text-foreground">
+          <input
+            type="checkbox"
+            checked={rememberMe}
+            onChange={(e) => setRememberMe(e.target.checked)}
+            className="h-4 w-4 accent-primary"
+          />
+          记住我（30 天内免登录）
         </label>
         <button type="submit" className="btn btn-primary w-full">
           登录

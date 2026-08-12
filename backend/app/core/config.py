@@ -18,6 +18,7 @@ class Settings(BaseSettings):
     session_cookie_secure: bool = False
     session_cookie_samesite: str = "lax"
     session_ttl_days: int = 30
+    session_default_ttl_days: int = 1
     session_idle_days: int = 7
     cors_origins: list[str] = ["http://localhost:5173"]
     allowed_hosts: list[str] = ["localhost", "127.0.0.1", "testserver"]
@@ -88,6 +89,8 @@ class Settings(BaseSettings):
             raise ValueError("EPHEMERAL_RETENTION_HOURS 必须 ≥1")
         if self.session_idle_days < 1:
             raise ValueError("SESSION_IDLE_DAYS 必须 ≥1")
+        if self.session_default_ttl_days < 1:
+            raise ValueError("SESSION_DEFAULT_TTL_DAYS 必须 ≥1")
         if self.environment != "production":
             return self
         for field in ("jwt_issuer", "frontend_base_url", "database_url", "redis_url"):

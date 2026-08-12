@@ -69,6 +69,7 @@ docker compose -f docker-compose.yaml --env-file .env exec backend \
 | `ALLOWED_HOSTS` | 后端接受的 Host 白名单（JSON 数组；生产必填真实域名，防 Host 头注入/DNS rebinding） |
 | `SESSION_COOKIE_SECURE` | HTTPS 下必须 `true` |
 | `SESSION_COOKIE_SAMESITE` | 见下方「SameSite 与部署拓扑」 |
+| `SESSION_TTL_DAYS` / `SESSION_DEFAULT_TTL_DAYS` | 勾选“记住我”/未勾选时的会话有效期（默认 30 天 / 1 天；未勾选同时使用会话级 Cookie，关闭浏览器即失效） |
 | `SESSION_IDLE_DAYS` | 会话空闲超时天数（默认 7 天，超过即强制下线） |
 | `DATABASE_URL` / `REDIS_URL` | 数据与缓存连接串：留空时默认编排内 PostgreSQL/Redis（需 `bundle` profile）；填写远程地址即切换为远程实例 |
 | `PENDING_REQUEST_STORE` / `TWOFA_STORE` / `RATE_LIMITER` | 生产用 `redis` |

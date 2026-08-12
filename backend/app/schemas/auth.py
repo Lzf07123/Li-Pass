@@ -29,6 +29,7 @@ class LoginRequest(BaseModel):
     email: EmailStr
     password: str = Field(min_length=1, max_length=128)
     device_name: str = ""
+    remember_me: bool = False
 
 
 class PasswordResetRequest(BaseModel):

@@ -58,9 +58,15 @@ def _create_session_and_cookie(
     request: Request,
     response: Response,
     auth_method: str,
+    remember_me: bool = False,
 ) -> None:
     now = datetime.now(timezone.utc)
     token = generate_token()
+    ttl_days = (
+        settings.session_ttl_days
+        if remember_me
+        else settings.session_default_ttl_days
+    )
     session = SessionModel(
         user_id=user.id,
         token_hash=hash_token(token),
@@ -68,7 +74,7 @@ def _create_session_and_cookie(
         device_name=request.headers.get("user-agent", "")[:120],
         ip=request.client.host if request.client else "",
         user_agent=request.headers.get("user-agent", "")[:300],
-        expires_at=now + timedelta(days=settings.session_ttl_days),
+        expires_at=now + timedelta(days=ttl_days),
         last_used_at=now,
     )
     db.add(session)
@@ -81,7 +87,8 @@ def _create_session_and_cookie(
         httponly=True,
         secure=settings.session_cookie_secure,
         samesite=settings.session_cookie_samesite,
-        max_age=settings.session_ttl_days * 86400,
+        # 未勾选“记住我”时不写 Max-Age，Cookie 为会话级（关闭浏览器即失效）。
+        max_age=ttl_days * 86400 if remember_me else None,
     )
 
 
@@ -302,7 +309,12 @@ def login(
         methods.append("totp")
     if methods:
         methods.append("recovery")
-        challenge_id = create_challenge(get_twofa_store(), str(user.id), methods)
+        challenge_id = create_challenge(
+            get_twofa_store(),
+            str(user.id),
+            methods,
+            remember_me=payload.remember_me,
+        )
         if user.email_otp_enabled:
             send_count = get_rate_limiter().hit(
                 "otp_send", user.email, settings.otp_send_window_seconds
@@ -320,7 +332,14 @@ def login(
         )
         return {"requires_2fa": True, "challenge_id": challenge_id, "methods": methods}
 
-    _create_session_and_cookie(db, user, request, response, auth_method="password")
+    _create_session_and_cookie(
+        db,
+        user,
+        request,
+        response,
+        auth_method="password",
+        remember_me=payload.remember_me,
+    )
     log_audit(
         db,
         "user",
@@ -395,7 +414,14 @@ def verify_twofa(
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "验证码无效")
 
     store.delete(payload.challenge_id)
-    _create_session_and_cookie(db, user, request, response, auth_method=payload.method)
+    _create_session_and_cookie(
+        db,
+        user,
+        request,
+        response,
+        auth_method=payload.method,
+        remember_me=challenge.remember_me,
+    )
     log_audit(
         db,
         "user",

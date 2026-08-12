@@ -21,6 +21,7 @@ from app.security.tokens import hash_token
 class TwoFaChallenge:
     user_id: str
     methods: list[str]
+    remember_me: bool = False
     attempts: int = 0
     expires_at: str = ""
 
@@ -125,8 +126,12 @@ def get_twofa_store():
     return _redis_store
 
 
-def create_challenge(store, user_id: str, methods: list[str]) -> str:
-    return store.create(TwoFaChallenge(user_id=user_id, methods=methods))
+def create_challenge(
+    store, user_id: str, methods: list[str], remember_me: bool = False
+) -> str:
+    return store.create(
+        TwoFaChallenge(user_id=user_id, methods=methods, remember_me=remember_me)
+    )
 
 
 def build_otpauth_uri(secret: str, email: str) -> str:

@@ -75,7 +75,7 @@ export const authApi = {
       method: "POST",
       body: JSON.stringify({ email }),
     }),
-  login: (data: { email: string; password: string }) =>
+  login: (data: { email: string; password: string; remember_me?: boolean }) =>
     api<
       UserOut & {
         requires_2fa?: boolean;
