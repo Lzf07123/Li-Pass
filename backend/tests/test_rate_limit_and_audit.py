@@ -47,4 +47,9 @@ def test_admin_reset_twofa(client, db_session, captured_email) -> None:
     db_session.commit()
     response = client.post(f"/api/v1/admin/users/{user.id}/reset-2fa")
     assert response.status_code == 200
+    # 2FA 重置会撤销全部会话，需要重新登录后再查状态。
+    client.post(
+        "/api/v1/auth/login",
+        json={"email": "a@example.com", "password": "password123"},
+    )
     assert client.get("/api/v1/me/2fa/status").json()["email_otp_enabled"] is False

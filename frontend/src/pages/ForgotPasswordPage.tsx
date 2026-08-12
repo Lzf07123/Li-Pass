@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 
 import { authApi } from "../api/client";
+import { AuthShell } from "../components/AuthShell";
 
 export function ForgotPasswordPage() {
   const [email, setEmail] = useState("");
@@ -20,41 +21,47 @@ export function ForgotPasswordPage() {
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-gray-50">
-      <form onSubmit={handleSubmit} className="w-96 space-y-4 rounded-xl bg-white p-8 shadow">
-        <h1 className="text-2xl font-bold">找回密码</h1>
+    <AuthShell title="找回密码" subtitle="输入注册邮箱，我们将发送重置验证码">
+      <form onSubmit={handleSubmit} className="space-y-4">
         <label className="block">
-          邮箱
+          <span className="label">邮箱</span>
           <input
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="mt-1 w-full rounded border p-2"
+            className="input"
+            autoComplete="email"
             required
           />
         </label>
-        {error && <p className="text-red-600">{error}</p>}
+        {error && (
+          <p className="alert alert-error" role="alert">
+            {error}
+          </p>
+        )}
         {message && (
-          <div className="space-y-2 rounded bg-green-50 p-3 text-sm text-green-700">
+          <div className="alert alert-success">
             <p>{message}</p>
             <p>
               收到验证码后，{" "}
               <Link
                 to={`/reset-password?email=${encodeURIComponent(email)}`}
-                className="font-semibold text-blue-600"
+                className="btn-link font-semibold"
               >
                 去设置新密码
               </Link>
             </p>
           </div>
         )}
-        <button type="submit" className="w-full rounded bg-blue-600 p-2 text-white">
+        <button type="submit" className="btn btn-primary w-full">
           发送重置验证码
         </button>
-        <p>
-          <Link to="/login" className="text-blue-600">返回登录</Link>
+        <p className="text-center text-sm">
+          <Link to="/login" className="btn-link">
+            返回登录
+          </Link>
         </p>
       </form>
-    </main>
+    </AuthShell>
   );
 }

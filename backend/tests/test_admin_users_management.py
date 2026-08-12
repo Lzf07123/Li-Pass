@@ -62,7 +62,7 @@ def test_admin_disable_and_reset_password(client, db_session) -> None:
             "/api/v1/auth/login",
             json={"email": "bob@example.com", "password": "password123"},
         ).status_code
-        == 403
+        == 401
     )
 
     response = client.post(

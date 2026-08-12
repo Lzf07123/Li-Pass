@@ -27,6 +27,25 @@ def test_login_logout_flow(client, captured_email) -> None:
     assert client.get("/api/v1/me").status_code == 401
 
 
+def test_logout_deletes_cookie_with_matching_attributes(client, captured_email) -> None:
+    register_and_verify(client, captured_email)
+    login = client.post(
+        "/api/v1/auth/login",
+        json={"email": "a@example.com", "password": "password123"},
+    )
+    assert "portal_session" in login.cookies
+    assert "HttpOnly" in login.headers["set-cookie"]
+    assert "SameSite=lax" in login.headers["set-cookie"]
+
+    logout = client.post("/api/v1/auth/logout")
+    assert logout.status_code == 204
+    delete_header = logout.headers["set-cookie"]
+    assert "portal_session=" in delete_header
+    assert "Max-Age=0" in delete_header
+    assert "HttpOnly" in delete_header
+    assert "SameSite=lax" in delete_header
+
+
 def test_login_wrong_password(client, captured_email) -> None:
     register_and_verify(client, captured_email)
     response = client.post(
@@ -46,7 +65,8 @@ def test_disabled_user_cannot_login(client, db_session, captured_email) -> None:
         "/api/v1/auth/login",
         json={"email": "a@example.com", "password": "password123"},
     )
-    assert response.status_code == 403
+    # 与密码错误统一响应，避免泄露账号状态。
+    assert response.status_code == 401
 
 
 def test_unverified_user_can_login_but_flagged(client, captured_email) -> None:

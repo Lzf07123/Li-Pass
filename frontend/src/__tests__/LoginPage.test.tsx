@@ -3,6 +3,7 @@ import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { LoginPage } from "../pages/LoginPage";
+import { isSafeNext } from "../pages/LoginPage";
 
 describe("LoginPage", () => {
   beforeEach(() => {
@@ -54,5 +55,14 @@ describe("LoginPage", () => {
     await waitFor(() =>
       expect(screen.getByRole("button", { name: "验证" })).toBeInTheDocument()
     );
+  });
+
+  it("next 白名单：仅允许同源或 API 同源地址", () => {
+    const origin = window.location.origin;
+    expect(isSafeNext(`${origin}/oauth2/authorize`)).toBe(true);
+    expect(isSafeNext("/oauth2/authorize?x=1")).toBe(true);
+    expect(isSafeNext("https://evil.example")).toBe(false);
+    expect(isSafeNext("//evil.example")).toBe(false);
+    expect(isSafeNext("javascript:alert(1)")).toBe(false);
   });
 });

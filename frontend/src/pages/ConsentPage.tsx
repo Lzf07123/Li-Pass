@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 
 import { consentApi } from "../api/client";
+import { AuthShell } from "../components/AuthShell";
 import type { ConsentInfo } from "../api/types";
 
 const SCOPE_LABELS: Record<string, string> = {
@@ -38,64 +39,73 @@ export function ConsentPage() {
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-gray-50">
-      <div className="w-96 space-y-4 rounded-xl bg-white p-8 shadow">
-        <h1 className="text-2xl font-bold">授权确认</h1>
-        {info ? (
-          <>
-            <div className="flex items-center gap-3">
-              {info.client.logo_url ? (
-                <img
-                  src={info.client.logo_url}
-                  alt={`${info.client.name} 图标`}
-                  className="h-10 w-10 rounded object-contain"
-                />
-              ) : (
-                <span className="flex h-10 w-10 items-center justify-center rounded bg-blue-100 text-lg font-bold text-blue-600">
-                  {info.client.name.slice(0, 1).toUpperCase()}
-                </span>
+    <AuthShell title="授权确认" subtitle="请确认你要授权的网站与权限范围">
+      {info ? (
+        <div className="space-y-4">
+          <div className="flex items-center gap-3 rounded-xl border border-border bg-surface-2/60 p-4">
+            {info.client.logo_url ? (
+              <img
+                src={info.client.logo_url}
+                alt={`${info.client.name} 图标`}
+                className="h-11 w-11 rounded-lg object-contain"
+              />
+            ) : (
+              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-primary-soft text-lg font-bold text-primary">
+                {info.client.name.slice(0, 1).toUpperCase()}
+              </span>
+            )}
+            <div className="min-w-0">
+              <p className="truncate font-semibold text-foreground">
+                {info.client.name}
+              </p>
+              {info.client.description && (
+                <p className="truncate text-sm text-muted">
+                  {info.client.description}
+                </p>
               )}
-              <div>
-                <p className="font-semibold">{info.client.name}</p>
-                {info.client.description && (
-                  <p className="text-sm text-gray-500">{info.client.description}</p>
-                )}
-              </div>
             </div>
-            <p>
-              <strong>{info.client.name}</strong> 想获取以下权限：
+          </div>
+
+          <p className="text-sm text-foreground">
+            <strong>{info.client.name}</strong> 想获取以下权限：
+          </p>
+          <ul className="space-y-1.5 rounded-xl border border-border bg-surface-2/60 p-4 text-sm">
+            {info.scopes.map((scope) => (
+              <li key={scope} className="flex items-baseline gap-1.5 text-foreground">
+                <span className="text-primary">✓</span>
+                <span>{SCOPE_LABELS[scope] ?? scope}</span>
+                <span className="text-xs text-muted">（{scope}）</span>
+              </li>
+            ))}
+          </ul>
+          <p className="text-xs text-muted">
+            登录后将跳回 {info.client.name}，不会向对方泄露你的密码。
+          </p>
+          {error && (
+            <p className="alert alert-error" role="alert">
+              {error}
             </p>
-            <ul className="space-y-1 rounded border bg-gray-50 p-3 text-sm">
-              {info.scopes.map((scope) => (
-                <li key={scope}>
-                  {SCOPE_LABELS[scope] ?? scope}
-                  <span className="ml-1 text-xs text-gray-400">（{scope}）</span>
-                </li>
-              ))}
-            </ul>
-            <p className="text-xs text-gray-500">
-              登录后将跳回 {info.client.name}，不会向对方泄露你的密码。
-            </p>
-            {error && <p className="text-red-600">{error}</p>}
-            <div className="flex gap-2">
-              <button
-                onClick={() => decide(true)}
-                className="flex-1 rounded bg-blue-600 p-2 text-white"
-              >
-                同意授权
-              </button>
-              <button
-                onClick={() => decide(false)}
-                className="flex-1 rounded bg-gray-300 p-2"
-              >
-                拒绝
-              </button>
-            </div>
-          </>
-        ) : (
-          <p>{error || "加载中…"}</p>
-        )}
-      </div>
-    </main>
+          )}
+          <div className="flex gap-3">
+            <button
+              onClick={() => decide(true)}
+              className="btn btn-primary flex-1"
+            >
+              同意授权
+            </button>
+            <button
+              onClick={() => decide(false)}
+              className="btn btn-secondary flex-1"
+            >
+              拒绝
+            </button>
+          </div>
+        </div>
+      ) : (
+        <p className="py-4 text-center text-sm text-muted">
+          {error || "加载中…"}
+        </p>
+      )}
+    </AuthShell>
   );
 }

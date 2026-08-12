@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 
 import { authApi } from "../api/client";
+import { AuthShell } from "../components/AuthShell";
 
 export function VerifyEmailPage() {
   const [searchParams] = useSearchParams();
@@ -22,34 +23,46 @@ export function VerifyEmailPage() {
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-gray-50">
-      <form onSubmit={handleSubmit} className="w-96 space-y-4 rounded-xl bg-white p-8 shadow">
-        <h1 className="text-2xl font-bold">验证邮箱</h1>
-        <p className="text-gray-600">验证码已发送到 {email || "你的邮箱"}</p>
-        <p className="text-xs text-gray-500">
+    <AuthShell title="验证邮箱" subtitle={`验证码已发送到 ${email || "你的邮箱"}`}>
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <p className="text-xs text-muted">
           验证码 10 分钟内有效。开发环境会打印在后端控制台（
-          <code>docker compose logs backend | grep "code="</code>）。
+          <code className="rounded bg-surface-2 px-1 py-0.5">
+            docker compose logs backend | grep "code="
+          </code>
+          ）。
         </p>
         <label className="block">
-          验证码
+          <span className="label">验证码</span>
           <input
             value={code}
             onChange={(e) => setCode(e.target.value)}
-            className="mt-1 w-full rounded border p-2"
+            className="input"
             maxLength={6}
+            inputMode="numeric"
+            autoComplete="one-time-code"
             required
           />
         </label>
-        {error && <p className="text-red-600">{error}</p>}
-        {message && (
-          <p className="text-green-600">
-            {message}，<Link to="/login" className="text-blue-600">去登录</Link>
+        {error && (
+          <p className="alert alert-error" role="alert">
+            {error}
           </p>
         )}
-        <button type="submit" className="w-full rounded bg-blue-600 p-2 text-white">
+        {message && (
+          <p className="alert alert-success">
+            <span>
+              {message}，{" "}
+              <Link to="/login" className="btn-link font-semibold">
+                去登录
+              </Link>
+            </span>
+          </p>
+        )}
+        <button type="submit" className="btn btn-primary w-full">
           验证
         </button>
       </form>
-    </main>
+    </AuthShell>
   );
 }

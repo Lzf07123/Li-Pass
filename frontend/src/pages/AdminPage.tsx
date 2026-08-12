@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 
 import { authApi } from "../api/client";
 import type { UserOut } from "../api/types";
+import { AppHeader } from "../components/AppHeader";
 import { AdminAuditPanel } from "./AdminAuditPanel";
 import { AdminClientsPage } from "./AdminClientsPage";
 import { AdminUsersPanel } from "./AdminUsersPanel";
@@ -22,16 +23,28 @@ export function AdminPage() {
   }, [navigate]);
 
   if (!me) {
-    return <p className="p-8">加载中…</p>;
+    return (
+      <div className="min-h-screen bg-background">
+        <AppHeader title="管理后台" />
+        <main className="mx-auto max-w-5xl px-4 py-10 sm:px-6">
+          <p className="text-sm text-muted">加载中…</p>
+        </main>
+      </div>
+    );
   }
   if (me.role !== "admin") {
     return (
-      <main className="p-8">
-        <p>无权访问管理后台</p>
-        <Link to="/" className="text-blue-600">
-          返回用户中心
-        </Link>
-      </main>
+      <div className="min-h-screen bg-background">
+        <AppHeader title="管理后台" />
+        <main className="mx-auto max-w-5xl px-4 py-10 sm:px-6">
+          <div className="card p-8 text-center">
+            <p className="mb-3 text-foreground">无权访问管理后台</p>
+            <Link to="/" className="btn-link">
+              返回用户中心
+            </Link>
+          </div>
+        </main>
+      </div>
     );
   }
 
@@ -42,22 +55,23 @@ export function AdminPage() {
   ];
 
   return (
-    <main className="min-h-screen bg-gray-50 p-8">
-      <div className="mx-auto max-w-5xl">
-        <div className="mb-6 flex items-center justify-between">
-          <h1 className="text-2xl font-bold">管理后台</h1>
-          <Link to="/" className="text-blue-600">
+    <div className="min-h-screen bg-background">
+      <AppHeader
+        title="管理后台"
+        actions={
+          <Link to="/" className="btn btn-secondary">
             返回用户中心
           </Link>
-        </div>
-        <div className="mb-6 flex gap-2">
+        }
+      />
+
+      <main className="mx-auto max-w-5xl space-y-6 px-4 py-8 sm:px-6">
+        <div className="flex flex-wrap items-center gap-2">
           {tabs.map((item) => (
             <button
               key={item.key}
               onClick={() => setTab(item.key)}
-              className={`rounded p-2 ${
-                tab === item.key ? "bg-blue-600 text-white" : "bg-white shadow"
-              }`}
+              className={`btn ${tab === item.key ? "btn-primary" : "btn-secondary"}`}
             >
               {item.label}
             </button>
@@ -66,7 +80,7 @@ export function AdminPage() {
         {tab === "users" && <AdminUsersPanel currentAdminId={me.id} />}
         {tab === "clients" && <AdminClientsPage />}
         {tab === "audit" && <AdminAuditPanel />}
-      </div>
-    </main>
+      </main>
+    </div>
   );
 }

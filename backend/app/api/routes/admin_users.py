@@ -129,6 +129,16 @@ def reset_twofa(user_id: uuid.UUID, db: Session = Depends(get_db)) -> dict:
     user = db.get(User, user_id)
     if user is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "用户不存在")
+    # 2FA 被重置后，旧会话（可能基于 2FA 建立）一并失效。
+    sessions = db.scalars(
+        select(SessionModel).where(
+            SessionModel.user_id == user.id,
+            SessionModel.revoked_at.is_(None),
+        )
+    ).all()
+    now = datetime.now(timezone.utc)
+    for session in sessions:
+        session.revoked_at = now
     user.totp_secret_encrypted = None
     user.totp_enabled_at = None
     user.email_otp_enabled = False

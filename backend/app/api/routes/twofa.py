@@ -83,6 +83,8 @@ def totp_enable(
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> dict:
+    # 开启 TOTP 属于高敏感操作，要求当前密码确认，防止会话被临时窃取后直接接管账号。
+    _require_password(payload.current_password, user)
     if not pyotp.TOTP(payload.secret).verify(payload.code, valid_window=1):
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "验证码无效")
     enable_totp(user, payload.secret, db)

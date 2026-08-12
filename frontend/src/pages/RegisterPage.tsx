@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 
 import { authApi } from "../api/client";
+import { AuthShell } from "../components/AuthShell";
 
 export function RegisterPage() {
   const [email, setEmail] = useState("");
@@ -22,47 +23,57 @@ export function RegisterPage() {
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-gray-50">
-      <form onSubmit={handleSubmit} className="w-96 space-y-4 rounded-xl bg-white p-8 shadow">
-        <h1 className="text-2xl font-bold">注册 Portal OSS 账号</h1>
+    <AuthShell title="注册 Portal OSS 账号" subtitle="一个账号，登录所有授权网站">
+      <form onSubmit={handleSubmit} className="space-y-4">
         <label className="block">
-          邮箱
+          <span className="label">邮箱</span>
           <input
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="mt-1 w-full rounded border p-2"
+            className="input"
+            autoComplete="email"
             required
           />
         </label>
         <label className="block">
-          昵称
+          <span className="label">昵称</span>
           <input
             value={nickname}
             onChange={(e) => setNickname(e.target.value)}
-            className="mt-1 w-full rounded border p-2"
+            className="input"
+            autoComplete="nickname"
             required
           />
         </label>
         <label className="block">
-          密码
+          <span className="label">密码</span>
           <input
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="mt-1 w-full rounded border p-2"
+            className="input"
             minLength={8}
+            autoComplete="new-password"
+            placeholder="至少 8 位"
             required
           />
         </label>
-        {error && <p className="text-red-600">{error}</p>}
-        <button type="submit" className="w-full rounded bg-blue-600 p-2 text-white">
+        {error && (
+          <p className="alert alert-error" role="alert">
+            {error}
+          </p>
+        )}
+        <button type="submit" className="btn btn-primary w-full">
           注册
         </button>
-        <p>
-          已有账号？<Link to="/login" className="text-blue-600">去登录</Link>
+        <p className="text-center text-sm text-muted">
+          已有账号？{" "}
+          <Link to="/login" className="btn-link">
+            去登录
+          </Link>
         </p>
       </form>
-    </main>
+    </AuthShell>
   );
 }

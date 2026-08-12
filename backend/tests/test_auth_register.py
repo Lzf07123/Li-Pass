@@ -9,9 +9,7 @@ def test_register_verify_updates_user(client, db_session, captured_email) -> Non
         json={"email": "A@Example.com", "password": "password123", "nickname": "Alice"},
     )
     assert response.status_code == 201
-    body = response.json()
-    assert body["email"] == "a@example.com"
-    assert body["email_verified"] is False
+    assert "message" in response.json()
 
     code = captured_email.messages[0][2]
     response = client.post(
@@ -28,7 +26,10 @@ def test_register_verify_updates_user(client, db_session, captured_email) -> Non
 def test_register_duplicate_email(client, captured_email) -> None:
     payload = {"email": "a@example.com", "password": "password123", "nickname": "Alice"}
     assert client.post("/api/v1/auth/register", json=payload).status_code == 201
-    assert client.post("/api/v1/auth/register", json=payload).status_code == 409
+    # 防枚举：重复注册也返回 201，且不重复发信。
+    response = client.post("/api/v1/auth/register", json=payload)
+    assert response.status_code == 201
+    assert len(captured_email.messages) == 1
 
 
 def test_me_requires_session(client) -> None:

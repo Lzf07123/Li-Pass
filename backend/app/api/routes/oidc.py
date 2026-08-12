@@ -1,11 +1,12 @@
 import uuid
+import secrets
 from datetime import datetime, timezone
 from urllib.parse import quote
 
 import jwt as pyjwt
 from fastapi import APIRouter, Depends, Form, Header, HTTPException, Query, Request, status
 from fastapi.responses import RedirectResponse
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_session, get_optional_user
@@ -169,7 +170,9 @@ def token(
     if client is None or not client.is_active:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "invalid_client")
     if client.client_secret_hash is not None:
-        if not client_secret or hash_token(client_secret) != client.client_secret_hash:
+        if not client_secret or not secrets.compare_digest(
+            hash_token(client_secret), client.client_secret_hash
+        ):
             raise HTTPException(status.HTTP_401_UNAUTHORIZED, "invalid_client")
 
     record = db.scalar(
@@ -192,8 +195,18 @@ def token(
     ):
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "invalid_grant")
 
-    record.consumed_at = now
+    # 原子条件更新：并发请求只有一次能成功消费，消除 TOCTOU 竞态。
+    consumed = db.execute(
+        update(AuthorizationCode)
+        .where(
+            AuthorizationCode.id == record.id,
+            AuthorizationCode.consumed_at.is_(None),
+        )
+        .values(consumed_at=now)
+    )
     db.commit()
+    if consumed.rowcount != 1:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "invalid_grant")
     user = db.get(User, record.user_id)
     if user is None or user.status != UserStatus.active:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "invalid_grant")
@@ -236,10 +249,13 @@ def userinfo(
     )
     if client is not None and find_block(db, client.id, user) is not None:
         raise HTTPException(status.HTTP_403_FORBIDDEN, "该账号已被此网站限制访问")
-    return {
-        "sub": str(user.id),
-        "email": user.email,
-        "email_verified": user.email_verified_at is not None,
-        "nickname": user.nickname,
-        "name": user.nickname,
-    }
+    scopes = set(claims.get("scope", "").split())
+    data: dict = {"sub": str(user.id)}
+    # 按授权 scope 裁剪 claims：仅授予 openid 的客户端拿不到 email/nickname。
+    if "email" in scopes:
+        data["email"] = user.email
+        data["email_verified"] = user.email_verified_at is not None
+    if "profile" in scopes:
+        data["nickname"] = user.nickname
+        data["name"] = user.nickname
+    return data

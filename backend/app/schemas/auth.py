@@ -1,6 +1,7 @@
 from datetime import datetime
+import re
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 
 
 class RegisterRequest(BaseModel):
@@ -47,6 +48,22 @@ class ProfileUpdate(BaseModel):
     nickname: str | None = Field(default=None, min_length=1, max_length=80)
     avatar_url: str | None = Field(default=None, max_length=500)
 
+    @field_validator("avatar_url")
+    @classmethod
+    def _validate_avatar_url(cls, value: str | None) -> str | None:
+        if value is None:
+            return value
+        # 只允许本服务生成的头像路径，或明确的 http(s) 外链；
+        # 禁止 "/uploads/avatars/../" 等路径穿越形态。
+        if re.fullmatch(
+            r"/uploads/avatars/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/[0-9a-f]{32}\.(jpg|png|gif|webp)",
+            value,
+        ):
+            return value
+        if value.startswith(("http://", "https://")):
+            return value
+        raise ValueError("头像地址不合法")
+
 
 class PasswordChange(BaseModel):
     current_password: str = Field(min_length=1, max_length=128)
@@ -55,6 +72,7 @@ class PasswordChange(BaseModel):
 
 class PhoneBind(BaseModel):
     phone: str = Field(pattern=r"^\+?[0-9]{6,20}$")
+    code: str = Field(min_length=6, max_length=6)
 
 
 class SessionOut(BaseModel):
@@ -79,6 +97,7 @@ class AppOut(BaseModel):
 class TwoFaTotpEnable(BaseModel):
     code: str = Field(min_length=6, max_length=6)
     secret: str = Field(min_length=16, max_length=128)
+    current_password: str = Field(min_length=1, max_length=128)
 
 
 class PasswordConfirm(BaseModel):

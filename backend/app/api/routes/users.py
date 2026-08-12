@@ -10,6 +10,7 @@ from app.api.deps import get_current_session, get_current_user
 from app.core.config import get_settings
 from app.core.db import get_db
 from app.models.oauth_client import OAuthClient
+from app.models.otp import OtpPurpose
 from app.models.session import Session as SessionModel
 from app.models.user import User
 from app.models.user_consent import UserConsent
@@ -25,6 +26,9 @@ from app.schemas.auth import (
 from app.security.passwords import hash_password, verify_password
 from app.services.blocks import find_block
 from app.services.audit import log_audit
+from app.services.email import get_email_service
+from app.services.otps import create_otp, verify_otp
+from app.services.rate_limit import get_rate_limiter
 
 router = APIRouter(prefix="/api/v1", tags=["users"])
 
@@ -93,12 +97,30 @@ def change_password(
     return {"message": "密码已修改，其他会话已退出"}
 
 
+@router.post("/me/phone/bind/send")
+def send_phone_bind_code(
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> dict:
+    settings = get_settings()
+    send_count = get_rate_limiter().hit(
+        "otp_send", user.email, settings.otp_send_window_seconds
+    )
+    if send_count > settings.otp_send_limit:
+        raise HTTPException(status.HTTP_429_TOO_MANY_REQUESTS, "发送过于频繁")
+    code = create_otp(db, OtpPurpose.bind_phone, user.email)
+    get_email_service().send_verification(user.email, code)
+    return {"message": "验证码已发送至绑定邮箱"}
+
+
 @router.post("/me/phone/bind", response_model=UserOut)
 def bind_phone(
     payload: PhoneBind,
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> dict:
+    if not verify_otp(db, OtpPurpose.bind_phone, user.email, payload.code):
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "验证码无效或已过期")
     user.phone = payload.phone
     user.phone_verified_at = datetime.now(timezone.utc)
     db.commit()
@@ -219,6 +241,7 @@ def revoke_app(
 
 @router.post("/me/avatar", response_model=UserOut)
 async def upload_avatar(
+    request: Request,
     file: UploadFile = File(...),
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
@@ -226,11 +249,18 @@ async def upload_avatar(
     settings = get_settings()
     if file.content_type not in _AVATAR_TYPES:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "仅支持 JPG/PNG/GIF/WebP 图片")
-    content = await file.read()
+    max_bytes = settings.avatar_max_size_mb * 1024 * 1024
+    content_length = request.headers.get("content-length")
+    if content_length and content_length.isdigit() and int(content_length) > max_bytes:
+        raise HTTPException(
+            status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            f"头像大小不能超过 {settings.avatar_max_size_mb} MB",
+        )
+    # 只读取上限 + 1 字节，避免大文件整体读入内存造成 DoS。
+    content = await file.read(max_bytes + 1)
     ext = _avatar_ext(content)
     if ext is None:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "图片文件内容无效")
-    max_bytes = settings.avatar_max_size_mb * 1024 * 1024
     if len(content) > max_bytes:
         raise HTTPException(
             status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
@@ -239,15 +269,18 @@ async def upload_avatar(
 
     upload_dir = Path(settings.avatar_upload_dir)
     upload_dir.mkdir(parents=True, exist_ok=True)
+    user_dir = upload_dir / str(user.id)
+    user_dir.mkdir(parents=True, exist_ok=True)
     filename = f"{uuid.uuid4().hex}{ext}"
-    (upload_dir / filename).write_bytes(content)
+    (user_dir / filename).write_bytes(content)
 
     old = user.avatar_url
     if old and old.startswith("/uploads/avatars/"):
-        old_path = upload_dir / old.removeprefix("/uploads/avatars/")
-        if old_path.is_file():
+        old_path = (upload_dir / old.removeprefix("/uploads/avatars/")).resolve()
+        # 只允许删除当前用户自己目录下的旧头像，防止跨用户删除。
+        if old_path.is_relative_to(user_dir.resolve()) and old_path.is_file():
             old_path.unlink()
 
-    user.avatar_url = f"/uploads/avatars/{filename}"
+    user.avatar_url = f"/uploads/avatars/{user.id}/{filename}"
     db.commit()
     return serialize_user(user)

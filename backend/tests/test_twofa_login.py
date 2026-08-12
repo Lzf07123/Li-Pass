@@ -36,7 +36,10 @@ def test_totp_login_flow(client, captured_email) -> None:
     setup = client.get("/api/v1/me/2fa/totp/setup").json()
     secret = setup["secret"]
     code = pyotp.TOTP(secret).now()
-    client.post("/api/v1/me/2fa/totp/enable", json={"code": code, "secret": secret})
+    client.post(
+        "/api/v1/me/2fa/totp/enable",
+        json={"code": code, "secret": secret, "current_password": "password123"},
+    )
     client.post("/api/v1/auth/logout")
 
     response = client.post(
@@ -63,7 +66,11 @@ def test_recovery_code_login(client, captured_email) -> None:
     secret = setup["secret"]
     enable = client.post(
         "/api/v1/me/2fa/totp/enable",
-        json={"code": pyotp.TOTP(secret).now(), "secret": secret},
+        json={
+            "code": pyotp.TOTP(secret).now(),
+            "secret": secret,
+            "current_password": "password123",
+        },
     ).json()
     recovery = enable["recovery_codes"][0]
     client.post("/api/v1/auth/logout")

@@ -5,6 +5,7 @@ import secrets
 from urllib.parse import urlencode
 
 import requests
+import jwt as pyjwt
 from flask import Flask, redirect, render_template_string, request, session, url_for
 
 ISSUER = os.environ["PORTAL_ISSUER"]
@@ -96,6 +97,22 @@ def callback():
     if response.status_code != 200:
         return f"换取令牌失败: {response.text}", 400
     token = response.json()
+    try:
+        # 密钥从后端内网地址拉取（浏览器侧 ISSUER 可能是宿主机 localhost）。
+        jwks_client = pyjwt.PyJWKClient(f"{API_BASE}/oauth2/jwks")
+        signing_key = jwks_client.get_signing_key_from_jwt(token["id_token"])
+        claims = pyjwt.decode(
+            token["id_token"],
+            signing_key.key,
+            algorithms=["RS256"],
+            audience=CLIENT_ID,
+            issuer=ISSUER,
+            options={"require": ["exp", "iat", "iss", "aud", "nonce"]},
+        )
+    except pyjwt.PyJWTError:
+        return "id_token 校验失败", 400
+    if claims.get("nonce") != session.get("nonce"):
+        return "nonce 校验失败", 400
     user_response = requests.get(
         USERINFO_URL,
         headers={"Authorization": f"Bearer {token['access_token']}"},
@@ -112,6 +129,8 @@ def callback():
 def logout():
     session.clear()
     next_url = request.args.get("next") or url_for("index")
+    if not next_url.startswith("/") or next_url.startswith("//"):
+        next_url = url_for("index")
     return redirect(next_url)
 
 

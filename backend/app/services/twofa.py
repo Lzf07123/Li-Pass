@@ -13,7 +13,7 @@ from sqlalchemy import select
 
 from app.core.config import get_settings
 from app.models.recovery_code import RecoveryCode
-from app.security.crypto import decrypt_str, encrypt_str
+from app.security.crypto import decrypt_str, encrypt_str, hmac_hex
 from app.security.tokens import hash_token
 
 
@@ -44,11 +44,20 @@ class InMemoryTwoFactorChallengeStore(TwoFactorChallengeStore):
         self._items: dict[str, tuple[TwoFaChallenge, datetime]] = {}
 
     def create(self, challenge: TwoFaChallenge, ttl_seconds: int = 600) -> str:
+        self._prune()
         challenge_id = secrets.token_urlsafe(24)
         expires = datetime.now(timezone.utc) + timedelta(seconds=ttl_seconds)
         challenge.expires_at = expires.isoformat()
         self._items[challenge_id] = (challenge, expires)
         return challenge_id
+
+    def _prune(self) -> None:
+        if len(self._items) < 1000:
+            return
+        now = datetime.now(timezone.utc)
+        expired = [k for k, (_, exp) in self._items.items() if exp < now]
+        for key in expired:
+            self._items.pop(key, None)
 
     def get(self, challenge_id: str) -> TwoFaChallenge | None:
         item = self._items.get(challenge_id)
@@ -147,21 +156,33 @@ def enable_totp(user, secret: str, db) -> None:
 
 
 def generate_recovery_codes(db, user) -> list[str]:
-    codes = [secrets.token_hex(5) for _ in range(10)]
+    # 64 bit 熵，并以 HMAC(服务端密钥) 存储，数据库泄露后无法离线爆破。
+    codes = [secrets.token_hex(8) for _ in range(10)]
     for code in codes:
-        db.add(RecoveryCode(user_id=user.id, code_hash=hash_token(code)))
+        db.add(RecoveryCode(user_id=user.id, code_hash=hmac_hex(code)))
     db.commit()
     return codes
 
 
 def consume_recovery_code(db, user, code: str) -> bool:
+    code_hash = hmac_hex(code)
     record = db.scalar(
         select(RecoveryCode).where(
             RecoveryCode.user_id == user.id,
-            RecoveryCode.code_hash == hash_token(code),
+            RecoveryCode.code_hash == code_hash,
             RecoveryCode.used_at.is_(None),
         )
     )
+    if record is None:
+        # 兼容旧版裸 SHA-256 存储的恢复码（仅用于存量数据迁移期）。
+        legacy_hash = hash_token(code)
+        record = db.scalar(
+            select(RecoveryCode).where(
+                RecoveryCode.user_id == user.id,
+                RecoveryCode.code_hash == legacy_hash,
+                RecoveryCode.used_at.is_(None),
+            )
+        )
     if record is None:
         return False
     record.used_at = datetime.now(timezone.utc)

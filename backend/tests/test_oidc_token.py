@@ -7,7 +7,10 @@ from tests.helpers import TEST_VERIFIER, authorize_params, create_client, regist
 def get_code(client, captured_email, db_session) -> str:
     create_client(db_session)
     register_and_login(client, captured_email)
-    response = client.get("/oauth2/authorize", params=authorize_params())
+    response = client.get(
+        "/oauth2/authorize",
+        params=authorize_params({"scope": "openid profile email"}),
+    )
     location = response.headers["location"]
     request_id = location.split("request_id=")[1]
     response = client.post(f"/api/v1/consent/{request_id}/approve")
@@ -68,3 +71,26 @@ def test_discovery_and_jwks(client) -> None:
     assert discovery["response_types_supported"] == ["code"]
     jwks = client.get("/oauth2/jwks").json()
     assert jwks["keys"][0]["alg"] == "RS256"
+
+
+def test_userinfo_respects_scope(client, captured_email, db_session) -> None:
+    create_client(db_session)
+    register_and_login(client, captured_email)
+    response = client.get(
+        "/oauth2/authorize",
+        params=authorize_params({"scope": "openid"}),
+    )
+    location = response.headers["location"]
+    request_id = location.split("request_id=")[1]
+    response = client.post(f"/api/v1/consent/{request_id}/approve")
+    code = parse_qs(urlparse(response.json()["redirect_url"]).query)["code"][0]
+    body = exchange(client, code)
+    assert body.status_code == 200
+
+    userinfo = client.get(
+        "/oauth2/userinfo",
+        headers={"Authorization": f"Bearer {body.json()['access_token']}"},
+    )
+    assert userinfo.status_code == 200
+    assert "email" not in userinfo.json()
+    assert "nickname" not in userinfo.json()

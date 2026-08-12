@@ -53,7 +53,7 @@ def _create_session_and_cookie(
         auth_method=auth_method,
         device_name=request.headers.get("user-agent", "")[:120],
         ip=request.client.host if request.client else "",
-        user_agent=request.headers.get("user-agent", ""),
+        user_agent=request.headers.get("user-agent", "")[:300],
         expires_at=now + timedelta(days=settings.session_ttl_days),
         last_used_at=now,
     )
@@ -71,27 +71,50 @@ def _create_session_and_cookie(
     )
 
 
-@router.post("/register", response_model=UserOut, status_code=status.HTTP_201_CREATED)
-def register(payload: RegisterRequest, db: Session = Depends(get_db)) -> dict:
+@router.post("/register", response_model=dict, status_code=status.HTTP_201_CREATED)
+def register(
+    payload: RegisterRequest,
+    request: Request,
+    db: Session = Depends(get_db),
+) -> dict:
+    ip = request.client.host if request.client else ""
+    if (
+        get_rate_limiter().hit(
+            "register", ip, settings.register_rate_window_seconds
+        )
+        > settings.register_rate_limit
+    ):
+        raise HTTPException(status.HTTP_429_TOO_MANY_REQUESTS, "注册过于频繁，请稍后再试")
     email = payload.email.lower()
-    if db.scalar(select(User).where(User.email == email)):
-        raise HTTPException(status.HTTP_409_CONFLICT, "该邮箱已注册")
-
-    user = User(
-        email=email,
-        password_hash=hash_password(payload.password),
-        nickname=payload.nickname,
-    )
-    db.add(user)
-    db.commit()
-
-    code = create_otp(db, OtpPurpose.register, email)
-    get_email_service().send_verification(email, code)
-    return serialize_user(user)
+    exists = db.scalar(select(User).where(User.email == email))
+    if exists is None:
+        user = User(
+            email=email,
+            password_hash=hash_password(payload.password),
+            nickname=payload.nickname,
+        )
+        db.add(user)
+        db.commit()
+        code = create_otp(db, OtpPurpose.register, email)
+        get_email_service().send_verification(email, code)
+    # 无论邮箱是否已注册，统一响应，避免账号枚举；重复注册不重复发信。
+    return {"message": "注册请求已受理，验证邮件已发送"}
 
 
 @router.post("/email/verify")
-def verify_email(payload: EmailVerifyRequest, db: Session = Depends(get_db)) -> dict:
+def verify_email(
+    payload: EmailVerifyRequest,
+    request: Request,
+    db: Session = Depends(get_db),
+) -> dict:
+    ip = request.client.host if request.client else ""
+    if (
+        get_rate_limiter().hit(
+            "email_verify", ip, settings.email_verify_rate_window_seconds
+        )
+        > settings.email_verify_rate_limit
+    ):
+        raise HTTPException(status.HTTP_429_TOO_MANY_REQUESTS, "验证过于频繁，请稍后再试")
     email = payload.email.lower()
     user = db.scalar(select(User).where(User.email == email))
     if user is None:
@@ -112,6 +135,14 @@ def login(
     db: Session = Depends(get_db),
 ) -> dict:
     ip = request.client.host if request.client else ""
+    # 在 Argon2 之前按 IP 前置限流，防止分布式重试打满 CPU/内存。
+    if (
+        get_rate_limiter().hit(
+            "login_ip", ip, settings.login_rate_window_seconds
+        )
+        > settings.login_ip_rate_limit
+    ):
+        raise HTTPException(status.HTTP_429_TOO_MANY_REQUESTS, "尝试次数过多，请稍后再试")
     user_agent = request.headers.get("user-agent")
     user = db.scalar(select(User).where(User.email == payload.email.lower()))
     if user is None or not verify_password(payload.password, user.password_hash):
@@ -132,7 +163,20 @@ def login(
             raise HTTPException(status.HTTP_429_TOO_MANY_REQUESTS, "尝试次数过多，请稍后再试")
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "邮箱或密码错误")
     if user.status != UserStatus.active:
-        raise HTTPException(status.HTTP_403_FORBIDDEN, "账号已被禁用")
+        # 与密码错误统一响应，避免泄露账号状态。
+        get_rate_limiter().hit(
+            "login", f"{user.email}:{ip}", settings.login_rate_window_seconds
+        )
+        log_audit(
+            db,
+            "user",
+            str(user.id),
+            "login_failed",
+            detail={"reason": "disabled"},
+            ip=ip,
+            user_agent=user_agent,
+        )
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "邮箱或密码错误")
     get_rate_limiter().reset("login", f"{user.email}:{ip}")
 
     methods = []
@@ -202,6 +246,14 @@ def verify_twofa(
     response: Response,
     db: Session = Depends(get_db),
 ) -> dict:
+    ip = request.client.host if request.client else ""
+    if (
+        get_rate_limiter().hit(
+            "twofa_verify", ip, settings.twofa_verify_rate_window_seconds
+        )
+        > settings.twofa_verify_rate_limit
+    ):
+        raise HTTPException(status.HTTP_429_TOO_MANY_REQUESTS, "尝试次数过多，请稍后再试")
     store = get_twofa_store()
     challenge = store.get(payload.challenge_id)
     if challenge is None:
@@ -250,14 +302,33 @@ def logout(request: Request, response: Response, db: Session = Depends(get_db)) 
         if session is not None:
             session.revoked_at = datetime.now(timezone.utc)
             db.commit()
-    response.delete_cookie(settings.session_cookie_name)
+    # 删除 Cookie 必须镜像设置时的属性（Secure/SameSite/HttpOnly），
+    # 否则 HTTPS 生产环境下浏览器可能不认可这条删除指令，导致登出后 Cookie 仍有效。
+    response.delete_cookie(
+        settings.session_cookie_name,
+        secure=settings.session_cookie_secure,
+        httponly=True,
+        samesite=settings.session_cookie_samesite,
+    )
 
 
 @router.post("/password/reset", status_code=status.HTTP_202_ACCEPTED)
 def request_password_reset(
-    payload: PasswordResetRequest, db: Session = Depends(get_db)
+    payload: PasswordResetRequest,
+    request: Request,
+    db: Session = Depends(get_db),
 ) -> dict:
     email = payload.email.lower()
+    ip = request.client.host if request.client else ""
+    if (
+        get_rate_limiter().hit(
+            "password_reset",
+            f"{email}:{ip}",
+            settings.password_reset_rate_window_seconds,
+        )
+        > settings.password_reset_rate_limit
+    ):
+        raise HTTPException(status.HTTP_429_TOO_MANY_REQUESTS, "请求过于频繁，请稍后再试")
     user = db.scalar(select(User).where(User.email == email))
     if user is not None:
         code = create_otp(db, OtpPurpose.reset_password, email)
@@ -274,6 +345,15 @@ def confirm_password_reset(
     if user is None or not verify_otp(db, OtpPurpose.reset_password, email, payload.code):
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "验证码无效或已过期")
     user.password_hash = hash_password(payload.new_password)
+    now = datetime.now(timezone.utc)
+    sessions = db.scalars(
+        select(SessionModel).where(
+            SessionModel.user_id == user.id,
+            SessionModel.revoked_at.is_(None),
+        )
+    ).all()
+    for session in sessions:
+        session.revoked_at = now
     db.commit()
     log_audit(db, "user", str(user.id), "password_reset")
     return {"message": "密码已重置"}

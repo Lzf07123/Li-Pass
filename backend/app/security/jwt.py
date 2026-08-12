@@ -69,7 +69,8 @@ def create_id_token(
 ) -> str:
     settings = get_settings()
     now = _now()
-    payload = {
+    scopes = set(scope.split())
+    payload: dict = {
         "iss": settings.jwt_issuer,
         "sub": str(user.id),
         "aud": client_id,
@@ -77,12 +78,15 @@ def create_id_token(
         "exp": now + timedelta(minutes=settings.oauth_id_token_ttl_minutes),
         "nonce": nonce,
         "acr": acr,
-        "email": user.email,
-        "email_verified": user.email_verified_at is not None,
-        "nickname": user.nickname,
-        "name": user.nickname,
         "scope": scope,
     }
+    # 按授权 scope 裁剪 claims（与 userinfo 保持一致）。
+    if "email" in scopes:
+        payload["email"] = user.email
+        payload["email_verified"] = user.email_verified_at is not None
+    if "profile" in scopes:
+        payload["nickname"] = user.nickname
+        payload["name"] = user.nickname
     return _encode(payload)
 
 
@@ -94,7 +98,8 @@ def decode_token(token: str, audience: str | None = None) -> dict:
         public_key,
         algorithms=["RS256"],
         audience=audience,
-        options={"verify_aud": audience is not None},
+        issuer=settings.jwt_issuer,
+        options={"verify_aud": audience is not None, "verify_iss": True},
     )
 
 

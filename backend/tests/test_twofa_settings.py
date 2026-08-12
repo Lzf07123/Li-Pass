@@ -22,7 +22,7 @@ def test_totp_setup_enable_and_recovery(client, captured_email) -> None:
     code = pyotp.TOTP(secret).now()
     response = client.post(
         "/api/v1/me/2fa/totp/enable",
-        json={"code": code, "secret": secret},
+        json={"code": code, "secret": secret, "current_password": "password123"},
     )
     assert response.status_code == 200
     recovery = response.json()["recovery_codes"]

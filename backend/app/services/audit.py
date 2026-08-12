@@ -12,6 +12,12 @@ def log_audit(
     user_agent: str | None = None,
     detail: dict | None = None,
 ) -> None:
+    # 数据库列为 VARCHAR(300)/VARCHAR(64)，超长请求头会直接报错，统一截断。
+    user_agent = (user_agent or "")[:300] or None
+    ip = (ip or "")[:64] or None
+    actor_id = (actor_id or "")[:64] or None
+    target_id = (target_id or "")[:64] or None
+    action = (action or "")[:80]
     db.add(
         AuditLog(
             actor_type=actor_type,

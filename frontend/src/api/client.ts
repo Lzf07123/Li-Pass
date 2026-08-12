@@ -123,7 +123,11 @@ export const meApi = {
       method: "POST",
       body: JSON.stringify(data),
     }),
-  bindPhone: (data: { phone: string }) =>
+  sendPhoneBind: () =>
+    api<{ message: string }>("/api/v1/me/phone/bind/send", {
+      method: "POST",
+    }),
+  bindPhone: (data: { phone: string; code: string }) =>
     api<UserOut>("/api/v1/me/phone/bind", {
       method: "POST",
       body: JSON.stringify(data),
@@ -188,10 +192,10 @@ export const twofaApi = {
       body: JSON.stringify({ current_password }),
     }),
   totpSetup: () => api<TotpSetup>("/api/v1/me/2fa/totp/setup"),
-  totpEnable: (code: string, secret: string) =>
+  totpEnable: (code: string, secret: string, current_password: string) =>
     api<{ message: string; recovery_codes: string[] }>("/api/v1/me/2fa/totp/enable", {
       method: "POST",
-      body: JSON.stringify({ code, secret }),
+      body: JSON.stringify({ code, secret, current_password }),
     }),
   totpDisable: (current_password: string) =>
     api<{ message: string }>("/api/v1/me/2fa/totp/disable", {

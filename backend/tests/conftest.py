@@ -7,6 +7,10 @@ os.environ.setdefault(
 os.environ.setdefault(
     "AVATAR_UPLOAD_DIR", os.path.join(tempfile.gettempdir(), "portal-test-avatars")
 )
+os.environ.setdefault(
+    "ENCRYPTION_KEY_PATH",
+    os.path.join(tempfile.gettempdir(), "portal-test-encryption.key"),
+)
 
 import pytest
 from fastapi.testclient import TestClient
@@ -18,6 +22,20 @@ import app.models  # noqa: F401  确保模型注册到 Base.metadata
 from app.core.db import get_db
 from app.main import create_app
 from app.models.base import Base
+
+
+@pytest.fixture(autouse=True)
+def _clear_memory_state():
+    """内存限流器/挑战存储/待授权存储是进程级单例，测试间共享同一 IP，
+    必须在每个用例前清空，否则会把测试会话的限流配额耗尽。"""
+    from app.services.pending_requests import _memory_store as _pending_store
+    from app.services.rate_limit import _memory_limiter
+    from app.services.twofa import _memory_store as _twofa_store
+
+    _memory_limiter._items.clear()
+    _pending_store._items.clear()
+    _twofa_store._items.clear()
+    yield
 
 
 @pytest.fixture()
@@ -73,4 +91,5 @@ class CapturingEmailService:
 def captured_email(monkeypatch):
     service = CapturingEmailService()
     monkeypatch.setattr("app.api.routes.auth.get_email_service", lambda: service)
+    monkeypatch.setattr("app.api.routes.users.get_email_service", lambda: service)
     return service

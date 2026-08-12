@@ -1,1 +1,213 @@
 @import "tailwindcss";
+
+/* 基于 class 的深色模式（html.dark） */
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --font-sans:
+    ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, "Noto Sans", "PingFang SC", "Hiragino Sans GB",
+    "Microsoft YaHei", sans-serif;
+
+  --color-background: var(--portal-bg);
+  --color-surface: var(--portal-surface);
+  --color-surface-2: var(--portal-surface-2);
+  --color-foreground: var(--portal-fg);
+  --color-muted: var(--portal-muted);
+  --color-border: var(--portal-border);
+
+  --color-primary: var(--portal-primary);
+  --color-primary-hover: var(--portal-primary-hover);
+  --color-primary-soft: var(--portal-primary-soft);
+  --color-primary-foreground: var(--portal-primary-fg);
+
+  --color-success: var(--portal-success);
+  --color-success-soft: var(--portal-success-soft);
+  --color-warning: var(--portal-warning);
+  --color-warning-soft: var(--portal-warning-soft);
+  --color-destructive: var(--portal-destructive);
+  --color-destructive-soft: var(--portal-destructive-soft);
+
+  --color-ring: var(--portal-ring);
+}
+
+/*
+ * 浅色模式：安全蓝 + 中性石板灰（Trust & Authority / Minimalism）
+ * 前景/背景对比均满足 WCAG AA（正文 ≥ 4.5:1）
+ */
+:root {
+  --portal-bg: #f8fafc;
+  --portal-surface: #ffffff;
+  --portal-surface-2: #f1f5f9;
+  --portal-fg: #0f172a;
+  --portal-muted: #64748b;
+  --portal-border: #e2e8f0;
+
+  --portal-primary: #0369a1;
+  --portal-primary-hover: #075985;
+  --portal-primary-soft: #e0f2fe;
+  --portal-primary-fg: #ffffff;
+
+  --portal-success: #15803d;
+  --portal-success-soft: #f0fdf4;
+  --portal-warning: #b45309;
+  --portal-warning-soft: #fffbeb;
+  --portal-destructive: #dc2626;
+  --portal-destructive-soft: #fef2f2;
+
+  --portal-ring: #0369a1;
+
+  color-scheme: light;
+}
+
+/*
+ * 深色模式：深海军蓝底 + 柔和亮色前景
+ * 暗色使用去饱和的浅色调变体，而非简单反色
+ */
+.dark {
+  --portal-bg: #0b1220;
+  --portal-surface: #111a2c;
+  --portal-surface-2: #1b2740;
+  --portal-fg: #e2e8f0;
+  --portal-muted: #94a3b8;
+  --portal-border: #263449;
+
+  --portal-primary: #38bdf8;
+  --portal-primary-hover: #7dd3fc;
+  --portal-primary-soft: rgba(56, 189, 248, 0.14);
+  --portal-primary-fg: #082f49;
+
+  --portal-success: #4ade80;
+  --portal-success-soft: rgba(74, 222, 128, 0.12);
+  --portal-warning: #fbbf24;
+  --portal-warning-soft: rgba(251, 191, 36, 0.12);
+  --portal-destructive: #f87171;
+  --portal-destructive-soft: rgba(248, 113, 113, 0.12);
+
+  --portal-ring: #38bdf8;
+
+  color-scheme: dark;
+}
+
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    @apply bg-background font-sans text-foreground antialiased;
+  }
+
+  ::selection {
+    @apply bg-primary/20 text-foreground;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--portal-ring);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      transition-duration: 0.01ms !important;
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
+
+@layer components {
+  /* 卡片 */
+  .card {
+    @apply rounded-2xl border border-border bg-surface shadow-[0_1px_2px_rgba(15,23,42,0.04),0_8px_24px_-12px_rgba(15,23,42,0.12)];
+  }
+
+  /* 按钮 */
+  .btn {
+    @apply inline-flex cursor-pointer select-none items-center justify-center gap-2 rounded-lg px-4 py-3 text-sm font-medium leading-none transition-colors duration-200 disabled:pointer-events-none disabled:opacity-50;
+  }
+  .btn-primary {
+    @apply bg-primary text-primary-foreground shadow-sm hover:bg-primary-hover;
+  }
+  .btn-secondary {
+    @apply border border-border bg-surface text-foreground hover:bg-surface-2;
+  }
+  .btn-ghost {
+    @apply text-muted hover:bg-surface-2 hover:text-foreground;
+  }
+  .btn-danger {
+    @apply bg-destructive text-white shadow-sm hover:opacity-90;
+  }
+  .btn-link {
+    @apply cursor-pointer px-0 py-0 text-primary hover:underline;
+  }
+
+  /* 表单 */
+  .label {
+    @apply mb-1.5 block text-sm font-medium text-foreground;
+  }
+  .input {
+    @apply w-full rounded-lg border border-border bg-surface px-3 py-2.5 text-sm text-foreground shadow-sm transition-colors duration-150 placeholder:text-muted focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20;
+  }
+  .input-sm {
+    @apply w-full rounded-md border border-border bg-surface px-2.5 py-1.5 text-sm text-foreground placeholder:text-muted focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20;
+  }
+
+  /* 徽章 */
+  .badge {
+    @apply inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium;
+  }
+  .badge-success {
+    @apply bg-success-soft text-success;
+  }
+  .badge-warning {
+    @apply bg-warning-soft text-warning;
+  }
+  .badge-danger {
+    @apply bg-destructive-soft text-destructive;
+  }
+  .badge-muted {
+    @apply bg-surface-2 text-muted;
+  }
+  .badge-primary {
+    @apply bg-primary-soft text-primary dark:text-sky-200;
+  }
+
+  /* 提示条 */
+  .alert {
+    @apply flex items-start gap-2 rounded-lg border p-3 text-sm;
+  }
+  .alert-success {
+    @apply border-success/25 bg-success-soft text-success;
+  }
+  .alert-warning {
+    @apply border-warning/30 bg-warning-soft text-warning;
+  }
+  .alert-error {
+    @apply border-destructive/25 bg-destructive-soft text-destructive;
+  }
+
+  /* 表格容器 */
+  .table-shell {
+    @apply overflow-x-auto rounded-xl border border-border bg-surface;
+  }
+  .table-shell table {
+    @apply w-full border-collapse text-left text-sm;
+  }
+  .table-shell thead th {
+    @apply border-b border-border bg-surface-2 px-3 py-2.5 text-xs font-semibold tracking-wide text-muted;
+  }
+  .table-shell tbody td {
+    @apply border-b border-border/70 px-3 py-2.5 align-middle text-foreground last:border-b-0;
+  }
+  .table-shell tbody tr:last-child td {
+    @apply border-b-0;
+  }
+  .table-shell tbody tr {
+    @apply transition-colors duration-150 hover:bg-surface-2/60;
+  }
+}

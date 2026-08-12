@@ -1,6 +1,8 @@
 import hashlib
 import secrets
 
+from app.security.crypto import hmac_hex
+
 
 def generate_token() -> str:
     return secrets.token_urlsafe(32)
@@ -15,7 +17,8 @@ def generate_otp_code() -> str:
 
 
 def hash_otp_code(code: str) -> str:
-    return hashlib.sha256(code.encode()).hexdigest()
+    # OTP 仅 6 位，裸 SHA-256 可秒级离线爆破，必须加服务端密钥（HMAC）。
+    return hmac_hex(code)
 
 
 def generate_client_id() -> str:

@@ -38,7 +38,17 @@ def test_id_token_has_nonce_and_acr() -> None:
     claims = decode_token(token, audience="cli_demo")
     assert claims["nonce"] == "nonce-123"
     assert claims["acr"] == "urn:portal-oss:acr:1fa"
+    # 仅授权 openid 时不应泄露 email/nickname。
+    assert "email" not in claims
+    assert "nickname" not in claims
+
+
+def test_id_token_claims_follow_scope() -> None:
+    token = create_id_token(FakeUser(), "cli_demo", "nonce-123", "openid profile email")
+    claims = decode_token(token, audience="cli_demo")
     assert claims["email"] == "a@example.com"
+    assert claims["email_verified"] is False
+    assert claims["nickname"] == "Alice"
 
 
 def test_jwks_contains_rs256_key() -> None:

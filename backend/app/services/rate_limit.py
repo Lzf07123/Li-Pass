@@ -14,6 +14,8 @@ class RateLimiter:
 
 
 class MemoryRateLimiter(RateLimiter):
+    MAX_ITEMS = 10_000
+
     def __init__(self) -> None:
         self._items: dict[tuple[str, str], tuple[int, float]] = {}
 
@@ -22,8 +24,17 @@ class MemoryRateLimiter(RateLimiter):
         if item is not None and item[1] <= now:
             self._items.pop((scope, key), None)
 
+    def _sweep(self, now: float) -> None:
+        """条目超过阈值时清理全部过期项，防止攻击者用唯一键撑爆内存。"""
+        if len(self._items) < self.MAX_ITEMS:
+            return
+        expired = [k for k, (_, expires) in self._items.items() if expires <= now]
+        for key in expired:
+            self._items.pop(key, None)
+
     def hit(self, scope: str, key: str, window_seconds: int) -> int:
         now = time.monotonic()
+        self._sweep(now)
         self._prune(scope, key, now)
         count, expires = self._items.get((scope, key), (0, now + window_seconds))
         count += 1

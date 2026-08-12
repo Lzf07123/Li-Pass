@@ -27,7 +27,12 @@ def test_update_profile_and_password(client, captured_email, db_session) -> None
 
 def test_phone_bind_demo(client, captured_email) -> None:
     register_and_login(client, captured_email)
-    response = client.post("/api/v1/me/phone/bind", json={"phone": "+8613800000000"})
+    assert client.post("/api/v1/me/phone/bind/send").status_code == 200
+    code = captured_email.messages[-1][2]
+    response = client.post(
+        "/api/v1/me/phone/bind",
+        json={"phone": "+8613800000000", "code": code},
+    )
     assert response.status_code == 200
     assert response.json()["phone"] == "+8613800000000"
 

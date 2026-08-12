@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 
 import { authApi } from "../api/client";
+import { AuthShell } from "../components/AuthShell";
 
 export function ResetPasswordPage() {
   const [searchParams] = useSearchParams();
@@ -36,72 +37,80 @@ export function ResetPasswordPage() {
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-gray-50">
-      <form
-        onSubmit={handleSubmit}
-        className="w-96 space-y-4 rounded-xl bg-white p-8 shadow"
-      >
-        <h1 className="text-2xl font-bold">设置新密码</h1>
-        <p className="text-sm text-gray-600">
-          输入发送到邮箱的 6 位验证码，并设置新密码。
-        </p>
+    <AuthShell title="设置新密码" subtitle="输入发送到邮箱的 6 位验证码，并设置新密码">
+      <form onSubmit={handleSubmit} className="space-y-4">
         <label className="block">
-          邮箱
+          <span className="label">邮箱</span>
           <input
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="mt-1 w-full rounded border p-2"
+            className="input"
+            autoComplete="email"
             required
           />
         </label>
         <label className="block">
-          验证码
+          <span className="label">验证码</span>
           <input
             value={code}
             onChange={(e) => setCode(e.target.value)}
-            className="mt-1 w-full rounded border p-2"
+            className="input"
             maxLength={6}
+            inputMode="numeric"
             placeholder="6 位数字"
             required
           />
         </label>
         <label className="block">
-          新密码
+          <span className="label">新密码</span>
           <input
             type="password"
             value={newPassword}
             onChange={(e) => setNewPassword(e.target.value)}
-            className="mt-1 w-full rounded border p-2"
+            className="input"
             minLength={8}
             placeholder="至少 8 位"
+            autoComplete="new-password"
             required
           />
         </label>
         <label className="block">
-          确认新密码
+          <span className="label">确认新密码</span>
           <input
             type="password"
             value={confirmPassword}
             onChange={(e) => setConfirmPassword(e.target.value)}
-            className="mt-1 w-full rounded border p-2"
+            className="input"
             minLength={8}
+            autoComplete="new-password"
             required
           />
         </label>
-        {error && <p className="text-red-600">{error}</p>}
-        {message && (
-          <p className="text-green-600">
-            {message}，<Link to="/login" className="text-blue-600">去登录</Link>
+        {error && (
+          <p className="alert alert-error" role="alert">
+            {error}
           </p>
         )}
-        <button type="submit" className="w-full rounded bg-blue-600 p-2 text-white">
+        {message && (
+          <p className="alert alert-success">
+            <span>
+              {message}，{" "}
+              <Link to="/login" className="btn-link font-semibold">
+                去登录
+              </Link>
+            </span>
+          </p>
+        )}
+        <button type="submit" className="btn btn-primary w-full">
           重置密码
         </button>
-        <p>
-          <Link to="/login" className="text-blue-600">返回登录</Link>
+        <p className="text-center text-sm">
+          <Link to="/login" className="btn-link">
+            返回登录
+          </Link>
         </p>
       </form>
-    </main>
+    </AuthShell>
   );
 }

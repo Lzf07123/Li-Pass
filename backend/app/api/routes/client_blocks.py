@@ -1,4 +1,5 @@
 import base64
+import secrets
 import uuid
 
 from fastapi import APIRouter, Depends, Header, HTTPException, status
@@ -25,12 +26,9 @@ def _auth_client(authorization: str, db: Session) -> OAuthClient:
     except Exception:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "invalid_client")
     client = db.scalar(select(OAuthClient).where(OAuthClient.client_id == client_id))
-    if (
-        client is None
-        or client.client_secret_hash is None
-        or not client.is_active
-        or hash_token(client_secret) != client.client_secret_hash
-    ):
+    if client is None or client.client_secret_hash is None or not client.is_active:
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "invalid_client")
+    if not secrets.compare_digest(hash_token(client_secret), client.client_secret_hash):
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "invalid_client")
     return client
 

@@ -60,7 +60,7 @@ portal-oss/
 docker compose up -d --build
 ```
 
-启动后前端位于 http://localhost:5173 ，后端 API 位于 http://localhost:8000 （健康检查 `GET /healthz`）。开发环境邮件验证码默认打印到后端容器日志（`docker compose logs backend | grep "code="`）。
+启动后前端位于 http://localhost:5173 ，后端 API 位于 http://localhost:8000 （存活检查 `GET /healthz`，就绪检查 `GET /readyz`）。开发环境邮件验证码默认打印到后端容器日志（`docker compose logs backend | grep "code="`）。
 
 如需在宿主机上分别运行各服务，按以下步骤执行：
 
@@ -116,11 +116,13 @@ docker compose -f docker-compose.yaml --env-file .env up -d --build
 示例授权网站（OIDC 演示，端口 3001）：
 
 ```bash
-docker compose up -d --build demo-site
+docker compose --profile demo up -d --build demo-site
 cd backend && .venv/bin/python -m scripts.seed_demo_client
 ```
 
 打开 http://localhost:3001 点击“通过门户登录”，即可体验从第三方网站跳转到门户授权确认并登录的完整闭环。
+
+> 示例授权网站位于 `demo` profile，默认 `docker compose up -d` 不会启动它，生产栈不会携带演示应用。
 
 ## 演示数据
 

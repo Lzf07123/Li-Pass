@@ -1,13 +1,32 @@
 import { useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 
-import { auth2faApi, authApi } from "../api/client";
+import { API_BASE_URL, auth2faApi, authApi } from "../api/client";
+import { AuthShell } from "../components/AuthShell";
 
 const METHOD_LABELS: Record<string, string> = {
   email_otp: "邮箱验证码",
   totp: "认证器动态码（TOTP）",
   recovery: "恢复码",
 };
+
+export function isSafeNext(value: string | null): boolean {
+  if (!value) return false;
+  // 相对路径放行（排除 //host 协议相对地址）
+  if (value.startsWith("/") && !value.startsWith("//")) return true;
+  try {
+    const target = new URL(value, window.location.origin);
+    const apiOrigin = API_BASE_URL
+      ? new URL(API_BASE_URL, window.location.origin).origin
+      : window.location.origin;
+    return (
+      (target.protocol === "http:" || target.protocol === "https:") &&
+      (target.origin === window.location.origin || target.origin === apiOrigin)
+    );
+  } catch {
+    return false;
+  }
+}
 
 export function LoginPage() {
   const [email, setEmail] = useState("");
@@ -20,7 +39,8 @@ export function LoginPage() {
   const [method, setMethod] = useState("");
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const next = searchParams.get("next");
+  const rawNext = searchParams.get("next");
+  const next = isSafeNext(rawNext) ? rawNext : null;
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -38,7 +58,7 @@ export function LoginPage() {
               : "recovery"
         );
       } else {
-        if (next && next.startsWith("http")) {
+        if (next) {
           window.location.href = next;
         } else {
           navigate(next || "/");
@@ -55,7 +75,7 @@ export function LoginPage() {
     setError("");
     try {
       await auth2faApi.verify(challenge.id, method, code);
-      if (next && next.startsWith("http")) {
+      if (next) {
         window.location.href = next;
       } else {
         navigate(next || "/");
@@ -77,15 +97,17 @@ export function LoginPage() {
 
   if (challenge) {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-gray-50">
-        <form onSubmit={verifyCode} className="w-96 space-y-4 rounded-xl bg-white p-8 shadow">
-          <h1 className="text-2xl font-bold">二次验证</h1>
-          <p className="text-gray-600">为保护账号安全，请完成二次验证：</p>
+      <AuthShell title="二次验证" subtitle="为保护账号安全，请完成二次验证">
+        <form onSubmit={verifyCode} className="space-y-4">
           <div className="space-y-2">
             {challenge.methods.map((item) => (
               <label
                 key={item}
-                className="flex items-center gap-2 rounded border p-2 text-sm"
+                className={`flex cursor-pointer items-center gap-2.5 rounded-lg border px-3 py-2.5 text-sm transition-colors ${
+                  method === item
+                    ? "border-primary bg-primary-soft text-foreground"
+                    : "border-border text-foreground hover:bg-surface-2"
+                }`}
               >
                 <input
                   type="radio"
@@ -93,10 +115,11 @@ export function LoginPage() {
                   value={item}
                   checked={method === item}
                   onChange={(e) => setMethod(e.target.value)}
+                  className="accent-primary"
                 />
                 {METHOD_LABELS[item] ?? item}
                 {item === "recovery" && (
-                  <span className="text-xs text-gray-400">
+                  <span className="text-xs text-muted">
                     （当认证器/邮箱不可用时使用）
                   </span>
                 )}
@@ -104,67 +127,72 @@ export function LoginPage() {
             ))}
           </div>
           <label className="block">
-            验证码
+            <span className="label">验证码</span>
             <input
               value={code}
               onChange={(e) => setCode(e.target.value)}
-              className="mt-1 w-full rounded border p-2"
+              className="input"
               placeholder={method === "recovery" ? "恢复码" : "6 位动态码"}
               required
             />
           </label>
-          {error && <p className="text-red-600">{error}</p>}
-          <button type="submit" className="w-full rounded bg-blue-600 p-2 text-white">
+          {error && <p className="alert alert-error" role="alert">{error}</p>}
+          <button type="submit" className="btn btn-primary w-full">
             验证
           </button>
           {challenge.methods.includes("email_otp") && (
             <button
               type="button"
               onClick={sendCode}
-              className="w-full rounded bg-gray-200 p-2"
+              className="btn btn-secondary w-full"
             >
               重新发送邮箱验证码
             </button>
           )}
         </form>
-      </main>
+      </AuthShell>
     );
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-gray-50">
-      <form onSubmit={handleSubmit} className="w-96 space-y-4 rounded-xl bg-white p-8 shadow">
-        <h1 className="text-2xl font-bold">登录 Portal OSS</h1>
+    <AuthShell title="登录 Portal OSS" subtitle="一次注册，通行所有授权网站">
+      <form onSubmit={handleSubmit} className="space-y-4">
         <label className="block">
-          邮箱
+          <span className="label">邮箱</span>
           <input
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="mt-1 w-full rounded border p-2"
+            className="input"
+            autoComplete="email"
             required
           />
         </label>
         <label className="block">
-          密码
+          <span className="label">密码</span>
           <input
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="mt-1 w-full rounded border p-2"
+            className="input"
+            autoComplete="current-password"
             required
           />
         </label>
-        {error && <p className="text-red-600">{error}</p>}
-        <button type="submit" className="w-full rounded bg-blue-600 p-2 text-white">
+        {error && <p className="alert alert-error" role="alert">{error}</p>}
+        <button type="submit" className="btn btn-primary w-full">
           登录
         </button>
-        <p>
-          <Link to="/forgot-password" className="text-blue-600">忘记密码？</Link>
-          <span className="mx-2">|</span>
-          <Link to="/register" className="text-blue-600">注册新账号</Link>
-        </p>
+        <div className="flex items-center justify-center gap-2 text-sm">
+          <Link to="/forgot-password" className="btn-link">
+            忘记密码？
+          </Link>
+          <span className="text-border">|</span>
+          <Link to="/register" className="btn-link">
+            注册新账号
+          </Link>
+        </div>
       </form>
-    </main>
+    </AuthShell>
   );
 }

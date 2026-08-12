@@ -31,14 +31,25 @@ class PendingRequestStore:
 
 
 class InMemoryPendingRequestStore(PendingRequestStore):
+    MAX_ITEMS = 1_000
+
     def __init__(self) -> None:
         self._items: dict[str, tuple[PendingAuthRequest, datetime]] = {}
 
     def create(self, request: PendingAuthRequest, ttl_seconds: int = 600) -> str:
+        self._sweep()
         request_id = secrets.token_urlsafe(24)
         expires = datetime.now(timezone.utc) + timedelta(seconds=ttl_seconds)
         self._items[request_id] = (request, expires)
         return request_id
+
+    def _sweep(self) -> None:
+        if len(self._items) < self.MAX_ITEMS:
+            return
+        now = datetime.now(timezone.utc)
+        expired = [k for k, (_, exp) in self._items.items() if exp < now]
+        for key in expired:
+            self._items.pop(key, None)
 
     def get(self, request_id: str) -> PendingAuthRequest | None:
         item = self._items.get(request_id)
