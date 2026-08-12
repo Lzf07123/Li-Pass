@@ -131,10 +131,10 @@ SMTP_USE_TLS=true
 
 邮件分为两类：注册/登录/重置/绑手机等场景发送 6 位验证码（10 分钟有效，重发会作废旧码）；邀请注册发送一次性邀请链接（7 天有效）。各发送接口的限流口径不同：
 
-- 登录后 2FA 验证码、手机绑定验证码：`OTP_SEND_LIMIT=5` 次/小时/邮箱
-- 邮箱激活验证码重发：`EMAIL_VERIFY_RATE_LIMIT=30` 次/小时/（邮箱+IP）
+- 登录后 2FA 验证码、手机绑定验证码：`OTP_SEND_LIMIT=5` 次/小时/邮箱；2FA 进入二次验证页不自动发信，需用户点击“获取验证码”，重发最小间隔 `OTP_RESEND_COOLDOWN_SECONDS`（默认 60 秒）
+- 邮箱激活验证码重发与验证尝试：`EMAIL_VERIFY_RATE_LIMIT=30` 次/小时/邮箱（不按 IP 限流，避免办公网/NAT 共享出口误伤）
 - 注册/邀请注册接口：`REGISTER_RATE_LIMIT=10` 次/小时/IP
-- 找回密码：`PASSWORD_RESET_RATE_LIMIT=5` 次/15 分钟/（邮箱+IP）
+- 找回密码：`PASSWORD_RESET_RATE_LIMIT=5` 次/小时/邮箱（不按 IP 限流）
 - 管理端邀请：`ADMIN_INVITE_RATE_LIMIT=100` 次/小时/IP（批量邀请按人数累计）
 
 ## SameSite 与部署拓扑（重要）

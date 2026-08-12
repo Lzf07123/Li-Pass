@@ -89,6 +89,8 @@ export const authApi = {
         email_sent?: boolean;
         /** 邮件发送状态：sent / failed / rate_limited / skipped */
         email_status?: "sent" | "failed" | "rate_limited" | "skipped";
+        /** 邮件限流剩余等待秒数（rate_limited 时展示用） */
+        email_retry_after_seconds?: number;
       }
     >("/api/v1/auth/login", { method: "POST", body: JSON.stringify(data) }),
   logout: () => api<void>("/api/v1/auth/logout", { method: "POST" }),

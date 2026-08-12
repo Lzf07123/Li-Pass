@@ -162,9 +162,23 @@ def send_phone_bind_code(
         "otp_send", user.email, settings.otp_send_window_seconds
     )
     if send_count > settings.otp_send_limit:
-        raise HTTPException(status.HTTP_429_TOO_MANY_REQUESTS, "发送过于频繁")
+        raise HTTPException(
+            status.HTTP_429_TOO_MANY_REQUESTS,
+            f"验证码发送过于频繁，请在 "
+            f"{settings.otp_send_window_seconds // 60} 分钟后重试",
+        )
     code = create_otp(db, OtpPurpose.bind_phone, user.email)
-    get_email_service().send_verification(user.email, code)
+    try:
+        get_email_service().send_verification(user.email, code)
+        db.commit()
+    except Exception:
+        db.rollback()
+        get_rate_limiter().decrement("otp_send", user.email)
+        logger.exception("绑定邮箱验证码发送失败：%s", user.email)
+        raise HTTPException(
+            status.HTTP_502_BAD_GATEWAY,
+            "邮件发送失败，请稍后重试",
+        )
     return {"message": "验证码已发送至绑定邮箱"}
 
 

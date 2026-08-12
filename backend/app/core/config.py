@@ -45,6 +45,7 @@ class Settings(BaseSettings):
     login_ip_rate_limit: int = 30
     otp_send_limit: int = 5
     otp_send_window_seconds: int = 3600
+    otp_resend_cooldown_seconds: int = 60
     register_rate_limit: int = 10
     register_rate_window_seconds: int = 3600
     # 公开注册入口开关：关闭后普通注册返回 403，仅保留邀请注册渠道。

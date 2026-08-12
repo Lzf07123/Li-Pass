@@ -13,6 +13,14 @@ class RateLimiter:
     def reset(self, scope: str, key: str) -> None:
         raise NotImplementedError
 
+    def decrement(self, scope: str, key: str) -> None:
+        """撤销一次计数，用于邮件发送失败时不要把失败请求计入限流。"""
+        raise NotImplementedError
+
+    def remaining(self, scope: str, key: str) -> int:
+        """返回当前限流剩余等待秒数（无记录/已过期返回 0）。"""
+        raise NotImplementedError
+
 
 class MemoryRateLimiter(RateLimiter):
     MAX_ITEMS = 10_000
@@ -47,6 +55,25 @@ class MemoryRateLimiter(RateLimiter):
     def reset(self, scope: str, key: str) -> None:
         self._items.pop((scope, key), None)
 
+    def decrement(self, scope: str, key: str) -> None:
+        item = self._items.get((scope, key))
+        if item is None:
+            return
+        count, expires = item
+        if count <= 1:
+            self._items.pop((scope, key), None)
+        else:
+            self._items[(scope, key)] = (count - 1, expires)
+
+    def remaining(self, scope: str, key: str) -> int:
+        item = self._items.get((scope, key))
+        if item is None:
+            return 0
+        count, expires = item
+        if count <= 0 or expires <= time.monotonic():
+            return 0
+        return max(1, int(expires - time.monotonic()))
+
 
 class RedisRateLimiter(RateLimiter):
     def __init__(self, client) -> None:
@@ -66,6 +93,18 @@ class RedisRateLimiter(RateLimiter):
 
     def reset(self, scope: str, key: str) -> None:
         self._client.delete(self._key(scope, key))
+
+    def decrement(self, scope: str, key: str) -> None:
+        redis_key = self._key(scope, key)
+        count = self._client.decrby(redis_key, 1)
+        if count <= 0:
+            self._client.delete(redis_key)
+
+    def remaining(self, scope: str, key: str) -> int:
+        ttl_ms = self._client.pttl(self._key(scope, key))
+        if ttl_ms is None or ttl_ms <= 0:
+            return 0
+        return max(1, (ttl_ms + 999) // 1000)
 
 
 _memory_limiter = MemoryRateLimiter()

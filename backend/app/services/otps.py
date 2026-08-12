@@ -21,6 +21,11 @@ def _as_utc(dt: datetime) -> datetime:
 def create_otp(
     db: Session, purpose: OtpPurpose, target: str, ttl_minutes: int = OTP_TTL_MINUTES
 ) -> str:
+    """生成并落库新验证码，但**不提交事务**。
+
+    调用方必须在邮件发送成功后 commit；发送失败时 rollback 即可保留旧验证码，
+    避免“新码未送达、旧码已作废”导致用户卡死。
+    """
     # 同用途同邮箱只保留一封有效验证码：先作废旧码再生成新码，
     # 避免重发后旧码仍可用，或 verify_otp 在时间并列时取到旧码。
     db.execute(
@@ -41,8 +46,22 @@ def create_otp(
             expires_at=datetime.now(timezone.utc) + timedelta(minutes=ttl_minutes),
         )
     )
-    db.commit()
     return code
+
+
+def otp_attempts_exhausted(
+    db: Session, purpose: OtpPurpose, target: str
+) -> bool:
+    otp = db.scalar(
+        select(Otp)
+        .where(
+            Otp.purpose == purpose,
+            Otp.target == target.lower(),
+            Otp.consumed_at.is_(None),
+        )
+        .order_by(Otp.created_at.desc())
+    )
+    return otp is not None and otp.attempts >= MAX_ATTEMPTS
 
 
 def verify_otp(db: Session, purpose: OtpPurpose, target: str, code: str) -> bool:

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 
 import { authApi } from "../api/client";
@@ -10,8 +10,15 @@ export function VerifyEmailPage() {
   const email = searchParams.get("email") ?? "";
   const [code, setCode] = useState("");
   const [resending, setResending] = useState(false);
+  const [resendCountdown, setResendCountdown] = useState(0);
   const toast = useToast();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    if (resendCountdown <= 0) return;
+    const timer = setTimeout(() => setResendCountdown((s) => s - 1), 1000);
+    return () => clearTimeout(timer);
+  }, [resendCountdown]);
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -34,6 +41,7 @@ export function VerifyEmailPage() {
     setResending(true);
     try {
       const result = await authApi.resendVerifyEmail(email);
+      setResendCountdown(60);
       toast.success(result.message);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "重新发送失败");
@@ -45,7 +53,9 @@ export function VerifyEmailPage() {
   return (
     <AuthShell title="验证邮箱" subtitle={`验证码已发送到 ${email || "你的邮箱"}`}>
       <form onSubmit={handleSubmit} className="space-y-4">
-        <p className="text-xs text-muted">验证码 10 分钟内有效。</p>
+        <p className="text-xs text-muted">
+          验证码 10 分钟内有效；重新发送后旧验证码立即失效。
+        </p>
         <label className="block">
           <span className="label">验证码</span>
           <input
@@ -64,10 +74,14 @@ export function VerifyEmailPage() {
         <button
           type="button"
           onClick={() => void resend()}
-          disabled={resending || !email}
+          disabled={resending || !email || resendCountdown > 0}
           className="btn btn-secondary w-full"
         >
-          {resending ? "发送中…" : "重新发送验证码"}
+          {resending
+            ? "发送中…"
+            : resendCountdown > 0
+              ? `重新发送（${resendCountdown}s）`
+              : "重新发送验证码"}
         </button>
       </form>
     </AuthShell>

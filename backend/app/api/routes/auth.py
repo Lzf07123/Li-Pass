@@ -33,7 +33,7 @@ from app.security.passwords import (
 )
 from app.security.tokens import generate_token, hash_token
 from app.services.email import get_email_service
-from app.services.otps import create_otp, verify_otp
+from app.services.otps import create_otp, otp_attempts_exhausted, verify_otp
 from app.services.audit import log_audit
 from app.services.rate_limit import get_rate_limiter
 from app.services.twofa import (
@@ -124,7 +124,19 @@ def register(
         db.add(user)
         db.commit()
         code = create_otp(db, OtpPurpose.register, email)
-        get_email_service().send_verification(email, code)
+        try:
+            get_email_service().send_verification(email, code)
+            db.commit()
+        except Exception:
+            # 邮件发送失败：回滚验证码变更（用户行已提交，保持未验证状态），
+            # 并撤销本次限流计数，避免用户“旧码已作废、新码未收到、又不能重发”。
+            db.rollback()
+            get_rate_limiter().decrement("register", ip)
+            logger.exception("注册验证邮件发送失败：%s", email)
+            raise HTTPException(
+                status.HTTP_502_BAD_GATEWAY,
+                "邮件发送失败，请稍后重试或点击“重新发送验证码”",
+            )
     # 无论邮箱是否已注册，统一响应，避免账号枚举；重复注册不重复发信。
     return {"message": "注册请求已受理，验证邮件已发送"}
 
@@ -138,21 +150,24 @@ def register_status() -> dict:
 @router.post("/email/verify")
 def verify_email(
     payload: EmailVerifyRequest,
-    request: Request,
     db: Session = Depends(get_db),
 ) -> dict:
-    ip = request.client.host if request.client else ""
+    email = payload.email.lower()
     if (
         get_rate_limiter().hit(
-            "email_verify", ip, settings.email_verify_rate_window_seconds
+            "email_verify", email, settings.email_verify_rate_window_seconds
         )
         > settings.email_verify_rate_limit
     ):
         raise HTTPException(status.HTTP_429_TOO_MANY_REQUESTS, "验证过于频繁，请稍后再试")
-    email = payload.email.lower()
     user = db.scalar(select(User).where(User.email == email))
     if user is None:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "验证码无效或已过期")
+    if otp_attempts_exhausted(db, OtpPurpose.register, email):
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST,
+            "验证码错误次数过多，请重新发送验证码",
+        )
     if not verify_otp(db, OtpPurpose.register, email, payload.code):
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "验证码无效或已过期")
 
@@ -164,26 +179,38 @@ def verify_email(
 @router.post("/email/verify/resend")
 def resend_verify_email(
     payload: EmailResendRequest,
-    request: Request,
     db: Session = Depends(get_db),
 ) -> dict:
-    ip = request.client.host if request.client else ""
     email = payload.email.lower()
     if (
         get_rate_limiter().hit(
             "email_resend",
-            f"{email}:{ip}",
+            email,
             settings.email_verify_rate_window_seconds,
         )
         > settings.email_verify_rate_limit
     ):
-        raise HTTPException(status.HTTP_429_TOO_MANY_REQUESTS, "发送过于频繁，请稍后再试")
+        raise HTTPException(
+            status.HTTP_429_TOO_MANY_REQUESTS,
+            f"验证码发送过于频繁，请在 "
+            f"{settings.email_verify_rate_window_seconds // 60} 分钟后重试",
+        )
     user = db.scalar(select(User).where(User.email == email))
     if user is not None and user.email_verified_at is None:
         code = create_otp(db, OtpPurpose.register, email)
-        get_email_service().send_verification(email, code)
+        try:
+            get_email_service().send_verification(email, code)
+            db.commit()
+        except Exception:
+            db.rollback()
+            get_rate_limiter().decrement("email_resend", email)
+            logger.exception("验证邮件重发失败：%s", email)
+            raise HTTPException(
+                status.HTTP_502_BAD_GATEWAY,
+                "邮件发送失败，请稍后重试",
+            )
     # 与注册接口一致：已注册且已验证/不存在的邮箱返回相同文案，避免账号枚举。
-    return {"message": "如果该邮箱尚未验证，验证邮件已发送"}
+    return {"message": "请求已受理：如果该邮箱尚未验证，验证邮件将发送至该邮箱。"}
 
 
 @router.post(
@@ -332,23 +359,9 @@ def login(
             methods,
             remember_me=payload.remember_me,
         )
+        # 进入 2FA 界面时不自动发送验证码，由前端引导用户点击“获取验证码”，
+        # 之后的重发由 /2fa/send 按 60 秒冷却与每小时配额控制。
         email_status = "skipped"
-        if user.email_otp_enabled:
-            send_count = get_rate_limiter().hit(
-                "otp_send", user.email, settings.otp_send_window_seconds
-            )
-            if send_count > settings.otp_send_limit:
-                email_status = "rate_limited"
-            else:
-                code = create_otp(db, OtpPurpose.two_fa, user.email)
-                try:
-                    get_email_service().send_verification(user.email, code)
-                    email_status = "sent"
-                except Exception:
-                    # 邮件服务故障不应阻塞登录响应：TOTP/恢复码用户仍可完成二次验证，
-                    # 邮箱用户可通过 /2fa/send 重发验证码（重发接口会给出明确错误）。
-                    email_status = "failed"
-                    logger.exception("2FA 邮件发送失败 email=%s", user.email)
         log_audit(
             db,
             "user",
@@ -363,6 +376,7 @@ def login(
             "methods": methods,
             "email_sent": email_status == "sent",
             "email_status": email_status,
+            "email_retry_after_seconds": settings.otp_send_window_seconds,
         }
 
     _create_session_and_cookie(
@@ -397,15 +411,37 @@ def send_twofa_code(
     user = db.get(User, uuid.UUID(challenge.user_id))
     if user is None or user.status != UserStatus.active:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "账号不可用")
+
+    cooldown_left = get_rate_limiter().remaining(
+        "otp_resend_cooldown", user.email
+    )
+    if cooldown_left > 0:
+        raise HTTPException(
+            status.HTTP_429_TOO_MANY_REQUESTS,
+            f"验证码发送过于频繁，请在 {cooldown_left} 秒后重试",
+        )
     send_count = get_rate_limiter().hit(
         "otp_send", user.email, settings.otp_send_window_seconds
     )
     if send_count > settings.otp_send_limit:
-        raise HTTPException(status.HTTP_429_TOO_MANY_REQUESTS, "发送过于频繁")
+        raise HTTPException(
+            status.HTTP_429_TOO_MANY_REQUESTS,
+            f"验证码发送过于频繁，请在 "
+            f"{settings.otp_send_window_seconds // 60} 分钟后重试",
+        )
+    get_rate_limiter().hit(
+        "otp_resend_cooldown",
+        user.email,
+        settings.otp_resend_cooldown_seconds,
+    )
     code = create_otp(db, OtpPurpose.two_fa, user.email)
     try:
         get_email_service().send_verification(user.email, code)
+        db.commit()
     except Exception:
+        db.rollback()
+        get_rate_limiter().decrement("otp_send", user.email)
+        get_rate_limiter().decrement("otp_resend_cooldown", user.email)
         logger.exception("2FA 邮件重发失败 email=%s", user.email)
         raise HTTPException(
             status.HTTP_502_BAD_GATEWAY,
@@ -512,25 +548,37 @@ def logout(request: Request, response: Response, db: Session = Depends(get_db)) 
 @router.post("/password/reset", status_code=status.HTTP_202_ACCEPTED)
 def request_password_reset(
     payload: PasswordResetRequest,
-    request: Request,
     db: Session = Depends(get_db),
 ) -> dict:
     email = payload.email.lower()
-    ip = request.client.host if request.client else ""
     if (
         get_rate_limiter().hit(
             "password_reset",
-            f"{email}:{ip}",
+            email,
             settings.password_reset_rate_window_seconds,
         )
         > settings.password_reset_rate_limit
     ):
-        raise HTTPException(status.HTTP_429_TOO_MANY_REQUESTS, "请求过于频繁，请稍后再试")
+        raise HTTPException(
+            status.HTTP_429_TOO_MANY_REQUESTS,
+            f"请求过于频繁，请在 "
+            f"{settings.password_reset_rate_window_seconds // 60} 分钟后重试",
+        )
     user = db.scalar(select(User).where(User.email == email))
     if user is not None:
         code = create_otp(db, OtpPurpose.reset_password, email)
-        get_email_service().send_password_reset(email, code)
-    return {"message": "如果该邮箱已注册，重置验证码已发送"}
+        try:
+            get_email_service().send_password_reset(email, code)
+            db.commit()
+        except Exception:
+            db.rollback()
+            get_rate_limiter().decrement("password_reset", email)
+            logger.exception("重置密码邮件发送失败：%s", email)
+            raise HTTPException(
+                status.HTTP_502_BAD_GATEWAY,
+                "邮件发送失败，请稍后重试",
+            )
+    return {"message": "请求已受理：如果该邮箱已注册，重置验证码将发送至该邮箱。"}
 
 
 @router.post("/password/reset/confirm")
@@ -539,6 +587,11 @@ def confirm_password_reset(
 ) -> dict:
     email = payload.email.lower()
     user = db.scalar(select(User).where(User.email == email))
+    if otp_attempts_exhausted(db, OtpPurpose.reset_password, email):
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST,
+            "验证码错误次数过多，请重新发送验证码",
+        )
     if user is None or not verify_otp(db, OtpPurpose.reset_password, email, payload.code):
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "验证码无效或已过期")
     user.password_hash = hash_password(payload.new_password)

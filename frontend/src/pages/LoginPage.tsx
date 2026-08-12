@@ -26,6 +26,8 @@ export function LoginPage() {
   const [method, setMethod] = useState("");
   const [verifying, setVerifying] = useState(false);
   const [resendCountdown, setResendCountdown] = useState(0);
+  const [sending, setSending] = useState(false);
+  const [emailRetryAfterSeconds, setEmailRetryAfterSeconds] = useState(3600);
   const [rememberMe, setRememberMe] = useState(false);
   const toast = useToast();
   const navigate = useNavigate();
@@ -47,6 +49,10 @@ export function LoginPage() {
         const methods = result.methods ?? [];
         setChallenge({ id: result.challenge_id, methods });
         setEmailStatus(result.email_status ?? null);
+        setResendCountdown(0);
+        setEmailRetryAfterSeconds(
+          result.email_retry_after_seconds ?? 3600,
+        );
         setMethod(
           methods.includes("email_otp")
             ? "email_otp"
@@ -85,15 +91,18 @@ export function LoginPage() {
   }
 
   async function sendCode() {
-    if (!challenge) return;
+    if (!challenge || sending) return;
+    setSending(true);
     try {
       await auth2faApi.send(challenge.id);
-      toast.success("验证码已重新发送，请查收邮箱");
+      toast.success("验证码已发送，请查收邮箱");
       setEmailStatus("sent");
       setResendCountdown(60);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "发送失败");
       setEmailStatus("failed");
+    } finally {
+      setSending(false);
     }
   }
 
@@ -128,7 +137,7 @@ export function LoginPage() {
               </label>
             ))}
           </div>
-          {method === "email_otp" && emailStatus && (
+          {method === "email_otp" && (
             <p
               className={`text-xs ${
                 emailStatus === "sent" ? "text-muted" : "text-warning"
@@ -136,9 +145,14 @@ export function LoginPage() {
             >
               {emailStatus === "sent" &&
                 "验证码已发送至你的邮箱，10 分钟内有效；重新发送后旧码自动失效"}
+              {(!emailStatus || emailStatus === "skipped") &&
+                "需要先点击下方按钮获取邮箱验证码"}
               {emailStatus === "failed" &&
-                "验证码发送失败，请点击下方“重新发送邮箱验证码”重试"}
-              {emailStatus === "rate_limited" && "验证码发送过于频繁，请稍后再试"}
+                "验证码发送失败，请点击下方按钮重新发送"}
+              {emailStatus === "rate_limited" &&
+                `验证码发送过于频繁，请在约 ${Math.ceil(
+                  emailRetryAfterSeconds / 60,
+                )} 分钟后重试`}
             </p>
           )}
           <label className="block">
@@ -166,11 +180,15 @@ export function LoginPage() {
               type="button"
               onClick={sendCode}
               className="btn btn-secondary w-full"
-              disabled={verifying || resendCountdown > 0}
+              disabled={verifying || sending || resendCountdown > 0}
             >
-              {resendCountdown > 0
-                ? `重新发送（${resendCountdown}s）`
-                : "重新发送邮箱验证码"}
+              {sending
+                ? "发送中…"
+                : resendCountdown > 0
+                  ? `重新发送（${resendCountdown}s）`
+                  : emailStatus === "sent"
+                    ? "重新发送邮箱验证码"
+                    : "获取邮箱验证码"}
             </button>
           )}
         </form>
