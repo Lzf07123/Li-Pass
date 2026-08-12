@@ -18,6 +18,7 @@ class OAuthClient(Base):
     logo_url: Mapped[str | None] = mapped_column(String(500))
     redirect_uris: Mapped[list] = mapped_column(JSON, default=list)
     home_url: Mapped[str | None] = mapped_column(String(500))
+    logout_uri: Mapped[str | None] = mapped_column(String(500))
     scopes: Mapped[list] = mapped_column(
         JSON, default=lambda: ["openid", "profile", "email"]
     )

@@ -8,6 +8,7 @@ export function AdminClientsPage() {
   const [clients, setClients] = useState<ClientOut[]>([]);
   const [name, setName] = useState("");
   const [homeUrl, setHomeUrl] = useState("");
+  const [logoutUri, setLogoutUri] = useState("");
   const [redirectUris, setRedirectUris] = useState("");
   const [isPublic, setIsPublic] = useState(true);
   const [secret, setSecret] = useState<string | null>(null);
@@ -37,6 +38,7 @@ export function AdminClientsPage() {
       const result = await adminClientsApi.create({
         name,
         home_url: homeUrl || null,
+        logout_uri: logoutUri || null,
         redirect_uris: redirectUris
           .split("\n")
           .map((item) => item.trim())
@@ -47,6 +49,7 @@ export function AdminClientsPage() {
       setSecret(result.client_secret);
       setName("");
       setHomeUrl("");
+      setLogoutUri("");
       setRedirectUris("");
     } catch (err) {
       setError(err instanceof Error ? err.message : "创建失败");
@@ -110,6 +113,15 @@ export function AdminClientsPage() {
             onChange={(e) => setHomeUrl(e.target.value)}
             className="mt-1 w-full rounded border p-2"
             placeholder="http://localhost:3001"
+          />
+        </label>
+        <label className="block">
+          登出地址（取消授权时签出该网站）
+          <input
+            value={logoutUri}
+            onChange={(e) => setLogoutUri(e.target.value)}
+            className="mt-1 w-full rounded border p-2"
+            placeholder="http://localhost:3001/logout"
           />
         </label>
         <label className="flex items-center gap-2">

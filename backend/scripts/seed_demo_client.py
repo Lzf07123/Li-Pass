@@ -18,6 +18,7 @@ def main() -> None:
                 name="Demo Site",
                 description="OIDC 示例授权网站",
                 home_url="http://localhost:3001",
+                logout_uri="http://localhost:3001/logout",
                 redirect_uris=[REDIRECT_URI],
                 scopes=["openid", "profile", "email"],
             )
@@ -25,6 +26,7 @@ def main() -> None:
         else:
             client.redirect_uris = [REDIRECT_URI]
             client.home_url = "http://localhost:3001"
+            client.logout_uri = "http://localhost:3001/logout"
             client.is_active = True
         db.commit()
     print(f"示例客户端就绪: client_id={CLIENT_ID}（公开客户端，无 secret）")

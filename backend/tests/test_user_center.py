@@ -72,7 +72,7 @@ def test_apps_plaza_lists_consented(client, captured_email, db_session) -> None:
 
 
 def test_apps_plaza_revoke_consent(client, captured_email, db_session) -> None:
-    client_model = create_client(db_session)
+    client_model = create_client(db_session, logout_uri="http://localhost:3001/logout")
     register_and_login(client, captured_email)
     user = db_session.scalar(select(User).where(User.email == "a@example.com"))
     db_session.add(
@@ -82,7 +82,8 @@ def test_apps_plaza_revoke_consent(client, captured_email, db_session) -> None:
     assert len(client.get("/api/v1/apps").json()) == 1
 
     response = client.delete("/api/v1/apps/cli_demo")
-    assert response.status_code == 204
+    assert response.status_code == 200
+    assert response.json()["logout_uri"] == "http://localhost:3001/logout"
     assert client.get("/api/v1/apps").json() == []
 
     response = client.get("/oauth2/authorize", params=authorize_params())

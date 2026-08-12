@@ -107,10 +107,12 @@ def callback():
     return redirect(url_for("index"))
 
 
+@app.get("/logout")
 @app.post("/logout")
 def logout():
     session.clear()
-    return redirect(url_for("index"))
+    next_url = request.args.get("next") or url_for("index")
+    return redirect(next_url)
 
 
 if __name__ == "__main__":

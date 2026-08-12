@@ -162,7 +162,7 @@ def list_apps(
     return result
 
 
-@router.delete("/apps/{client_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/apps/{client_id}")
 def revoke_app(
     client_id: str,
     user: User = Depends(get_current_user),
@@ -192,3 +192,4 @@ def revoke_app(
         target_type="oauth_client",
         target_id=str(client.id),
     )
+    return {"logout_uri": client.logout_uri}

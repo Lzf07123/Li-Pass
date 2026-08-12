@@ -95,8 +95,12 @@ export function DashboardPage() {
     if (!window.confirm("确定取消对该应用的授权吗？")) return;
     setError("");
     try {
-      await appsApi.revoke(clientId);
+      const result = await appsApi.revoke(clientId);
       setApps(apps.filter((app) => app.client_id !== clientId));
+      if (result.logout_uri) {
+        const next = encodeURIComponent(`${window.location.origin}/`);
+        window.location.href = `${result.logout_uri}?next=${next}`;
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "取消授权失败");
     }

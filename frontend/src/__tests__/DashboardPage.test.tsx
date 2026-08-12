@@ -58,6 +58,12 @@ describe("DashboardPage", () => {
 
   it("取消授权后应用从广场移除", async () => {
     vi.spyOn(window, "confirm").mockReturnValue(true);
+    const originalLocation = window.location;
+    Object.defineProperty(window, "location", {
+      value: { href: "" },
+      writable: true,
+      configurable: true,
+    });
     const fetchMock = vi
       .fn()
       .mockResolvedValueOnce(
@@ -99,7 +105,12 @@ describe("DashboardPage", () => {
           { status: 200, headers: { "Content-Type": "application/json" } }
         )
       )
-      .mockResolvedValueOnce(new Response(null, { status: 204 }));
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ logout_uri: "http://localhost:3001/logout" }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        })
+      );
     vi.stubGlobal("fetch", fetchMock);
     render(
       <MemoryRouter>
@@ -113,5 +124,9 @@ describe("DashboardPage", () => {
       (call) => (call[1] as RequestInit | undefined)?.method === "DELETE"
     );
     expect(String(deleteCall?.[0])).toContain("/api/v1/apps/cli_demo");
+    await waitFor(() =>
+      expect(window.location.href).toContain("http://localhost:3001/logout?next=")
+    );
+    Object.defineProperty(window, "location", { value: originalLocation, configurable: true });
   });
 });
