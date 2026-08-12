@@ -18,7 +18,7 @@ from app.models.user import User, UserRole, UserStatus
 from app.security.passwords import hash_password, verify_password
 from app.security.tokens import generate_token, hash_token
 from app.services.account_deletion import delete_user_account
-from app.services.audit import log_audit
+from app.services.audit import log_audit, log_rate_limit_rejected_once
 from app.services.email import get_email_service
 from app.services.rate_limit import get_rate_limiter
 
@@ -215,18 +215,17 @@ def invite_user(
 ) -> dict:
     ip = request.client.host if request.client else ""
     settings = get_settings()
-    if (
-        get_rate_limiter().hit(
-            "admin_invite", ip, settings.admin_invite_rate_window_seconds
-        )
-        > settings.admin_invite_rate_limit
-    ):
-        log_audit(
+    invite_count = get_rate_limiter().hit(
+        "admin_invite", ip, settings.admin_invite_rate_window_seconds
+    )
+    if invite_count > settings.admin_invite_rate_limit:
+        log_rate_limit_rejected_once(
             db,
-            "admin",
-            str(actor.id),
-            "rate_limit_rejected",
-            category="security",
+            "admin_invite",
+            invite_count,
+            settings.admin_invite_rate_limit,
+            actor_type="admin",
+            actor_id=str(actor.id),
             ip=ip,
             detail={"action": "admin_invite", "reason": "rate_limit"},
         )
@@ -320,18 +319,17 @@ def resend_invite(
 ) -> dict:
     ip = request.client.host if request.client else ""
     settings = get_settings()
-    if (
-        get_rate_limiter().hit(
-            "admin_invite", ip, settings.admin_invite_rate_window_seconds
-        )
-        > settings.admin_invite_rate_limit
-    ):
-        log_audit(
+    resend_count = get_rate_limiter().hit(
+        "admin_invite", ip, settings.admin_invite_rate_window_seconds
+    )
+    if resend_count > settings.admin_invite_rate_limit:
+        log_rate_limit_rejected_once(
             db,
-            "admin",
-            str(actor.id),
-            "rate_limit_rejected",
-            category="security",
+            "admin_resend_invite",
+            resend_count,
+            settings.admin_invite_rate_limit,
+            actor_type="admin",
+            actor_id=str(actor.id),
             ip=ip,
             detail={"action": "admin_resend_invite", "reason": "rate_limit"},
         )
@@ -440,21 +438,21 @@ def batch_invite_users(
     ip = request.client.host if request.client else ""
     settings = get_settings()
     emails = list(dict.fromkeys(email.lower() for email in payload.emails))
-    if (
-        get_rate_limiter().hit(
-            "admin_invite",
-            ip,
-            settings.admin_invite_rate_window_seconds,
-            len(emails),
-        )
-        > settings.admin_invite_rate_limit
-    ):
-        log_audit(
+    batch_count = get_rate_limiter().hit(
+        "admin_invite",
+        ip,
+        settings.admin_invite_rate_window_seconds,
+        len(emails),
+    )
+    if batch_count > settings.admin_invite_rate_limit:
+        log_rate_limit_rejected_once(
             db,
-            "admin",
-            str(actor.id),
-            "rate_limit_rejected",
-            category="security",
+            "admin_batch_invite",
+            batch_count,
+            settings.admin_invite_rate_limit,
+            increment=len(emails),
+            actor_type="admin",
+            actor_id=str(actor.id),
             ip=ip,
             detail={"action": "admin_batch_invite", "reason": "rate_limit"},
         )

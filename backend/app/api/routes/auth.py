@@ -34,7 +34,7 @@ from app.security.passwords import (
 from app.security.tokens import generate_token, hash_token
 from app.services.email import get_email_service
 from app.services.otps import create_otp, otp_attempts_exhausted, verify_otp
-from app.services.audit import log_audit
+from app.services.audit import log_audit, log_rate_limit_rejected_once
 from app.services.rate_limit import get_rate_limiter
 from app.services.site_settings import (
     PUBLIC_REGISTRATION_ENABLED_KEY,
@@ -115,18 +115,15 @@ def register(
             "注册渠道暂时关闭，只接收邀请注册",
         )
     ip = request.client.host if request.client else ""
-    if (
-        get_rate_limiter().hit(
-            "register", ip, settings.register_rate_window_seconds
-        )
-        > settings.register_rate_limit
-    ):
-        log_audit(
+    register_count = get_rate_limiter().hit(
+        "register", ip, settings.register_rate_window_seconds
+    )
+    if register_count > settings.register_rate_limit:
+        log_rate_limit_rejected_once(
             db,
-            "system",
-            None,
-            "rate_limit_rejected",
-            category="security",
+            "register",
+            register_count,
+            settings.register_rate_limit,
             ip=ip,
             detail={"action": "register", "reason": "rate_limit"},
         )
@@ -228,20 +225,15 @@ def resend_verify_email(
     db: Session = Depends(get_db),
 ) -> dict:
     email = payload.email.lower()
-    if (
-        get_rate_limiter().hit(
-            "email_resend",
-            email,
-            settings.email_verify_rate_window_seconds,
-        )
-        > settings.email_verify_rate_limit
-    ):
-        log_audit(
+    resend_count = get_rate_limiter().hit(
+        "email_resend", email, settings.email_verify_rate_window_seconds
+    )
+    if resend_count > settings.email_verify_rate_limit:
+        log_rate_limit_rejected_once(
             db,
-            "system",
-            None,
-            "rate_limit_rejected",
-            category="security",
+            "email_verify_resend",
+            resend_count,
+            settings.email_verify_rate_limit,
             detail={"action": "email_verify_resend", "reason": "rate_limit"},
         )
         raise HTTPException(
@@ -364,18 +356,15 @@ def login(
 ) -> dict:
     ip = request.client.host if request.client else ""
     # 在 Argon2 之前按 IP 前置限流，防止分布式重试打满 CPU/内存。
-    if (
-        get_rate_limiter().hit(
-            "login_ip", ip, settings.login_rate_window_seconds
-        )
-        > settings.login_ip_rate_limit
-    ):
-        log_audit(
+    login_ip_count = get_rate_limiter().hit(
+        "login_ip", ip, settings.login_rate_window_seconds
+    )
+    if login_ip_count > settings.login_ip_rate_limit:
+        log_rate_limit_rejected_once(
             db,
-            "system",
-            None,
-            "rate_limit_rejected",
-            category="security",
+            "login",
+            login_ip_count,
+            settings.login_ip_rate_limit,
             ip=ip,
             user_agent=request.headers.get("user-agent"),
             detail={"action": "login", "reason": "ip_rate_limit"},
@@ -495,14 +484,6 @@ def send_twofa_code(
         "otp_resend_cooldown", user.email
     )
     if cooldown_left > 0:
-        log_audit(
-            db,
-            "user",
-            str(user.id),
-            "rate_limit_rejected",
-            category="security",
-            detail={"action": "twofa_send", "reason": "cooldown"},
-        )
         raise HTTPException(
             status.HTTP_429_TOO_MANY_REQUESTS,
             f"验证码发送过于频繁，请在 {cooldown_left} 秒后重试",
@@ -511,13 +492,17 @@ def send_twofa_code(
         "otp_send", user.email, settings.otp_send_window_seconds
     )
     if send_count > settings.otp_send_limit:
-        log_audit(
+        log_rate_limit_rejected_once(
             db,
-            "user",
-            str(user.id),
-            "rate_limit_rejected",
-            category="security",
-            detail={"action": "twofa_send", "reason": "rate_limit"},
+            "twofa_send",
+            send_count,
+            settings.otp_send_limit,
+            actor_type="user",
+            actor_id=str(user.id),
+            detail={
+                "action": "twofa_send",
+                "reason": "rate_limit",
+            },
         )
         raise HTTPException(
             status.HTTP_429_TOO_MANY_REQUESTS,
@@ -659,20 +644,17 @@ def request_password_reset(
     db: Session = Depends(get_db),
 ) -> dict:
     email = payload.email.lower()
-    if (
-        get_rate_limiter().hit(
-            "password_reset",
-            email,
-            settings.password_reset_rate_window_seconds,
-        )
-        > settings.password_reset_rate_limit
-    ):
-        log_audit(
+    reset_count = get_rate_limiter().hit(
+        "password_reset",
+        email,
+        settings.password_reset_rate_window_seconds,
+    )
+    if reset_count > settings.password_reset_rate_limit:
+        log_rate_limit_rejected_once(
             db,
-            "system",
-            None,
-            "rate_limit_rejected",
-            category="security",
+            "password_reset",
+            reset_count,
+            settings.password_reset_rate_limit,
             detail={"action": "password_reset", "reason": "rate_limit"},
         )
         raise HTTPException(

@@ -51,3 +51,36 @@ def log_audit(
         )
     )
     db.commit()
+
+
+def log_rate_limit_rejected_once(
+    db,
+    action: str,
+    count: int,
+    limit: int,
+    increment: int = 1,
+    actor_type: str = "system",
+    actor_id: str | None = None,
+    ip: str | None = None,
+    user_agent: str | None = None,
+    detail: dict | None = None,
+) -> None:
+    """每个限流窗口只记录第一次拒绝，避免被持续 429 请求刷爆审计表。"""
+    if count > limit and count - increment <= limit:
+        log_audit(
+            db,
+            actor_type,
+            actor_id,
+            "rate_limit_rejected",
+            category="security",
+            ip=ip,
+            user_agent=user_agent,
+            detail=detail or {"action": action, "reason": "rate_limit"},
+        )
+
+
+def mask_phone(phone: str) -> str:
+    """手机号落审计日志前掩码：保留前 3 位与后 4 位。"""
+    if len(phone) < 7:
+        return "****"
+    return f"{phone[:3]}****{phone[-4:]}"

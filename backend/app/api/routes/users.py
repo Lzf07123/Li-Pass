@@ -29,7 +29,7 @@ from app.schemas.auth import (
 from app.security.passwords import hash_password, verify_password
 from app.services.account_deletion import delete_user_account
 from app.services.avatar_cleanup import delete_avatar_file
-from app.services.audit import log_audit
+from app.services.audit import log_audit, mask_phone
 from app.services.email import get_email_service
 from app.services.otps import create_otp, verify_otp
 from app.services.rate_limit import get_rate_limiter
@@ -221,7 +221,7 @@ def bind_phone(
         category="user",
         target_type="user",
         target_id=str(user.id),
-        detail={"phone": payload.phone},
+        detail={"phone": mask_phone(payload.phone)},
     )
     return serialize_user(user)
 
