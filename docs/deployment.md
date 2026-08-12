@@ -76,6 +76,9 @@ docker compose -f docker-compose.yaml --env-file .env exec backend \
 | `DATABASE_URL` / `REDIS_URL` | 数据与缓存连接串：留空时默认编排内 PostgreSQL/Redis（需 `bundle` profile）；填写远程地址即切换为远程实例 |
 | `PENDING_REQUEST_STORE` / `TWOFA_STORE` / `RATE_LIMITER` | 生产用 `redis` |
 | `ADMIN_INVITE_RATE_LIMIT` / `ADMIN_INVITE_RATE_WINDOW_SECONDS` | 管理端邀请限流（按来源 IP 计，批量邀请按人数累计；默认 100 次/小时） |
+| `LOGIN_EMAIL_RATE_LIMIT` / `LOGIN_EMAIL_RATE_WINDOW_SECONDS` | 全局限邮箱登录限流，防分布式 IP 爆破（默认 20 次/15 分钟） |
+| `CLIENT_BLOCK_RATE_LIMIT` / `CLIENT_BLOCK_RATE_WINDOW_SECONDS` | OAuth 客户端黑名单接口限流（默认 100 次/小时/client_id） |
+| `AUDIT_RETENTION_DAYS` | 审计日志保留天数，超期由后台维护任务删除（默认 180） |
 | `AVATAR_CLEANUP_INTERVAL_SECONDS` | 孤儿头像清理周期（秒）；`0` 关闭周期任务，仍保留启动时清理一次（默认 21600） |
 | `EPHEMERAL_RETENTION_HOURS` | 过期 OTP/授权码/邀请的保留期（小时），超期由后台维护任务删除（默认 168） |
 | `DB_POOL_SIZE` / `DB_MAX_OVERFLOW` | SQLAlchemy 连接池大小（默认 `5` + `10`；提高 worker 数时应同步放大） |
@@ -132,6 +135,7 @@ SMTP_USE_TLS=true
 邮件分为两类：注册/登录/重置/绑手机等场景发送 6 位验证码（10 分钟有效，重发会作废旧码）；邀请注册发送一次性邀请链接（7 天有效）。各发送接口的限流口径不同：
 
 - 登录后 2FA 验证码、手机绑定验证码：`OTP_SEND_LIMIT=5` 次/小时/邮箱；2FA 进入二次验证页不自动发信，需用户点击“获取验证码”，重发最小间隔 `OTP_RESEND_COOLDOWN_SECONDS`（默认 60 秒）
+- 登录失败：每邮箱+IP `LOGIN_RATE_LIMIT=10` 次/15 分钟，每 IP `LOGIN_IP_RATE_LIMIT=30` 次/15 分钟，全局限邮箱 `LOGIN_EMAIL_RATE_LIMIT=20` 次/15 分钟
 - 邮箱激活验证码重发与验证尝试：`EMAIL_VERIFY_RATE_LIMIT=30` 次/小时/邮箱（不按 IP 限流，避免办公网/NAT 共享出口误伤）
 - 注册/邀请注册接口：`REGISTER_RATE_LIMIT=10` 次/小时/IP
 - 找回密码：`PASSWORD_RESET_RATE_LIMIT=5` 次/小时/邮箱（不按 IP 限流）

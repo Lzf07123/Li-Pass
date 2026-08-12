@@ -110,7 +110,7 @@ portal-oss/
 2. 后端创建 `status=active` 但 `email_verified_at` 为空的用户，生成邮箱激活码（`otps`，purpose=register，10 分钟有效）。
 3. 邮件服务发送 6 位激活验证码；门户提供重发按钮（重发会作废旧码）。
 4. 用户激活后 `email_verified_at` 写入；未验证邮箱不能开启邮箱 2FA。
-5. 未验证邮箱的用户可以登录门户，前端会提示“完成验证后才能授权登录接入网站”并引导到激活页；注意：当前后端 `/oauth2/authorize` 未强制校验 `email_verified`，该限制仅存在于门户前端提示层。
+5. 未验证邮箱的用户可以登录门户，前端会提示“完成验证后才能授权登录接入网站”并引导到激活页；后端 `/oauth2/authorize` 在请求含 `email` scope 时强制校验 `email_verified`，未验证用户被引导到验证邮箱页。
 
 ### 5.2 登录与 2FA
 
