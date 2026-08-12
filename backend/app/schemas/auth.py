@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
 
@@ -35,8 +37,42 @@ class UserOut(BaseModel):
     email: EmailStr
     nickname: str
     email_verified: bool
+    phone: str | None = None
     role: str
     status: str
+
+
+class ProfileUpdate(BaseModel):
+    nickname: str | None = Field(default=None, min_length=1, max_length=80)
+    avatar_url: str | None = Field(default=None, max_length=500)
+
+
+class PasswordChange(BaseModel):
+    current_password: str = Field(min_length=1, max_length=128)
+    new_password: str = Field(min_length=8, max_length=128)
+
+
+class PhoneBind(BaseModel):
+    phone: str = Field(pattern=r"^\+?[0-9]{6,20}$")
+
+
+class SessionOut(BaseModel):
+    id: str
+    device_name: str
+    ip: str
+    user_agent: str
+    created_at: datetime
+    last_used_at: datetime
+    expires_at: datetime
+    current: bool
+
+
+class AppOut(BaseModel):
+    client_id: str
+    name: str
+    description: str
+    logo_url: str | None
+    home_url: str | None
 
 
 def serialize_user(user) -> dict:
@@ -45,6 +81,7 @@ def serialize_user(user) -> dict:
         "email": user.email,
         "nickname": user.nickname,
         "email_verified": user.email_verified_at is not None,
+        "phone": user.phone,
         "role": user.role.value,
         "status": user.status.value,
     }

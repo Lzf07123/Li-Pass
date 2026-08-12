@@ -1,17 +1,22 @@
+import uuid
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_admin
 from app.core.db import get_db
+from app.models.client_user_block import ClientUserBlock
 from app.models.oauth_client import OAuthClient
 from app.schemas.oauth import (
+    ClientBlockCreate,
     ClientCreate,
     ClientSecretOut,
     ClientUpdate,
     serialize_client,
 )
 from app.security.tokens import generate_client_id, generate_client_secret, hash_token
+from app.services.blocks import add_block, list_blocks, remove_block
 
 router = APIRouter(
     prefix="/api/v1/admin/clients",
@@ -41,6 +46,7 @@ def create_client(payload: ClientCreate, db: Session = Depends(get_db)) -> dict:
         name=payload.name,
         description=payload.description,
         logo_url=payload.logo_url,
+        home_url=payload.home_url,
         redirect_uris=payload.redirect_uris,
         scopes=payload.scopes,
         require_consent_every_time=payload.require_consent_every_time,
@@ -52,7 +58,7 @@ def create_client(payload: ClientCreate, db: Session = Depends(get_db)) -> dict:
 
 
 @router.get("/{client_id:uuid}", response_model=dict)
-def get_client(client_id, db: Session = Depends(get_db)) -> dict:
+def get_client(client_id: uuid.UUID, db: Session = Depends(get_db)) -> dict:
     client = db.get(OAuthClient, client_id)
     if client is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "应用不存在")
@@ -60,7 +66,9 @@ def get_client(client_id, db: Session = Depends(get_db)) -> dict:
 
 
 @router.patch("/{client_id:uuid}", response_model=dict)
-def update_client(client_id, payload: ClientUpdate, db: Session = Depends(get_db)) -> dict:
+def update_client(
+    client_id: uuid.UUID, payload: ClientUpdate, db: Session = Depends(get_db)
+) -> dict:
     client = db.get(OAuthClient, client_id)
     if client is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "应用不存在")
@@ -72,7 +80,7 @@ def update_client(client_id, payload: ClientUpdate, db: Session = Depends(get_db
 
 
 @router.delete("/{client_id:uuid}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_client(client_id, db: Session = Depends(get_db)) -> None:
+def delete_client(client_id: uuid.UUID, db: Session = Depends(get_db)) -> None:
     client = db.get(OAuthClient, client_id)
     if client is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "应用不存在")
@@ -91,3 +99,58 @@ def reset_secret(client_id, db: Session = Depends(get_db)) -> dict:
     client.client_secret_hash = hash_token(client_secret)
     db.commit()
     return {"client": serialize_client(client), "client_secret": client_secret}
+
+
+def _serialize_block(block) -> dict:
+    return {
+        "id": str(block.id),
+        "user_id": str(block.user_id) if block.user_id else None,
+        "email": block.email,
+        "reason": block.reason,
+        "created_at": block.created_at,
+    }
+
+
+@router.get("/{client_id:uuid}/blocks", response_model=list[dict])
+def admin_list_blocks(client_id: uuid.UUID, db: Session = Depends(get_db)) -> list[dict]:
+    client = db.get(OAuthClient, client_id)
+    if client is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "应用不存在")
+    return [_serialize_block(b) for b in list_blocks(db, client.id)]
+
+
+@router.post("/{client_id:uuid}/blocks", response_model=dict)
+def admin_add_block(
+    client_id: uuid.UUID,
+    payload: ClientBlockCreate,
+    db: Session = Depends(get_db),
+) -> dict:
+    client = db.get(OAuthClient, client_id)
+    if client is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "应用不存在")
+    try:
+        block = add_block(
+            db,
+            client,
+            email=payload.email,
+            user_id=uuid.UUID(payload.user_id) if payload.user_id else None,
+            reason=payload.reason,
+        )
+    except ValueError as exc:
+        raise HTTPException(status.HTTP_409_CONFLICT, str(exc))
+    return _serialize_block(block)
+
+
+@router.delete(
+    "/{client_id:uuid}/blocks/{block_id}", status_code=status.HTTP_204_NO_CONTENT
+)
+def admin_remove_block(
+    client_id: uuid.UUID, block_id: uuid.UUID, db: Session = Depends(get_db)
+) -> None:
+    client = db.get(OAuthClient, client_id)
+    if client is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "应用不存在")
+    block = db.get(ClientUserBlock, block_id)
+    if block is None or block.client_id != client.id:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "封禁记录不存在")
+    remove_block(db, block.id)

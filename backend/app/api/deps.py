@@ -18,7 +18,7 @@ def _as_utc(dt: datetime) -> datetime:
     return dt.astimezone(timezone.utc)
 
 
-def get_current_user(request: Request, db: Session = Depends(get_db)) -> User:
+def get_current_session(request: Request, db: Session = Depends(get_db)) -> SessionModel:
     settings = get_settings()
     token = request.cookies.get(settings.session_cookie_name)
     if not token:
@@ -41,6 +41,14 @@ def get_current_user(request: Request, db: Session = Depends(get_db)) -> User:
 
     session.last_used_at = now
     db.commit()
+    return session
+
+
+def get_current_user(request: Request, db: Session = Depends(get_db)) -> User:
+    session = get_current_session(request, db)
+    user = db.get(User, session.user_id)
+    if user is None or user.status != UserStatus.active:
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "User unavailable")
     return user
 
 
