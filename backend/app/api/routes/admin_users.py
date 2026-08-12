@@ -96,7 +96,14 @@ def _serialize_user(user: User) -> dict:
 
 
 def _serialize_invite(invite: AccountInvite, now: datetime) -> dict:
-    expired = _as_utc(invite.expires_at) <= now
+    if invite.cancelled_at is not None:
+        status = "cancelled"
+    elif invite.used_at is not None:
+        status = "used"
+    elif _as_utc(invite.expires_at) <= now:
+        status = "expired"
+    else:
+        status = "invited"
     return {
         "id": str(invite.id),
         "kind": "invite",
@@ -105,20 +112,26 @@ def _serialize_invite(invite: AccountInvite, now: datetime) -> dict:
         "phone": None,
         "email_verified": False,
         "role": None,
-        "status": "expired" if expired else "invited",
+        "status": status,
         "created_at": invite.created_at,
         "expires_at": invite.expires_at,
+        "used_at": invite.used_at,
+        "cancelled_at": invite.cancelled_at,
     }
 
 
 @router.get("/users", response_model=list[dict])
 def list_users(
     q: str | None = Query(None, max_length=100),
+    status: str | None = Query(
+        None, pattern="^(active|disabled|invited|expired|cancelled|used)$"
+    ),
+    role: str | None = Query(None, pattern="^(user|admin)$"),
     limit: int = Query(50, ge=1, le=200),
     db: Session = Depends(get_db),
 ) -> list[dict]:
     user_stmt = select(User)
-    invite_stmt = select(AccountInvite).where(AccountInvite.used_at.is_(None))
+    invite_stmt = select(AccountInvite)
     if q:
         pattern = f"%{q}%"
         user_stmt = user_stmt.where(
@@ -132,6 +145,7 @@ def list_users(
         )
 
     now = datetime.now(timezone.utc)
+    registered_emails = set(db.scalars(select(User.email)).all())
     rows = [
         {"created_at": user.created_at, "item": _serialize_user(user)}
         for user in db.scalars(user_stmt).all()
@@ -142,7 +156,14 @@ def list_users(
             "item": _serialize_invite(invite, now),
         }
         for invite in db.scalars(invite_stmt).all()
+        # 已使用且邮箱仍注册的邀请由用户行展示，避免重复；
+        # 注册后账号被删除的邀请保留展示，状态为“已使用”。
+        if invite.used_at is None or invite.email not in registered_emails
     )
+    if status:
+        rows = [row for row in rows if row["item"]["status"] == status]
+    if role:
+        rows = [row for row in rows if row["item"]["role"] == role]
     # 已注册用户与待注册邀请按创建时间倒序合并展示，
     # 方便管理员在用户栏直接看到每封邀请所处的状态。
     rows.sort(key=lambda row: _as_utc(row["created_at"]), reverse=True)
@@ -208,6 +229,7 @@ def invite_user(
         select(AccountInvite).where(
             AccountInvite.email == email,
             AccountInvite.used_at.is_(None),
+            AccountInvite.cancelled_at.is_(None),
         )
     )
     if pending is not None and _as_utc(pending.expires_at) > now:
@@ -249,6 +271,118 @@ def invite_user(
     return {"message": "邀请邮件已发送"}
 
 
+@router.post("/users/invites/{invite_id:uuid}/cancel")
+def cancel_invite(
+    invite_id: uuid.UUID,
+    actor: User = Depends(get_current_admin),
+    db: Session = Depends(get_db),
+) -> dict:
+    invite = db.get(AccountInvite, invite_id)
+    if invite is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "邀请不存在")
+    if invite.used_at is not None:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "该邀请已被使用，无法取消")
+    if invite.cancelled_at is not None:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "该邀请已取消")
+
+    invite.cancelled_at = datetime.now(timezone.utc)
+    db.commit()
+    log_audit(
+        db,
+        "admin",
+        str(actor.id),
+        "admin_cancel_invite",
+        target_type="invite",
+        target_id=str(invite.id),
+        detail={"email": invite.email},
+    )
+    return {"message": "邀请已取消，原链接立即失效"}
+
+
+@router.post("/users/invites/{invite_id:uuid}/resend")
+def resend_invite(
+    invite_id: uuid.UUID,
+    request: Request,
+    actor: User = Depends(get_current_admin),
+    db: Session = Depends(get_db),
+) -> dict:
+    ip = request.client.host if request.client else ""
+    settings = get_settings()
+    if (
+        get_rate_limiter().hit(
+            "admin_invite", ip, settings.admin_invite_rate_window_seconds
+        )
+        > settings.admin_invite_rate_limit
+    ):
+        raise HTTPException(status.HTTP_429_TOO_MANY_REQUESTS, "发送邀请过于频繁，请稍后再试")
+
+    invite = db.get(AccountInvite, invite_id)
+    if invite is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "邀请不存在")
+    if db.scalar(select(User).where(User.email == invite.email)) is not None:
+        raise HTTPException(status.HTTP_409_CONFLICT, "该邮箱已注册，无需重发邀请")
+
+    now = datetime.now(timezone.utc)
+    token = generate_token()
+    token_hash = hash_token(token)
+    if invite.used_at is None:
+        # 待注册/已过期/已取消：复用原记录，轮换令牌并顺延有效期，旧链接立即失效。
+        invite.token_hash = token_hash
+        invite.expires_at = now + timedelta(days=settings.invite_ttl_days)
+        invite.cancelled_at = None
+        target = invite
+    else:
+        # 已使用（注册后账号被删除）：为同一邮箱创建全新邀请，
+        # 原邀请保留为历史记录；若已存在有效邀请则直接复用，避免同一邮箱出现多个有效链接。
+        existing_pending = db.scalar(
+            select(AccountInvite).where(
+                AccountInvite.email == invite.email,
+                AccountInvite.id != invite.id,
+                AccountInvite.used_at.is_(None),
+                AccountInvite.cancelled_at.is_(None),
+            )
+        )
+        if existing_pending is not None:
+            existing_pending.token_hash = token_hash
+            existing_pending.expires_at = now + timedelta(
+                days=settings.invite_ttl_days
+            )
+            target = existing_pending
+        else:
+            target = AccountInvite(
+                email=invite.email,
+                nickname=invite.nickname,
+                token_hash=token_hash,
+                created_by=actor.id,
+                expires_at=now + timedelta(days=settings.invite_ttl_days),
+            )
+            db.add(target)
+
+    link = f"{settings.frontend_base_url.rstrip('/')}/invite?token={token}"
+    try:
+        get_email_service().send_invite(invite.email, link)
+    except Exception:
+        # 邮件发送失败时回滚令牌轮换/新邀请，避免留下无法收到邮件的“幽灵邀请”。
+        db.rollback()
+        logger.exception("重发邀请邮件失败：%s", invite.email)
+        raise HTTPException(
+            status.HTTP_502_BAD_GATEWAY, "邮件发送失败，请检查邮件服务配置"
+        )
+    db.commit()
+    log_audit(
+        db,
+        "admin",
+        str(actor.id),
+        "admin_resend_invite",
+        target_type="invite",
+        target_id=str(invite.id),
+        ip=ip,
+        user_agent=request.headers.get("user-agent"),
+        detail={"email": invite.email},
+    )
+    return {"message": "邀请已重新发送"}
+
+
 @router.post("/users/batch/invite")
 def batch_invite_users(
     payload: AdminBatchInviteUser,
@@ -278,6 +412,7 @@ def batch_invite_users(
         select(AccountInvite).where(
             AccountInvite.email.in_(emails),
             AccountInvite.used_at.is_(None),
+            AccountInvite.cancelled_at.is_(None),
         )
     ).all()
     pending_emails = {

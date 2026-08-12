@@ -109,6 +109,8 @@ export interface AdminUserOut {
   status: string;
   created_at: string;
   expires_at: string | null;
+  used_at?: string | null;
+  cancelled_at?: string | null;
 }
 
 export interface BatchInviteResult {

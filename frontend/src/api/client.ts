@@ -237,8 +237,16 @@ export const twofaApi = {
 };
 
 export const adminUsersApi = {
-  list: (q = "") =>
-    api<AdminUserOut[]>(`/api/v1/admin/users${q ? `?q=${encodeURIComponent(q)}` : ""}`),
+  list: (q = "", status = "", role = "") => {
+    const params = new URLSearchParams();
+    if (q) params.set("q", q);
+    if (status) params.set("status", status);
+    if (role) params.set("role", role);
+    const query = params.toString();
+    return api<AdminUserOut[]>(
+      `/api/v1/admin/users${query ? `?${query}` : ""}`,
+    );
+  },
   createAccount: (data: {
     email: string;
     nickname: string;
@@ -254,6 +262,14 @@ export const adminUsersApi = {
     api<{ message: string }>("/api/v1/admin/users/invite", {
       method: "POST",
       body: JSON.stringify(data),
+    }),
+  cancelInvite: (id: string) =>
+    api<{ message: string }>(`/api/v1/admin/users/invites/${id}/cancel`, {
+      method: "POST",
+    }),
+  resendInvite: (id: string) =>
+    api<{ message: string }>(`/api/v1/admin/users/invites/${id}/resend`, {
+      method: "POST",
     }),
   batchInvite: (emails: string[]) =>
     api<BatchInviteResult>("/api/v1/admin/users/batch/invite", {

@@ -214,6 +214,7 @@ def register_by_invite(
     if (
         invite is None
         or invite.used_at is not None
+        or invite.cancelled_at is not None
         or _as_utc(invite.expires_at) < now
     ):
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "邀请链接无效或已过期")
@@ -227,6 +228,7 @@ def register_by_invite(
         .where(
             AccountInvite.id == invite.id,
             AccountInvite.used_at.is_(None),
+            AccountInvite.cancelled_at.is_(None),
         )
         .values(used_at=now)
         .execution_options(synchronize_session=False)

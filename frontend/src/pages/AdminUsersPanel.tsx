@@ -9,11 +9,13 @@ import type { AdminUserOut } from "../api/types";
 export function AdminUsersPanel({ currentAdminId }: { currentAdminId: string }) {
   const [users, setUsers] = useState<AdminUserOut[]>([]);
   const [query, setQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState("");
+  const [roleFilter, setRoleFilter] = useState("");
   const [passwordTarget, setPasswordTarget] = useState<AdminUserOut | null>(null);
   const [newPassword, setNewPassword] = useState("");
   const [confirmTarget, setConfirmTarget] = useState<{
     user: AdminUserOut;
-    action: "toggle" | "reset2fa";
+    action: "toggle" | "reset2fa" | "cancelInvite";
   } | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<AdminUserOut | null>(null);
   const [deletePassword, setDeletePassword] = useState("");
@@ -34,6 +36,7 @@ export function AdminUsersPanel({ currentAdminId }: { currentAdminId: string }) 
   const [batchInviteOpen, setBatchInviteOpen] = useState(false);
   const [batchInviteText, setBatchInviteText] = useState("");
   const [batchInviteBusy, setBatchInviteBusy] = useState(false);
+  const [inviteBusyId, setInviteBusyId] = useState<string | null>(null);
   const toast = useToast();
 
   const selectableUsers = users.filter(
@@ -48,16 +51,21 @@ export function AdminUsersPanel({ currentAdminId }: { currentAdminId: string }) 
     disabled: "已禁用",
     invited: "待注册",
     expired: "已过期",
+    cancelled: "已取消",
+    used: "已使用",
   };
 
-  const load = useCallback((q = "") => {
-    adminUsersApi
-      .list(q)
-      .then(setUsers)
-      .catch((err) =>
-        toast.error(err instanceof Error ? err.message : "加载失败"),
-      );
-  }, [toast]);
+  const load = useCallback(
+    (q = "", status = "", role = "") => {
+      adminUsersApi
+        .list(q, status, role)
+        .then(setUsers)
+        .catch((err) =>
+          toast.error(err instanceof Error ? err.message : "加载失败"),
+        );
+    },
+    [toast],
+  );
 
   useEffect(() => {
     load();
@@ -66,7 +74,7 @@ export function AdminUsersPanel({ currentAdminId }: { currentAdminId: string }) 
   function search(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setSelected(new Set());
-    load(query);
+    load(query, statusFilter, roleFilter);
   }
 
   async function toggleStatus(user: AdminUserOut) {
@@ -110,6 +118,10 @@ export function AdminUsersPanel({ currentAdminId }: { currentAdminId: string }) 
     setConfirmTarget({ user, action: "reset2fa" });
   }
 
+  function startCancelInvite(user: AdminUserOut) {
+    setConfirmTarget({ user, action: "cancelInvite" });
+  }
+
   async function runReset2fa(user: AdminUserOut) {
     try {
       const result = await adminUsersApi.reset2fa(user.id);
@@ -120,12 +132,39 @@ export function AdminUsersPanel({ currentAdminId }: { currentAdminId: string }) 
     }
   }
 
+  async function runCancelInvite(user: AdminUserOut) {
+    try {
+      const result = await adminUsersApi.cancelInvite(user.id);
+      setConfirmTarget(null);
+      await load(query, statusFilter, roleFilter);
+      toast.success(result.message);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "取消邀请失败");
+    }
+  }
+
+  async function runResendInvite(user: AdminUserOut) {
+    if (inviteBusyId !== null) return;
+    setInviteBusyId(user.id);
+    try {
+      const result = await adminUsersApi.resendInvite(user.id);
+      await load(query, statusFilter, roleFilter);
+      toast.success(result.message);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "重发邀请失败");
+    } finally {
+      setInviteBusyId(null);
+    }
+  }
+
   function runConfirm() {
     if (!confirmTarget) return;
     if (confirmTarget.action === "toggle") {
       void runToggle(confirmTarget.user);
-    } else {
+    } else if (confirmTarget.action === "reset2fa") {
       void runReset2fa(confirmTarget.user);
+    } else {
+      void runCancelInvite(confirmTarget.user);
     }
   }
 
@@ -181,7 +220,7 @@ export function AdminUsersPanel({ currentAdminId }: { currentAdminId: string }) 
       });
       setCreateOpen(false);
       toast.success(`账号 ${created.email} 已创建，用户可直接登录`);
-      load();
+      load(query, statusFilter, roleFilter);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "创建失败");
     } finally {
@@ -205,7 +244,7 @@ export function AdminUsersPanel({ currentAdminId }: { currentAdminId: string }) 
         nickname: inviteNickname || undefined,
       });
       setInviteOpen(false);
-      await load(query);
+      await load(query, statusFilter, roleFilter);
       toast.success(result.message);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "发送邀请失败");
@@ -241,7 +280,7 @@ export function AdminUsersPanel({ currentAdminId }: { currentAdminId: string }) 
     try {
       const result = await adminUsersApi.batchUpdate(ids, { status });
       setSelected(new Set());
-      await load(query);
+      await load(query, statusFilter, roleFilter);
       toast.success(
         `已${status === "active" ? "启用" : "禁用"} ${result.updated.length} 个账号`,
       );
@@ -266,7 +305,7 @@ export function AdminUsersPanel({ currentAdminId }: { currentAdminId: string }) 
       setBatchDeleteOpen(false);
       setBatchDeletePassword("");
       setSelected(new Set());
-      await load(query);
+      await load(query, statusFilter, roleFilter);
       toast.success(result.message);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "批量删除失败");
@@ -291,7 +330,7 @@ export function AdminUsersPanel({ currentAdminId }: { currentAdminId: string }) 
       const result = await adminUsersApi.batchInvite(emails);
       setBatchInviteOpen(false);
       setBatchInviteText("");
-      await load(query);
+      await load(query, statusFilter, roleFilter);
       const summary = [`已发送 ${result.invited.length} 封邀请`];
       if (result.skipped.length > 0) {
         summary.push(`跳过 ${result.skipped.length} 个（已注册或已邀请）`);
@@ -331,6 +370,37 @@ export function AdminUsersPanel({ currentAdminId }: { currentAdminId: string }) 
           >
             批量邀请
           </button>
+          <select
+            value={statusFilter}
+            onChange={(e) => {
+              setStatusFilter(e.target.value);
+              setSelected(new Set());
+              load(query, e.target.value, roleFilter);
+            }}
+            className="input-sm sm:w-36"
+            aria-label="按状态筛选"
+          >
+            <option value="">全部状态</option>
+            {Object.entries(STATUS_LABEL).map(([value, label]) => (
+              <option key={value} value={value}>
+                {label}
+              </option>
+            ))}
+          </select>
+          <select
+            value={roleFilter}
+            onChange={(e) => {
+              setRoleFilter(e.target.value);
+              setSelected(new Set());
+              load(query, statusFilter, e.target.value);
+            }}
+            className="input-sm sm:w-32"
+            aria-label="按角色筛选"
+          >
+            <option value="">全部角色</option>
+            <option value="user">普通用户</option>
+            <option value="admin">管理员</option>
+          </select>
           <form onSubmit={search} className="flex w-full gap-2 sm:w-auto">
             <input
               value={query}
@@ -442,6 +512,13 @@ export function AdminUsersPanel({ currentAdminId }: { currentAdminId: string }) 
                     >
                       {STATUS_LABEL[user.status] ?? user.status}
                     </span>
+                  ) : user.status === "cancelled" || user.status === "used" ? (
+                    <span
+                      className="badge badge-muted"
+                      title={user.expires_at ? `邀请有效期至 ${new Date(user.expires_at).toLocaleString("zh-CN")}` : undefined}
+                    >
+                      {STATUS_LABEL[user.status] ?? user.status}
+                    </span>
                   ) : (
                     <span
                       className="badge badge-warning"
@@ -453,7 +530,24 @@ export function AdminUsersPanel({ currentAdminId }: { currentAdminId: string }) 
                 </td>
                 <td>
                   {user.kind === "invite" ? (
-                    <span className="text-sm text-muted">—</span>
+                    <div className="flex justify-end gap-1.5">
+                      {(user.status === "invited" || user.status === "expired") && (
+                        <button
+                          onClick={() => startCancelInvite(user)}
+                          disabled={inviteBusyId !== null}
+                          className="btn btn-danger px-2.5 py-1.5 text-xs"
+                        >
+                          取消邀请
+                        </button>
+                      )}
+                      <button
+                        onClick={() => void runResendInvite(user)}
+                        disabled={inviteBusyId !== null}
+                        className="btn btn-secondary px-2.5 py-1.5 text-xs"
+                      >
+                        {inviteBusyId === user.id ? "发送中…" : "重发邀请"}
+                      </button>
+                    </div>
                   ) : (
                     <div className="flex justify-end gap-1.5">
                       <button
@@ -495,6 +589,16 @@ export function AdminUsersPanel({ currentAdminId }: { currentAdminId: string }) 
                 </td>
               </tr>
             ))}
+            {users.length === 0 && (
+              <tr>
+                <td
+                  colSpan={6}
+                  className="py-10 text-center text-sm text-muted"
+                >
+                  没有符合筛选条件的用户或邀请
+                </td>
+              </tr>
+            )}
           </tbody>
         </table>
       </div>
@@ -502,19 +606,38 @@ export function AdminUsersPanel({ currentAdminId }: { currentAdminId: string }) 
       <ConfirmDialog
         open={confirmTarget !== null}
         title={
-          confirmTarget?.action === "toggle" ? "禁用/启用用户" : "重置 2FA"
+          confirmTarget?.action === "toggle"
+            ? "禁用/启用用户"
+            : confirmTarget?.action === "cancelInvite"
+              ? "取消邀请"
+              : "重置 2FA"
         }
         message={
           confirmTarget && (
             <span>
-              确定
-              {confirmTarget.action === "toggle" ? "禁用/启用" : "重置 2FA"}
-              用户 {confirmTarget.user.email} 吗？
+              {confirmTarget.action === "cancelInvite" ? (
+                <>
+                  确定取消 {confirmTarget.user.email} 的邀请吗？
+                  取消后原邀请链接立即失效。
+                </>
+              ) : (
+                <>
+                  确定
+                  {confirmTarget.action === "toggle" ? "禁用/启用" : "重置 2FA"}
+                  用户 {confirmTarget.user.email} 吗？
+                </>
+              )}
             </span>
           )
         }
         intent="warning"
-        confirmLabel={confirmTarget?.action === "toggle" ? "确认" : "确认重置"}
+        confirmLabel={
+          confirmTarget?.action === "toggle"
+            ? "确认"
+            : confirmTarget?.action === "cancelInvite"
+              ? "确认取消"
+              : "确认重置"
+        }
         onConfirm={runConfirm}
         onCancel={() => setConfirmTarget(null)}
       />
