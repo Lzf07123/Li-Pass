@@ -11,3 +11,5 @@ PyJWT==2.10.1
 cryptography==44.0.0
 redis==5.2.1
 python-multipart==0.0.20
+pyotp==2.1.0
+qrcode==8.0

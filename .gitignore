@@ -53,6 +53,9 @@ redis-data/
 # JWT 私钥
 *.pem
 
+# 加密密钥
+*.key
+
 # 测试数据库与前端 lint 缓存
 *.sqlite3
 .oxlintcache/

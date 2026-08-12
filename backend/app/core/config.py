@@ -25,6 +25,13 @@ class Settings(BaseSettings):
     oauth_id_token_ttl_minutes: int = 5
     oauth_code_ttl_minutes: int = 10
     pending_request_store: str = "memory"
+    encryption_key_path: str = "encryption.key"
+    twofa_store: str = "memory"
+    rate_limiter: str = "memory"
+    login_rate_limit: int = 10
+    login_rate_window_seconds: int = 900
+    otp_send_limit: int = 5
+    otp_send_window_seconds: int = 3600
 
 
 @lru_cache
