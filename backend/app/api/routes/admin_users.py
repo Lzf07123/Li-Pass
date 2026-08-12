@@ -15,6 +15,7 @@ from app.models.audit_log import AuditLog
 from app.models.recovery_code import RecoveryCode
 from app.models.session import Session as SessionModel
 from app.models.user import User, UserRole, UserStatus
+from app.schemas.auth import PasswordConfirm
 from app.security.passwords import hash_password, verify_password
 from app.security.tokens import generate_token, hash_token
 from app.services.account_deletion import delete_user_account
@@ -34,10 +35,12 @@ router = APIRouter(
 class AdminUserUpdate(BaseModel):
     status: UserStatus | None = None
     role: UserRole | None = None
+    current_password: str | None = None
 
 
 class AdminResetPassword(BaseModel):
     new_password: str = Field(min_length=8, max_length=128)
+    current_password: str = Field(min_length=1, max_length=128)
 
 
 class AdminDeleteUser(BaseModel):
@@ -63,6 +66,7 @@ class AdminBatchUserUpdate(BaseModel):
     user_ids: list[uuid.UUID] = Field(min_length=1, max_length=200)
     status: UserStatus | None = None
     role: UserRole | None = None
+    current_password: str | None = None
 
 
 class AdminBatchDeleteUser(BaseModel):
@@ -551,6 +555,11 @@ def batch_update_users(
             raise HTTPException(
                 status.HTTP_400_BAD_REQUEST, "不能批量取消自己的管理员角色"
             )
+    if payload.role is not None:
+        if not payload.current_password or not verify_password(
+            payload.current_password, actor.password_hash
+        ):
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, "当前密码错误")
 
     for user in users:
         if payload.status is not None:
@@ -590,6 +599,11 @@ def update_user(
             raise HTTPException(status.HTTP_400_BAD_REQUEST, "不能禁用自己")
         if payload.role is not None and payload.role != UserRole.admin:
             raise HTTPException(status.HTTP_400_BAD_REQUEST, "不能取消自己的管理员角色")
+    if payload.role is not None:
+        if not payload.current_password or not verify_password(
+            payload.current_password, actor.password_hash
+        ):
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, "当前密码错误")
     if payload.status is not None:
         user.status = payload.status
     if payload.role is not None:
@@ -621,6 +635,8 @@ def reset_password(
     user = db.get(User, user_id)
     if user is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "用户不存在")
+    if not verify_password(payload.current_password, actor.password_hash):
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "当前密码错误")
     user.password_hash = hash_password(payload.new_password)
     sessions = db.scalars(
         select(SessionModel).where(
@@ -647,12 +663,15 @@ def reset_password(
 @router.post("/users/{user_id}/reset-2fa")
 def reset_twofa(
     user_id: uuid.UUID,
+    payload: PasswordConfirm,
     actor: User = Depends(get_current_admin),
     db: Session = Depends(get_db),
 ) -> dict:
     user = db.get(User, user_id)
     if user is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "用户不存在")
+    if not verify_password(payload.current_password, actor.password_hash):
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "当前密码错误")
     # 2FA 被重置后，旧会话（可能基于 2FA 建立）一并失效。
     sessions = db.scalars(
         select(SessionModel).where(

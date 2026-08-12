@@ -127,18 +127,20 @@ export const adminClientsApi = {
       method: "POST",
       body: JSON.stringify(data),
     }),
-  remove: (id: string) =>
+  remove: (id: string, current_password: string) =>
     api<void>(`/api/v1/admin/clients/${id}`, {
       method: "DELETE",
+      body: JSON.stringify({ current_password }),
     }),
   update: (id: string, data: ClientUpdate) =>
     api<ClientOut>(`/api/v1/admin/clients/${id}`, {
       method: "PATCH",
       body: JSON.stringify(data),
     }),
-  resetSecret: (id: string) =>
+  resetSecret: (id: string, current_password: string) =>
     api<ClientSecretOut>(`/api/v1/admin/clients/${id}/reset-secret`, {
       method: "POST",
+      body: JSON.stringify({ current_password }),
     }),
 };
 
@@ -295,29 +297,42 @@ export const adminUsersApi = {
   batchUpdate: (
     ids: string[],
     data: { status?: string; role?: string },
+    currentPassword?: string,
   ) =>
     api<{ updated: AdminUserOut[] }>("/api/v1/admin/users/batch", {
       method: "PATCH",
-      body: JSON.stringify({ user_ids: ids, ...data }),
+      body: JSON.stringify({
+        user_ids: ids,
+        ...data,
+        ...(currentPassword ? { current_password: currentPassword } : {}),
+      }),
     }),
   batchDelete: (ids: string[], current_password: string) =>
     api<BatchDeleteResult>("/api/v1/admin/users/batch/delete", {
       method: "POST",
       body: JSON.stringify({ user_ids: ids, current_password }),
     }),
-  update: (id: string, data: { status?: string; role?: string }) =>
+  update: (
+    id: string,
+    data: { status?: string; role?: string },
+    currentPassword?: string,
+  ) =>
     api<AdminUserOut>(`/api/v1/admin/users/${id}`, {
       method: "PATCH",
-      body: JSON.stringify(data),
+      body: JSON.stringify({
+        ...data,
+        ...(currentPassword ? { current_password: currentPassword } : {}),
+      }),
     }),
-  resetPassword: (id: string, new_password: string) =>
+  resetPassword: (id: string, new_password: string, current_password: string) =>
     api<{ message: string }>(`/api/v1/admin/users/${id}/reset-password`, {
       method: "POST",
-      body: JSON.stringify({ new_password }),
+      body: JSON.stringify({ new_password, current_password }),
     }),
-  reset2fa: (id: string) =>
+  reset2fa: (id: string, current_password: string) =>
     api<{ message: string }>(`/api/v1/admin/users/${id}/reset-2fa`, {
       method: "POST",
+      body: JSON.stringify({ current_password }),
     }),
   deleteAccount: (id: string, current_password: string) =>
     api<{ message: string }>(`/api/v1/admin/users/${id}/delete`, {
