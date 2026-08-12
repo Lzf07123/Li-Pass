@@ -24,6 +24,7 @@ from app.security.jwt import (
 )
 from app.security.tokens import hash_token
 from app.services.blocks import find_block
+from app.services.audit import log_audit
 from app.services.oidc import (
     _as_utc,
     build_authorize_redirect,
@@ -110,6 +111,18 @@ def authorize(
             code_challenge,
             code_challenge_method,
             session.auth_method,
+        )
+        log_audit(
+            db,
+            "user",
+            str(user.id),
+            "oauth_authorize",
+            category="oidc",
+            target_type="oauth_client",
+            target_id=str(client.id),
+            ip=request.client.host if request.client else None,
+            user_agent=request.headers.get("user-agent"),
+            detail={"client_id": client.client_id, "scopes": requested},
         )
         return RedirectResponse(
             build_authorize_redirect(redirect_uri, code, state), status_code=302

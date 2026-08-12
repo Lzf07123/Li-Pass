@@ -13,6 +13,7 @@ from app.services.oidc import (
     create_authorization_code,
     redirect_error,
 )
+from app.services.audit import log_audit
 from app.services.pending_requests import get_pending_request_store
 
 router = APIRouter(prefix="/api/v1/consent", tags=["consent"])
@@ -90,6 +91,18 @@ def approve(
     else:
         consent.scopes = sorted(set(consent.scopes) | set(granted))
     db.commit()
+    log_audit(
+        db,
+        "user",
+        str(user.id),
+        "consent_approve",
+        category="consent",
+        target_type="oauth_client",
+        target_id=str(client.id),
+        ip=request.client.host if request.client else None,
+        user_agent=request.headers.get("user-agent"),
+        detail={"client_id": client.client_id, "scopes": granted},
+    )
     store.delete(request_id)
     return {"redirect_url": build_authorize_redirect(pending.redirect_uri, code, pending.state)}
 
@@ -98,8 +111,17 @@ def approve(
 def deny(
     request_id: str,
     user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
 ) -> dict:
     store = get_pending_request_store()
     pending = _get_pending_or_404(request_id)
+    log_audit(
+        db,
+        "user",
+        str(user.id),
+        "consent_deny",
+        category="consent",
+        detail={"client_id": pending.client_id},
+    )
     store.delete(request_id)
     return {"redirect_url": redirect_error(pending.redirect_uri, "access_denied", pending.state)}

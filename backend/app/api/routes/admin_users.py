@@ -221,6 +221,15 @@ def invite_user(
         )
         > settings.admin_invite_rate_limit
     ):
+        log_audit(
+            db,
+            "admin",
+            str(actor.id),
+            "rate_limit_rejected",
+            category="security",
+            ip=ip,
+            detail={"action": "admin_invite", "reason": "rate_limit"},
+        )
         raise HTTPException(status.HTTP_429_TOO_MANY_REQUESTS, "发送邀请过于频繁，请稍后再试")
     email = payload.email.lower()
     if db.scalar(select(User).where(User.email == email)) is not None:
@@ -317,6 +326,15 @@ def resend_invite(
         )
         > settings.admin_invite_rate_limit
     ):
+        log_audit(
+            db,
+            "admin",
+            str(actor.id),
+            "rate_limit_rejected",
+            category="security",
+            ip=ip,
+            detail={"action": "admin_resend_invite", "reason": "rate_limit"},
+        )
         raise HTTPException(status.HTTP_429_TOO_MANY_REQUESTS, "发送邀请过于频繁，请稍后再试")
 
     invite = db.get(AccountInvite, invite_id)
@@ -431,6 +449,15 @@ def batch_invite_users(
         )
         > settings.admin_invite_rate_limit
     ):
+        log_audit(
+            db,
+            "admin",
+            str(actor.id),
+            "rate_limit_rejected",
+            category="security",
+            ip=ip,
+            detail={"action": "admin_batch_invite", "reason": "rate_limit"},
+        )
         raise HTTPException(status.HTTP_429_TOO_MANY_REQUESTS, "发送邀请过于频繁，请稍后再试")
 
     now = datetime.now(timezone.utc)
