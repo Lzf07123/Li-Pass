@@ -11,6 +11,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY app ./app
 COPY alembic.ini .
 COPY alembic ./alembic
+COPY scripts ./scripts
 
 RUN mkdir -p /app/keys /app/uploads && chown -R 10001:10001 /app
 
