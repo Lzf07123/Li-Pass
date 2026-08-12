@@ -101,6 +101,15 @@ docker compose up -d --build
 
 开发环境邮件验证码默认打印到后端控制台（或本地 Mailpit），无需真实邮件服务。
 
+### 生产形态启动
+
+```bash
+cp .env.prod.example .env.prod
+docker compose -f docker-compose.prod.yml --env-file .env.prod up -d --build
+```
+
+详细部署、密钥备份与 HTTPS 说明见 [docs/deployment.md](docs/deployment.md)。
+
 示例授权网站（OIDC 演示，端口 3001）：
 
 ```bash
@@ -109,6 +118,17 @@ cd backend && .venv/bin/python -m scripts.seed_demo_client
 ```
 
 打开 http://localhost:3001 点击“通过门户登录”，即可体验从第三方网站跳转到门户授权确认并登录的完整闭环。
+
+## 演示数据
+
+- `cd backend && .venv/bin/python -m scripts.seed_demo_client`：创建示例授权网站客户端（`demo-site`，公开客户端）
+- `cd backend && .venv/bin/python -m scripts.make_admin <邮箱>`：把已注册用户提升为管理员（可管理应用与黑名单、查看审计日志）
+
+## 文档
+
+- 设计文档：[docs/superpowers/specs/2026-08-12-unified-login-portal-design.md](docs/superpowers/specs/2026-08-12-unified-login-portal-design.md)
+- 部署与运维：[docs/deployment.md](docs/deployment.md)
+- OIDC 对接指南：[docs/oidc-integration.md](docs/oidc-integration.md)
 
 ## 设计文档
 
