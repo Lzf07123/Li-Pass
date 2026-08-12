@@ -4,6 +4,7 @@ import {
   useMemo,
   useRef,
   useState,
+  type CSSProperties,
   type ReactNode,
 } from "react";
 import { createPortal } from "react-dom";
@@ -131,15 +132,16 @@ export function ToastProvider({ children }: { children: ReactNode }) {
           aria-atomic="false"
           className="toast-viewport"
         >
-          {toasts.map((toast) => (
+          {toasts.map((toast, index) => (
             <div
               key={toast.id}
               role={toast.type === "error" ? "alert" : "status"}
+              style={{ "--toast-index": index } as CSSProperties}
               className={`toast toast-${toast.type} ${
                 toast.leaving ? "toast-leave" : "toast-enter"
               }`}
             >
-              <span className="toast-icon">
+              <span className="toast-icon toast-icon-pop">
                 <StatusIcon type={toast.type} className="h-4.5 w-4.5" />
               </span>
               <div className="min-w-0 flex-1 pt-0.5">

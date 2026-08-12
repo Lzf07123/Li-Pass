@@ -354,9 +354,14 @@
 
   .toast-enter {
     animation: toast-in 320ms var(--ease-spring) both;
+    animation-delay: calc(var(--toast-index, 0) * 40ms);
   }
   .toast-leave {
     animation: toast-out 220ms var(--ease-in) both;
+  }
+
+  .toast-icon-pop {
+    animation: toast-icon-pop 180ms var(--ease-spring) both;
   }
 
   /* ========== Modal 弹窗 ========== */
@@ -504,6 +509,17 @@
     }
     to {
       transform: scaleX(0);
+    }
+  }
+
+  @keyframes toast-icon-pop {
+    from {
+      opacity: 0;
+      transform: scale(0.5);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1);
     }
   }
 
