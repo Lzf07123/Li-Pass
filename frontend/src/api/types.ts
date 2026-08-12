@@ -27,6 +27,7 @@ export interface ClientOut {
   scopes: string[];
   require_consent_every_time: boolean;
   is_active: boolean;
+  has_secret: boolean;
   created_at: string;
 }
 

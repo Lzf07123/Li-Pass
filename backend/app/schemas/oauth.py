@@ -91,6 +91,7 @@ class ClientOut(BaseModel):
     scopes: list[str]
     require_consent_every_time: bool
     is_active: bool
+    has_secret: bool
     created_at: datetime
 
 
@@ -126,5 +127,6 @@ def serialize_client(client) -> dict:
         "scopes": client.scopes,
         "require_consent_every_time": client.require_consent_every_time,
         "is_active": client.is_active,
+        "has_secret": client.client_secret_hash is not None,
         "created_at": client.created_at,
     }

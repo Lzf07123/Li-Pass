@@ -12,15 +12,19 @@ export function AdminClientsPage() {
   const [homeUrl, setHomeUrl] = useState("");
   const [logoutUri, setLogoutUri] = useState("");
   const [redirectUris, setRedirectUris] = useState("");
-  const [isPublic, setIsPublic] = useState(true);
+  // 默认机密客户端：服务端 OIDC 对接需要 client_id + client_secret；
+  // 仅纯前端 SPA（PKCE）才需要勾选“公开客户端”。
+  const [isPublic, setIsPublic] = useState(false);
   const [blocks, setBlocks] = useState<Record<string, ClientBlockOut[]>>({});
   const [blockEmail, setBlockEmail] = useState<Record<string, string>>({});
   const [blockReason, setBlockReason] = useState<Record<string, string>>({});
   const [removeTarget, setRemoveTarget] = useState<ClientOut | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editDraft, setEditDraft] = useState<ClientOut | null>(null);
+  const [resetTarget, setResetTarget] = useState<ClientOut | null>(null);
   const [secretModal, setSecretModal] = useState<{
     name: string;
+    client_id: string;
     secret: string;
   } | null>(null);
   const toast = useToast();
@@ -56,6 +60,7 @@ export function AdminClientsPage() {
       setClients([result.client, ...clients]);
       setSecretModal({
         name: result.client.name,
+        client_id: result.client.client_id,
         secret: result.client_secret ?? "",
       });
       setName("");
@@ -159,8 +164,10 @@ export function AdminClientsPage() {
   async function resetSecret(client: ClientOut) {
     try {
       const result = await adminClientsApi.resetSecret(client.id);
+      setResetTarget(null);
       setSecretModal({
         name: client.name,
+        client_id: client.client_id,
         secret: result.client_secret ?? "",
       });
     } catch (err) {
@@ -168,18 +175,22 @@ export function AdminClientsPage() {
     }
   }
 
-  async function copySecret() {
-    if (!secretModal) return;
+  async function copyText(text: string, label: string) {
+    if (!text) return;
     if (!navigator.clipboard) {
       toast.error("当前浏览器不支持一键复制，请手动选择复制");
       return;
     }
     try {
-      await navigator.clipboard.writeText(secretModal.secret);
-      toast.success("client_secret 已复制到剪贴板");
+      await navigator.clipboard.writeText(text);
+      toast.success(`${label}已复制到剪贴板`);
     } catch {
       toast.error("复制失败，请手动选择复制");
     }
+  }
+
+  function startResetSecret(client: ClientOut) {
+    setResetTarget(client);
   }
 
   return (
@@ -233,6 +244,10 @@ export function AdminClientsPage() {
           />
           公开客户端（无 secret，仅 PKCE）
         </label>
+        <p className="text-xs text-muted">
+          不勾选“公开客户端”时会生成机密客户端并返回
+          client_secret，用于服务端 OIDC 对接。
+        </p>
         <button type="submit" className="btn btn-primary">
           创建应用
         </button>
@@ -245,13 +260,27 @@ export function AdminClientsPage() {
               <div className="min-w-0">
                 <p className="flex flex-wrap items-center gap-2 font-semibold text-foreground">
                   {client.name}
+                  {client.has_secret ? (
+                    <span className="badge badge-muted">机密客户端</span>
+                  ) : (
+                    <span className="badge badge-primary">公开客户端</span>
+                  )}
                   {client.is_active ? (
                     <span className="badge badge-success">启用中</span>
                   ) : (
                     <span className="badge badge-muted">已停用</span>
                   )}
                 </p>
-                <p className="mt-0.5 font-mono text-xs text-muted">{client.client_id}</p>
+                <p className="mt-0.5 flex flex-wrap items-center gap-2 font-mono text-xs text-muted">
+                  <span className="break-all">{client.client_id}</span>
+                  <button
+                    type="button"
+                    onClick={() => void copyText(client.client_id, "client_id")}
+                    className="btn-link text-xs"
+                  >
+                    复制
+                  </button>
+                </p>
                 {client.description && (
                   <p className="mt-1.5 text-sm text-foreground/80">
                     {client.description}
@@ -259,6 +288,15 @@ export function AdminClientsPage() {
                 )}
               </div>
               <div className="flex flex-wrap items-center gap-2">
+                {client.has_secret && (
+                  <button
+                    onClick={() => startResetSecret(client)}
+                    className="btn btn-secondary"
+                    title="重新生成 client_secret，旧密钥立即失效"
+                  >
+                    重置密钥
+                  </button>
+                )}
                 <button onClick={() => startEdit(client)} className="btn btn-secondary">
                   编辑
                 </button>
@@ -390,13 +428,6 @@ export function AdminClientsPage() {
                   <button onClick={cancelEdit} className="btn btn-secondary">
                     取消
                   </button>
-                  <button
-                    onClick={() => resetSecret(client)}
-                    className="btn btn-secondary ml-auto"
-                    title="为机密客户端重新生成 client_secret"
-                  >
-                    重置密钥
-                  </button>
                 </div>
               </fieldset>
             )}
@@ -465,20 +496,29 @@ export function AdminClientsPage() {
         onCancel={() => setRemoveTarget(null)}
       />
 
+      <ConfirmDialog
+        open={resetTarget !== null}
+        title="重置 client_secret"
+        message={
+          resetTarget && (
+            <span>
+              确定重置应用“{resetTarget.name}”的 client_secret 吗？
+              旧密钥将立即失效，需要同步更新接入方配置。
+            </span>
+          )
+        }
+        confirmLabel="确认重置"
+        onConfirm={() => resetTarget && void resetSecret(resetTarget)}
+        onCancel={() => setResetTarget(null)}
+      />
+
       <Modal
         open={secretModal !== null}
         onClose={() => setSecretModal(null)}
-        title={secretModal ? `${secretModal.name} 的 client_secret` : "client_secret"}
+        title={secretModal ? `${secretModal.name} 的接入凭据` : "接入凭据"}
         intent="warning"
         footer={
           <>
-            <button
-              type="button"
-              className="btn btn-secondary"
-              onClick={copySecret}
-            >
-              复制密钥
-            </button>
             <button
               type="button"
               className="btn btn-primary"
@@ -490,11 +530,52 @@ export function AdminClientsPage() {
         }
       >
         <p className="mb-3 text-warning">
-          该密钥只显示一次，请立即保存到安全的位置。
+          {secretModal?.secret
+            ? "client_secret 只显示一次，请立即保存到安全的位置。"
+            : "该客户端为公开客户端，仅需 client_id，配合 PKCE 使用。"}
         </p>
-        <code className="block break-all rounded-lg bg-surface-2 p-3 font-mono text-xs text-foreground">
-          {secretModal?.secret}
-        </code>
+        <div className="space-y-3">
+          <div>
+            <span className="label">client_id</span>
+            <div className="flex items-center gap-2">
+              <code className="min-w-0 flex-1 break-all rounded-lg bg-surface-2 p-3 font-mono text-xs text-foreground">
+                {secretModal?.client_id}
+              </code>
+              <button
+                type="button"
+                onClick={() =>
+                  void copyText(secretModal?.client_id ?? "", "client_id")
+                }
+                className="btn btn-secondary px-3 py-1.5 text-xs"
+              >
+                复制
+              </button>
+            </div>
+          </div>
+          {secretModal?.secret && (
+            <div>
+              <span className="label">client_secret</span>
+              <div className="flex items-center gap-2">
+                <code className="min-w-0 flex-1 break-all rounded-lg bg-surface-2 p-3 font-mono text-xs text-foreground">
+                  {secretModal.secret}
+                </code>
+                <button
+                  type="button"
+                  onClick={() =>
+                    void copyText(secretModal?.secret ?? "", "client_secret")
+                  }
+                  className="btn btn-secondary px-3 py-1.5 text-xs"
+                >
+                  复制
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+        <p className="mt-3 text-xs text-muted">
+          将 client_id 与 client_secret 配置到授权网站的 OIDC
+          客户端中；公开客户端无需 secret。
+        </p>
       </Modal>
     </section>
   );
