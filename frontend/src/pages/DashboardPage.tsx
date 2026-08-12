@@ -10,12 +10,14 @@ import {
   twofaApi,
 } from "../api/client";
 import type { AppOut, SessionOut, TotpSetup, TwoFaStatus, UserOut } from "../api/types";
+import { AnimatedNumber } from "../components/AnimatedNumber";
 import { AppHeader } from "../components/AppHeader";
 import { AsyncButton } from "../components/AsyncButton";
 import { ConfirmDialog } from "../components/ConfirmDialog";
 import { Modal } from "../components/Modal";
 import { SiteFooter } from "../components/SiteFooter";
 import { useAsyncAction } from "../hooks/useAsyncAction";
+import { useBreathOnChange } from "../hooks/useBreathOnChange";
 import { useToast } from "../hooks/useToast";
 import { FadeIn } from "../components/bits/FadeIn";
 
@@ -48,6 +50,8 @@ export function DashboardPage() {
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const navigate = useNavigate();
   const toast = useToast();
+  const sessionsBreathing = useBreathOnChange(sessions);
+  const appsBreathing = useBreathOnChange(apps);
   const emailNoticeId = useRef<number | null>(null);
 
   useEffect(() => {
@@ -643,8 +647,13 @@ export function DashboardPage() {
 
         <FadeIn delay={0.32}>
           <section className="card p-6">
-            <h2 className="mb-4 text-base font-semibold text-foreground">登录设备</h2>
-            <ul className="space-y-2">
+            <h2 className="mb-4 text-base font-semibold text-foreground">
+              登录设备
+              <span className="ml-2 text-sm font-normal text-muted">
+                共 <AnimatedNumber value={sessions.length} /> 个会话
+              </span>
+            </h2>
+            <ul className={`space-y-2 ${sessionsBreathing ? "animate-breath" : ""}`}>
               {sessions.map((session) => (
                 <li
                   key={session.id}
@@ -685,9 +694,14 @@ export function DashboardPage() {
 
         <FadeIn delay={0.4}>
           <section className="card p-6">
-            <h2 className="mb-4 text-base font-semibold text-foreground">应用广场</h2>
+            <h2 className="mb-4 text-base font-semibold text-foreground">
+              应用广场
+              <span className="ml-2 text-sm font-normal text-muted">
+                共 <AnimatedNumber value={apps.length} /> 个网站
+              </span>
+            </h2>
             {apps.length === 0 && <p className="text-sm text-muted">还没有已授权的网站</p>}
-            <div className="grid gap-3 sm:grid-cols-2">
+            <div className={`grid gap-3 sm:grid-cols-2 ${appsBreathing ? "animate-breath" : ""}`}>
               {apps.map((app) => (
                 <div
                   key={app.client_id}

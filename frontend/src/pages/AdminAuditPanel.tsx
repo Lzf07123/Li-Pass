@@ -1,12 +1,17 @@
 import { useCallback, useEffect, useState } from "react";
 
 import { adminAuditApi } from "../api/client";
+import { AnimatedNumber } from "../components/AnimatedNumber";
+import { AsyncButton } from "../components/AsyncButton";
+import { useAsyncAction } from "../hooks/useAsyncAction";
+import { useBreathOnChange } from "../hooks/useBreathOnChange";
 import { useToast } from "../hooks/useToast";
 import type { AuditLogOut } from "../api/types";
 
 export function AdminAuditPanel() {
   const [logs, setLogs] = useState<AuditLogOut[]>([]);
   const toast = useToast();
+  const logsBreathing = useBreathOnChange(logs);
 
   const load = useCallback(() => {
     adminAuditApi
@@ -21,15 +26,36 @@ export function AdminAuditPanel() {
     load();
   }, [load]);
 
+  const refreshAction = useAsyncAction(
+    async () => {
+      const next = await adminAuditApi.list();
+      setLogs(next);
+    },
+    {
+      onError: (err) =>
+        toast.error(err instanceof Error ? err.message : "刷新失败"),
+    },
+  );
+
   return (
     <section className="space-y-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold text-foreground">审计日志</h2>
-        <button onClick={load} className="btn btn-secondary">
+        <h2 className="text-lg font-semibold text-foreground">
+          审计日志
+          <span className="ml-2 text-sm font-normal text-muted">
+            共 <AnimatedNumber value={logs.length} /> 条记录
+          </span>
+        </h2>
+        <AsyncButton
+          type="button"
+          status={refreshAction.status}
+          onClick={() => void refreshAction.run()}
+          className="btn btn-secondary"
+        >
           刷新
-        </button>
+        </AsyncButton>
       </div>
-      <div className="table-shell">
+      <div className={`table-shell ${logsBreathing ? "animate-breath" : ""}`}>
         <table>
           <thead>
             <tr>

@@ -1,10 +1,12 @@
 import { useEffect, useState } from "react";
 
 import { adminBlocksApi, adminClientsApi } from "../api/client";
+import { AnimatedNumber } from "../components/AnimatedNumber";
 import { AsyncButton } from "../components/AsyncButton";
 import { ConfirmDialog } from "../components/ConfirmDialog";
 import { Modal } from "../components/Modal";
 import { useAsyncAction } from "../hooks/useAsyncAction";
+import { useBreathOnChange } from "../hooks/useBreathOnChange";
 import { useToast } from "../hooks/useToast";
 import type { ClientBlockOut, ClientOut } from "../api/types";
 
@@ -30,6 +32,7 @@ export function AdminClientsPage() {
     secret: string;
   } | null>(null);
   const toast = useToast();
+  const clientsBreathing = useBreathOnChange(clients);
 
   useEffect(() => {
     adminClientsApi
@@ -260,7 +263,12 @@ export function AdminClientsPage() {
 
   return (
     <section className="space-y-6">
-      <h2 className="text-lg font-semibold text-foreground">授权网站管理</h2>
+      <h2 className="text-lg font-semibold text-foreground">
+        授权网站管理
+        <span className="ml-2 text-sm font-normal text-muted">
+          共 <AnimatedNumber value={clients.length} /> 个应用
+        </span>
+      </h2>
 
       <form onSubmit={handleCreate} className="card space-y-4 p-6">
         <h3 className="text-sm font-semibold text-foreground">添加授权网站</h3>
@@ -322,7 +330,7 @@ export function AdminClientsPage() {
         </AsyncButton>
       </form>
 
-      <ul className="space-y-3">
+      <ul className={`space-y-3 ${clientsBreathing ? "animate-breath" : ""}`}>
         {clients.map((client) => (
           <li key={client.id} className="card card-interactive p-5">
             <div className="flex flex-wrap items-start justify-between gap-3">

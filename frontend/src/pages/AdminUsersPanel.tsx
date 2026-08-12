@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useState } from "react";
 
 import { adminUsersApi } from "../api/client";
+import { AnimatedNumber } from "../components/AnimatedNumber";
 import { AsyncButton } from "../components/AsyncButton";
 import { ConfirmDialog } from "../components/ConfirmDialog";
 import { Modal } from "../components/Modal";
 import { useAsyncAction } from "../hooks/useAsyncAction";
+import { useBreathOnChange } from "../hooks/useBreathOnChange";
 import { useToast } from "../hooks/useToast";
 import type { AdminUserOut } from "../api/types";
 
@@ -35,6 +37,7 @@ export function AdminUsersPanel({ currentAdminId }: { currentAdminId: string }) 
   const [batchInviteText, setBatchInviteText] = useState("");
   const [inviteBusyId, setInviteBusyId] = useState<string | null>(null);
   const toast = useToast();
+  const usersBreathing = useBreathOnChange(users);
 
   const selectableUsers = users.filter(
     (user) => user.id !== currentAdminId && user.kind !== "invite",
@@ -369,7 +372,12 @@ export function AdminUsersPanel({ currentAdminId }: { currentAdminId: string }) 
   return (
     <section className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 className="text-lg font-semibold text-foreground">用户管理</h2>
+        <h2 className="text-lg font-semibold text-foreground">
+          用户管理
+          <span className="ml-2 text-sm font-normal text-muted">
+            共 <AnimatedNumber value={users.length} /> 个账号
+          </span>
+        </h2>
         <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
           <button onClick={openCreate} className="btn btn-primary">
             添加账号
@@ -473,7 +481,7 @@ export function AdminUsersPanel({ currentAdminId }: { currentAdminId: string }) 
         </div>
       )}
 
-      <div className="table-shell">
+      <div className={`table-shell ${usersBreathing ? "animate-breath" : ""}`}>
         <table>
           <thead>
             <tr>
