@@ -57,7 +57,7 @@ services:
   demo-site:
     build: ./examples/demo-site
     environment:
-      PORTAL_ISSUER: ${FRONTEND_BASE_URL:-http://localhost:8000}
+      PORTAL_ISSUER: ${JWT_ISSUER:-http://localhost:8000}
       PORTAL_API_BASE: http://backend:8000
       PORTAL_CLIENT_ID: demo-site
     ports:

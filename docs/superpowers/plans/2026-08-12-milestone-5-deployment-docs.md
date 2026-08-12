@@ -136,7 +136,7 @@ volumes:
   backend-keys:
 ```
 
-注意：demo-site 的 `PORTAL_ISSUER` 用于浏览器跳转，必须与 `JWT_ISSUER`/`FRONTEND_BASE_URL` 的实际部署域名一致；示例默认 localhost。
+注意：demo-site 的 `PORTAL_ISSUER` 用于浏览器跳转到门户后端，取 `JWT_ISSUER`（不是 `FRONTEND_BASE_URL`）；示例默认 localhost。
 
 - [ ] **Step 3: 校验配置**
 
