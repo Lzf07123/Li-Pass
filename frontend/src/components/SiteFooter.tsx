@@ -17,9 +17,7 @@ const filingLinks = (
       rel="noreferrer"
       className="inline-flex items-center gap-1 transition-colors duration-200 hover:text-foreground"
     >
-      {ICP_FILING_ICON && (
-        <img src={ICP_FILING_ICON} alt="" className="h-3.5 w-auto" />
-      )}
+      <img src={ICP_FILING_ICON} alt="" className="h-3.5 w-auto" />
       {ICP_FILING_TEXT}
     </a>
     <a
@@ -28,9 +26,7 @@ const filingLinks = (
       rel="noreferrer"
       className="inline-flex items-center gap-1 transition-colors duration-200 hover:text-foreground"
     >
-      {POLICE_FILING_ICON && (
-        <img src={POLICE_FILING_ICON} alt="" className="h-3.5 w-auto" />
-      )}
+      <img src={POLICE_FILING_ICON} alt="" className="h-3.5 w-auto" />
       {POLICE_FILING_TEXT}
     </a>
   </>

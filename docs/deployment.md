@@ -1,6 +1,6 @@
 # 部署与运维
 
-Portal OSS 使用 Docker Compose 部署。仓库内置 `gateway`（nginx）作为**唯一对外入口**：前端、后端与演示站都不向宿主机映射端口，仅在容器内网互通；生产环境的 HTTPS 与域名由部署环境（K8s Ingress、云负载均衡、外部网关）负责，终止后转发到 gateway 的 80 端口。
+LinPass SSO 使用 Docker Compose 部署。仓库内置 `gateway`（nginx）作为**唯一对外入口**：前端、后端与演示站都不向宿主机映射端口，仅在容器内网互通；生产环境的 HTTPS 与域名由部署环境（K8s Ingress、云负载均衡、外部网关）负责，终止后转发到 gateway 的 80 端口。
 
 ## 架构
 
@@ -63,6 +63,7 @@ docker compose -f docker-compose.yaml --env-file .env exec backend \
 | 变量 | 说明 |
 | --- | --- |
 | `ENVIRONMENT` | `development` 或 `production`（生产启动时强校验，拼写错误会直接拒绝启动） |
+| `PUBLIC_BASE_URL` | 对外门户地址（默认 `http://localhost`）；编排内自动派生 `FRONTEND_BASE_URL` / `JWT_ISSUER` |
 | `FRONTEND_BASE_URL` | 门户前端地址（浏览器跳转用） |
 | `JWT_ISSUER` | 后端签发地址，必须与对外域名一致 |
 | `CORS_ORIGINS` | 允许的前端来源（JSON 数组） |
@@ -74,6 +75,10 @@ docker compose -f docker-compose.yaml --env-file .env exec backend \
 | `DATABASE_URL` / `REDIS_URL` | 数据与缓存连接串：留空时默认编排内 PostgreSQL/Redis（需 `bundle` profile）；填写远程地址即切换为远程实例 |
 | `PENDING_REQUEST_STORE` / `TWOFA_STORE` / `RATE_LIMITER` | 生产用 `redis` |
 | `ADMIN_INVITE_RATE_LIMIT` / `ADMIN_INVITE_RATE_WINDOW_SECONDS` | 管理端邀请限流（按来源 IP 计，批量邀请按人数累计；默认 100 次/小时） |
+| `AVATAR_CLEANUP_INTERVAL_SECONDS` | 孤儿头像清理周期（秒）；`0` 关闭周期任务，仍保留启动时清理一次（默认 21600） |
+| `EPHEMERAL_RETENTION_HOURS` | 过期 OTP/授权码/邀请的保留期（小时），超期由后台维护任务删除（默认 168） |
+| `DB_POOL_SIZE` / `DB_MAX_OVERFLOW` | SQLAlchemy 连接池大小（默认 `5` + `10`；提高 worker 数时应同步放大） |
+| `UVICORN_WORKERS` | 后端 uvicorn worker 数（默认 `1`；使用 memory 存储的本地模式必须保持 1） |
 | `JWT_PRIVATE_KEY_PATH` / `ENCRYPTION_KEY_PATH` | 密钥文件路径（生产必须为绝对路径，指向 `/app/keys` 卷） |
 | `EMAIL_BACKEND` | `console`（开发）或 `smtp`（生产） |
 | `SMTP_HOST` / `SMTP_PORT` | SMTP 服务器地址与端口（生产必填） |
@@ -81,6 +86,8 @@ docker compose -f docker-compose.yaml --env-file .env exec backend \
 | `SMTP_FROM` / `SMTP_FROM_NAME` | 真实发件地址与发件人名称（生产必填 `SMTP_FROM`） |
 | `SMTP_USE_TLS` | 是否使用 STARTTLS（默认 `true`） |
 | `REDIS_PASSWORD` | Redis AUTH 口令，生产必须设置长度 ≥12 的强口令 |
+| `REDIS_MAXMEMORY` | 编排内 Redis 内存上限（默认 `192mb`，只淘汰带 TTL 的键） |
+| `REDIS_APPENDONLY` | 编排内 Redis AOF 持久化开关（默认 `yes`） |
 | `FORWARDED_ALLOW_IPS` | 反向代理 IP/CIDR 白名单；编排内默认只信任网关固定 IP `172.30.0.10`（compose 固定子网），使用外部反代时改为其网关 IP 或网段 |
 
 ## 编排内 / 远程数据库切换
@@ -117,11 +124,17 @@ SMTP_PORT=587
 SMTP_USERNAME=noreply@example.com
 SMTP_PASSWORD=******
 SMTP_FROM=noreply@example.com
-SMTP_FROM_NAME=Portal OSS
+SMTP_FROM_NAME=LinPass SSO
 SMTP_USE_TLS=true
 ```
 
-邮件内容包含 6 位验证码，10 分钟有效；发送接口受每小时 5 次/邮箱的限流保护。
+邮件分为两类：注册/登录/重置/绑手机等场景发送 6 位验证码（10 分钟有效，重发会作废旧码）；邀请注册发送一次性邀请链接（7 天有效）。各发送接口的限流口径不同：
+
+- 登录后 2FA 验证码、手机绑定验证码：`OTP_SEND_LIMIT=5` 次/小时/邮箱
+- 邮箱激活验证码重发：`EMAIL_VERIFY_RATE_LIMIT=30` 次/小时/（邮箱+IP）
+- 注册/邀请注册接口：`REGISTER_RATE_LIMIT=10` 次/小时/IP
+- 找回密码：`PASSWORD_RESET_RATE_LIMIT=5` 次/15 分钟/（邮箱+IP）
+- 管理端邀请：`ADMIN_INVITE_RATE_LIMIT=100` 次/小时/IP（批量邀请按人数累计）
 
 ## SameSite 与部署拓扑（重要）
 
@@ -229,7 +242,7 @@ Redis 已通过 `--appendonly yes` 显式开启 AOF（可用 `REDIS_APPENDONLY=n
 
 ## HTTPS 与反向代理
 
-仓库不包含反代组件。生产上线时：
+仓库内置的 gateway（nginx）只做 HTTP 路由，不负责 TLS 终止。生产上线时：
 
 1. 在部署环境配置 TLS 与路由（例如 K8s Ingress、云负载均衡或外部网关），把域名指向前端与后端服务。
 2. **HSTS 必须在网关侧配置**（例如 `Strict-Transport-Security: max-age=63072000; includeSubDomains`），仓库内前端/后端不直接签发，避免 HTTP 直连时误发。
@@ -261,6 +274,8 @@ Redis 已通过 `--appendonly yes` 显式开启 AOF（可用 `REDIS_APPENDONLY=n
 
 - 查看日志：`docker compose -f docker-compose.yaml --env-file .env logs -f backend`
 - 查看健康状态：`docker compose -f docker-compose.yaml --env-file .env ps`
+- 后台维护：后端启动时自动清理一次孤儿头像与过期 OTP/授权码/邀请，之后按 `AVATAR_CLEANUP_INTERVAL_SECONDS`（默认 6 小时）周期执行；可在日志中查看“头像自动清理 / 临时凭证清理”记录
+- 用户与邀请：邀请注册/批量邀请、批量启用/禁用/删除、账号注销均在门户界面完成（管理后台 → 用户管理；用户中心 → 注销账号）
 - 升级：`bash scripts/backup-db.sh` 备份后，拉取新代码执行 `docker compose --profile bundle up -d --build`，后端启动时会自动执行 `alembic upgrade head`
 - 迁移回滚：`docker compose --profile bundle exec backend alembic downgrade -1`（先评估数据影响，必要时用备份恢复）
 - 多副本部署：迁移应在发布流程中只执行一次（例如 `docker compose run --rm backend alembic upgrade head`），再扩容后端副本；单实例部署可继续依赖启动自动迁移

@@ -1,10 +1,13 @@
 # OIDC 对接指南
 
-Portal OSS 是一个符合 OIDC/OAuth2 授权码流程的身份提供商（IdP）。授权网站按本文档接入后，用户即可“注册一次、登录所有已授权网站”。
+LinPass SSO 是一个符合 OIDC/OAuth2 授权码流程的身份提供商（IdP）。授权网站按本文档接入后，用户即可“注册一次、登录所有已授权网站”。
 
 ## 1. 标准端点
 
-假设门户 issuer 为 `https://auth.example.com`（本地示例为 `http://localhost:8000`）：
+假设门户 issuer 为 `https://auth.example.com`。本地示例：
+
+- 单域名网关部署（推荐）：`http://localhost`（浏览器与后端同源，经网关 `/oauth2/` 转发）
+- 宿主机直连后端开发：`http://localhost:8000`（前端经 `VITE_API_BASE_URL` 直连）
 
 | 端点 | 说明 |
 | --- | --- |
@@ -84,6 +87,8 @@ curl -X POST {issuer}/oauth2/token \
 }
 ```
 
+`access_token` 15 分钟有效，`id_token` 5 分钟有效；当前不提供刷新令牌。
+
 ### 2.4 获取用户信息
 
 ```bash
@@ -154,7 +159,7 @@ const user = await fetch(`${issuer}/oauth2/userinfo`, {
 
 管理员登录门户后在 **授权网站管理**（`/admin/clients`）创建应用，填写：
 
-- 名称、首页地址（应用广场“进入”链接）、回调地址（每行一个）
+- 名称、回调地址（每行一个）、首页地址（应用广场“进入”链接）、登出地址（取消授权时跳转）
 - 公开客户端（仅 PKCE）或机密客户端（生成 `client_secret`，只显示一次）
 
 也可用管理 API：`POST /api/v1/admin/clients`。
@@ -185,6 +190,8 @@ curl -u CLIENT_ID:CLIENT_SECRET -X DELETE \
 ```
 
 被封禁账号：授权时返回 `error=access_denied&error_description=account_blocked`；换令牌与 userinfo 返回 403；解封后立即恢复。
+
+> 换令牌与 userinfo 命中黑名单时返回的是 HTTP 403 + 中文提示（如“该账号已被此网站限制访问”），不是 OAuth 错误码；授权跳转阶段才使用标准 `access_denied` 错误。
 
 ## 6. 常见错误
 

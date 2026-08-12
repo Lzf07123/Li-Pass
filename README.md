@@ -11,9 +11,9 @@
 - 自动捕获会话：浏览器已有门户会话时，免输密码直接进入授权确认页
 - 授权确认：首次授权必询问，可配置每次询问；同意记录复用
 - 网站级访问控制：每个授权网站可独立封禁/解封账号，认证链路三层拦截
-- 用户中心：资料修改、头像上传、手机绑定、密码修改、设备与会话管理
+- 用户中心：资料修改、头像上传、密码修改、设备与会话管理、账号注销（手机绑定接口保留，前端暂未开放）
 - 应用广场：展示已授权网站，一键进入
-- 管理后台：用户管理、授权网站管理、黑名单管理、审计日志
+- 管理后台：用户管理（邀请注册/批量邀请、批量状态/删除）、授权网站管理（含黑名单）、审计日志
 - 网站自助黑名单 API：授权网站可用自己的 client_id/secret 封禁/解封账号
 - 示例授权网站：本地一键演示完整登录闭环
 
@@ -25,7 +25,7 @@
 | 前端 | React + Vite + TypeScript + Tailwind CSS |
 | 数据 | PostgreSQL 16 + Redis 7 |
 | 安全 | Argon2id、RS256 JWT、TOTP、PKCE、限流与审计 |
-| 部署 | Docker Compose（不含反向代理）；HTTPS 与路由由部署环境负责 |
+| 部署 | Docker Compose + 内置 nginx 单域名网关（唯一对外入口 :80）；HTTPS 与路由由部署环境负责 |
 
 ## 项目结构
 
@@ -50,6 +50,7 @@ portal-oss/
 │   └── 测试目录（本地）      # __tests__/ 与 test/ 仅保留本地，不入库
 ├── examples/demo-site/      # 示例授权网站（OIDC 演示，demo profile）
 ├── gateway/                 # 单域名 nginx 网关（/ 前端、/api 后端、/demo 演示站）
+├── scripts/                 # PostgreSQL 备份/恢复脚本
 ├── docs/                    # 设计文档与对接文档
 └── docker-compose.yaml      # gateway + frontend + backend + postgres + redis
 ```
@@ -113,7 +114,7 @@ docker compose up -d --build
    python app.py
    ```
 
-开发环境邮件验证码默认打印到后端控制台（或本地 Mailpit），无需真实邮件服务。
+开发环境邮件验证码默认打印到后端控制台日志，无需真实邮件服务。
 
 ### 生产形态启动
 

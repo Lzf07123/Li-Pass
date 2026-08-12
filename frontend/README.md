@@ -1,6 +1,6 @@
-# Portal OSS 前端（frontend）
+# LinPass SSO 前端（frontend）
 
-React + Vite + TypeScript + Tailwind CSS 构建的统一登录门户 SPA：登录/注册、找回/重置密码、授权确认、用户中心（资料/头像/手机/密码/会话）、应用广场与管理后台。
+React + Vite + TypeScript + Tailwind CSS 构建的统一登录门户 SPA：登录/注册（含邀请注册）、找回/重置密码、邮箱验证、授权确认、用户中心（资料/头像/密码/会话/账号注销；手机绑定界面暂未开放）、应用广场与管理后台。
 
 ## 本地开发
 

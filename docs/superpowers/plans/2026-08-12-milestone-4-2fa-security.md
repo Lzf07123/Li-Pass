@@ -1,12 +1,12 @@
 # 里程碑 4：2FA 与安全加固 Implementation Plan
 
-> **状态：已完成（2026-08-12）** —— 最终实现与行为以仓库代码为准；部署/运维见 [docs/deployment.md](../../deployment.md)，OIDC 对接见 [docs/oidc-integration.md](../../oidc-integration.md)。
+> **状态：已完成（2026-08-12）** —— 最终实现与行为以仓库代码为准；项目品牌名为 **LinPass SSO**（TOTP issuer 也使用该名称），部署形态最终包含内置 `gateway`（nginx）单域名网关。部署/运维见 [docs/deployment.md](../../deployment.md)，OIDC 对接见 [docs/oidc-integration.md](../../oidc-integration.md)。本文件为历史实施计划，不替代当前文档。
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** 实现邮箱验证码与 TOTP 两种二次验证（含一次性恢复码、管理员重置），并完成限流、审计日志与安全响应头加固。
 
-**Architecture:** 新增 `recovery_codes`、`audit_logs` 表与 `users.totp_secret_encrypted/totp_enabled_at/email_otp_enabled`；TOTP 密钥用 Fernet（AES-GCM）加密存储；2FA 挑战存 Redis（测试用内存单例）；登录改为“密码 → 2FA 挑战 → 验证后建会话”；限流器与审计服务独立成模块；FastAPI 中间件补安全响应头。
+**Architecture:** 新增 `recovery_codes`、`audit_logs` 表与 `users.totp_secret_encrypted/totp_enabled_at/email_otp_enabled`；TOTP 密钥用 Fernet 加密存储（恢复码/验证码用带服务端密钥的 HMAC）；2FA 挑战存 Redis（测试用内存单例）；登录改为“密码 → 2FA 挑战 → 验证后建会话”；限流器与审计服务独立成模块；FastAPI 中间件补安全响应头。
 
 **Tech Stack:** 新增 pyotp、qrcode（SVG 输出，不依赖 Pillow）；Fernet 来自已有 cryptography。
 
@@ -369,7 +369,7 @@ def get_twofa_store():
 
 
 def build_otpauth_uri(secret: str, email: str) -> str:
-    return pyotp.TOTP(secret).provisioning_uri(name=email, issuer_name="Portal OSS")
+    return pyotp.TOTP(secret).provisioning_uri(name=email, issuer_name="LinPass SSO")
 
 
 def qr_data_url(uri: str) -> str:

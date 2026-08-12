@@ -64,8 +64,8 @@ server {
         add_header Content-Security-Policy "default-src 'self'; connect-src 'self' ${CONNECT_SRC}; img-src 'self' data: ${CONNECT_SRC}; style-src 'self' 'unsafe-inline'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'" always;
     }
 
-    # 固定品牌图标可短缓存
-    location = /favicon.svg {
+    # 固定品牌图标（WebP 单格式）可短缓存
+    location = /favicon.webp {
         expires 7d;
         add_header Cache-Control "public" always;
         add_header X-Content-Type-Options "nosniff" always;
