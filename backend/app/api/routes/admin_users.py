@@ -796,11 +796,28 @@ def delete_user(
 
 @router.get("/audit-logs", response_model=list[dict])
 def list_audit_logs(
+    category: str | None = Query(None),
+    action: str | None = Query(None),
+    actor_id: str | None = Query(None),
+    start: datetime | None = Query(None),
+    end: datetime | None = Query(None),
     limit: int = Query(100, ge=1, le=500),
+    offset: int = Query(0, ge=0),
     db: Session = Depends(get_db),
 ) -> list[dict]:
+    stmt = select(AuditLog)
+    if category:
+        stmt = stmt.where(AuditLog.category == category)
+    if action:
+        stmt = stmt.where(AuditLog.action == action)
+    if actor_id:
+        stmt = stmt.where(AuditLog.actor_id == actor_id)
+    if start:
+        stmt = stmt.where(AuditLog.created_at >= start)
+    if end:
+        stmt = stmt.where(AuditLog.created_at <= end)
     logs = db.scalars(
-        select(AuditLog).order_by(AuditLog.created_at.desc()).limit(limit)
+        stmt.order_by(AuditLog.created_at.desc()).offset(offset).limit(limit)
     ).all()
     return [
         {
@@ -808,6 +825,7 @@ def list_audit_logs(
             "actor_type": log.actor_type,
             "actor_id": log.actor_id,
             "action": log.action,
+            "category": log.category,
             "target_type": log.target_type,
             "target_id": log.target_id,
             "ip": log.ip,
