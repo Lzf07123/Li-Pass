@@ -100,6 +100,11 @@ def register(
     request: Request,
     db: Session = Depends(get_db),
 ) -> dict:
+    if not settings.public_registration_enabled:
+        raise HTTPException(
+            status.HTTP_403_FORBIDDEN,
+            "注册渠道暂时关闭，只接收邀请注册",
+        )
     ip = request.client.host if request.client else ""
     if (
         get_rate_limiter().hit(
@@ -122,6 +127,12 @@ def register(
         get_email_service().send_verification(email, code)
     # 无论邮箱是否已注册，统一响应，避免账号枚举；重复注册不重复发信。
     return {"message": "注册请求已受理，验证邮件已发送"}
+
+
+@router.get("/register/status", response_model=dict)
+def register_status() -> dict:
+    """公开的注册状态接口：前端据此决定是否展示注册表单。"""
+    return {"public_registration_enabled": settings.public_registration_enabled}
 
 
 @router.post("/email/verify")

@@ -65,6 +65,10 @@ export const authApi = {
     }),
   register: (data: { email: string; password: string; nickname: string }) =>
     api<UserOut>("/api/v1/auth/register", { method: "POST", body: JSON.stringify(data) }),
+  registerStatus: () =>
+    api<{ public_registration_enabled: boolean }>(
+      "/api/v1/auth/register/status",
+    ),
   verifyEmail: (data: { email: string; code: string }) =>
     api<{ message: string }>("/api/v1/auth/email/verify", {
       method: "POST",

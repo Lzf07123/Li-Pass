@@ -132,6 +132,7 @@ def delete_own_account(
 
     user_id = str(user.id)
     user_email = user.email
+    user_nickname = user.nickname
     delete_user_account(db, user)
     log_audit(
         db,
@@ -144,6 +145,10 @@ def delete_own_account(
         user_agent=request.headers.get("user-agent"),
         detail={"email": user_email},
     )
+    try:
+        get_email_service().send_account_deleted(user_email, user_nickname)
+    except Exception:
+        logger.exception("账号注销通知邮件发送失败：%s", user_email)
     return {"message": "账号已注销"}
 
 

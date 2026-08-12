@@ -47,6 +47,8 @@ class Settings(BaseSettings):
     otp_send_window_seconds: int = 3600
     register_rate_limit: int = 10
     register_rate_window_seconds: int = 3600
+    # 公开注册入口开关：关闭后普通注册返回 403，仅保留邀请注册渠道。
+    public_registration_enabled: bool = True
     admin_invite_rate_limit: int = 100
     admin_invite_rate_window_seconds: int = 3600
     password_reset_rate_limit: int = 5

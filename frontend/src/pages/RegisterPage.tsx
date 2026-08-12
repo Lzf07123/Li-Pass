@@ -1,8 +1,9 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 
 import { authApi } from "../api/client";
 import { AuthShell } from "../components/AuthShell";
+import { Notice } from "../components/Notice";
 import { useToast } from "../hooks/useToast";
 import { APP_NAME } from "../lib/brand";
 
@@ -10,8 +11,31 @@ export function RegisterPage() {
   const [email, setEmail] = useState("");
   const [nickname, setNickname] = useState("");
   const [password, setPassword] = useState("");
+  const [registrationStatus, setRegistrationStatus] = useState<
+    "loading" | "open" | "closed"
+  >("loading");
   const toast = useToast();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    let cancelled = false;
+    authApi
+      .registerStatus()
+      .then((result) => {
+        if (!cancelled) {
+          setRegistrationStatus(
+            result.public_registration_enabled ? "open" : "closed",
+          );
+        }
+      })
+      .catch(() => {
+        // 状态接口不可用时按“开放注册”处理，后端仍会强制执行开关。
+        if (!cancelled) setRegistrationStatus("open");
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -21,6 +45,27 @@ export function RegisterPage() {
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "注册失败");
     }
+  }
+
+  if (registrationStatus === "loading") {
+    return (
+      <AuthShell title={`注册 ${APP_NAME} 账号`} subtitle="一个账号，登录所有授权网站">
+        <p className="text-center text-sm text-muted">加载中…</p>
+      </AuthShell>
+    );
+  }
+
+  if (registrationStatus === "closed") {
+    return (
+      <AuthShell title={`注册 ${APP_NAME} 账号`} subtitle="一个账号，登录所有授权网站">
+        <Notice intent="warning">注册渠道暂时关闭，只接收邀请注册</Notice>
+        <p className="mt-4 text-center text-sm">
+          <Link to="/login" className="btn-link">
+            返回登录
+          </Link>
+        </p>
+      </AuthShell>
+    );
   }
 
   return (

@@ -36,10 +36,19 @@ export function AdminUsersPanel({ currentAdminId }: { currentAdminId: string }) 
   const [batchInviteBusy, setBatchInviteBusy] = useState(false);
   const toast = useToast();
 
-  const selectableUsers = users.filter((user) => user.id !== currentAdminId);
+  const selectableUsers = users.filter(
+    (user) => user.id !== currentAdminId && user.kind !== "invite",
+  );
   const allSelected =
     selectableUsers.length > 0 &&
     selectableUsers.every((user) => selected.has(user.id));
+
+  const STATUS_LABEL: Record<string, string> = {
+    active: "正常",
+    disabled: "已禁用",
+    invited: "待注册",
+    expired: "已过期",
+  };
 
   const load = useCallback((q = "") => {
     adminUsersApi
@@ -196,6 +205,7 @@ export function AdminUsersPanel({ currentAdminId }: { currentAdminId: string }) 
         nickname: inviteNickname || undefined,
       });
       setInviteOpen(false);
+      await load(query);
       toast.success(result.message);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "发送邀请失败");
@@ -281,6 +291,7 @@ export function AdminUsersPanel({ currentAdminId }: { currentAdminId: string }) 
       const result = await adminUsersApi.batchInvite(emails);
       setBatchInviteOpen(false);
       setBatchInviteText("");
+      await load(query);
       const summary = [`已发送 ${result.invited.length} 封邀请`];
       if (result.skipped.length > 0) {
         summary.push(`跳过 ${result.skipped.length} 个（已注册或已邀请）`);
@@ -398,15 +409,19 @@ export function AdminUsersPanel({ currentAdminId }: { currentAdminId: string }) 
                   <input
                     type="checkbox"
                     checked={selected.has(user.id)}
-                    disabled={user.id === currentAdminId}
+                    disabled={
+                      user.id === currentAdminId || user.kind === "invite"
+                    }
                     onChange={() => toggleSelect(user.id)}
                     aria-label={`选择 ${user.email}`}
                   />
                 </td>
                 <td>{user.email}</td>
-                <td>{user.nickname}</td>
+                <td>{user.nickname || "—"}</td>
                 <td>
-                  {user.role === "admin" ? (
+                  {user.role === null ? (
+                    "—"
+                  ) : user.role === "admin" ? (
                     <span className="badge badge-primary">{user.role}</span>
                   ) : (
                     <span className="badge badge-muted">{user.role}</span>
@@ -414,48 +429,69 @@ export function AdminUsersPanel({ currentAdminId }: { currentAdminId: string }) 
                 </td>
                 <td>
                   {user.status === "active" ? (
-                    <span className="badge badge-success">{user.status}</span>
+                    <span
+                      className="badge badge-success"
+                      title={user.expires_at ? `邀请有效期至 ${new Date(user.expires_at).toLocaleString("zh-CN")}` : undefined}
+                    >
+                      {STATUS_LABEL[user.status] ?? user.status}
+                    </span>
+                  ) : user.status === "disabled" || user.status === "expired" ? (
+                    <span
+                      className="badge badge-danger"
+                      title={user.expires_at ? `邀请有效期至 ${new Date(user.expires_at).toLocaleString("zh-CN")}` : undefined}
+                    >
+                      {STATUS_LABEL[user.status] ?? user.status}
+                    </span>
                   ) : (
-                    <span className="badge badge-danger">{user.status}</span>
+                    <span
+                      className="badge badge-warning"
+                      title={user.expires_at ? `邀请有效期至 ${new Date(user.expires_at).toLocaleString("zh-CN")}` : undefined}
+                    >
+                      {STATUS_LABEL[user.status] ?? user.status}
+                    </span>
                   )}
                 </td>
                 <td>
-                  <div className="flex justify-end gap-1.5">
-                    <button
-                      onClick={() => toggleStatus(user)}
-                      disabled={user.id === currentAdminId}
-                      title={user.id === currentAdminId ? "不能禁用自己" : undefined}
-                      className="btn btn-secondary px-2.5 py-1.5 text-xs"
-                    >
-                      {user.status === "active" ? "禁用" : "启用"}
-                    </button>
-                    <button
-                      onClick={() => startResetPassword(user)}
-                      className="btn btn-secondary px-2.5 py-1.5 text-xs"
-                    >
-                      重置密码
-                    </button>
-                    <button
-                      onClick={() => startReset2fa(user)}
-                      className="btn btn-secondary px-2.5 py-1.5 text-xs"
-                    >
-                      重置 2FA
-                    </button>
-                    <button
-                      onClick={() => startDelete(user)}
-                      disabled={user.id === currentAdminId || user.role === "admin"}
-                      title={
-                        user.id === currentAdminId
-                          ? "不能删除自己的账号"
-                          : user.role === "admin"
-                            ? "管理员账号需先降级为普通用户"
-                            : undefined
-                      }
-                      className="btn btn-danger px-2.5 py-1.5 text-xs"
-                    >
-                      删除
-                    </button>
-                  </div>
+                  {user.kind === "invite" ? (
+                    <span className="text-sm text-muted">—</span>
+                  ) : (
+                    <div className="flex justify-end gap-1.5">
+                      <button
+                        onClick={() => toggleStatus(user)}
+                        disabled={user.id === currentAdminId}
+                        title={user.id === currentAdminId ? "不能禁用自己" : undefined}
+                        className="btn btn-secondary px-2.5 py-1.5 text-xs"
+                      >
+                        {user.status === "active" ? "禁用" : "启用"}
+                      </button>
+                      <button
+                        onClick={() => startResetPassword(user)}
+                        className="btn btn-secondary px-2.5 py-1.5 text-xs"
+                      >
+                        重置密码
+                      </button>
+                      <button
+                        onClick={() => startReset2fa(user)}
+                        className="btn btn-secondary px-2.5 py-1.5 text-xs"
+                      >
+                        重置 2FA
+                      </button>
+                      <button
+                        onClick={() => startDelete(user)}
+                        disabled={user.id === currentAdminId || user.role === "admin"}
+                        title={
+                          user.id === currentAdminId
+                            ? "不能删除自己的账号"
+                            : user.role === "admin"
+                              ? "管理员账号需先降级为普通用户"
+                              : undefined
+                        }
+                        className="btn btn-danger px-2.5 py-1.5 text-xs"
+                      >
+                        删除
+                      </button>
+                    </div>
+                  )}
                 </td>
               </tr>
             ))}

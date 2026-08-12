@@ -72,6 +72,7 @@ docker compose -f docker-compose.yaml --env-file .env exec backend \
 | `SESSION_COOKIE_SAMESITE` | 见下方「SameSite 与部署拓扑」 |
 | `SESSION_TTL_DAYS` / `SESSION_DEFAULT_TTL_DAYS` | 勾选“记住我”/未勾选时的会话有效期（默认 30 天 / 1 天；未勾选同时使用会话级 Cookie，关闭浏览器即失效） |
 | `SESSION_IDLE_DAYS` | 会话空闲超时天数（默认 7 天，超过即强制下线） |
+| `PUBLIC_REGISTRATION_ENABLED` | 公开注册入口开关（默认 `true`）；`false` 时注册页提示“注册渠道暂时关闭，只接收邀请注册”，后端同时拒绝公开注册请求 |
 | `DATABASE_URL` / `REDIS_URL` | 数据与缓存连接串：留空时默认编排内 PostgreSQL/Redis（需 `bundle` profile）；填写远程地址即切换为远程实例 |
 | `PENDING_REQUEST_STORE` / `TWOFA_STORE` / `RATE_LIMITER` | 生产用 `redis` |
 | `ADMIN_INVITE_RATE_LIMIT` / `ADMIN_INVITE_RATE_WINDOW_SECONDS` | 管理端邀请限流（按来源 IP 计，批量邀请按人数累计；默认 100 次/小时） |

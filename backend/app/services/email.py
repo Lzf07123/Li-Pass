@@ -15,6 +15,9 @@ class EmailService(ABC):
     @abstractmethod
     def send_invite(self, to: str, link: str) -> None: ...
 
+    @abstractmethod
+    def send_account_deleted(self, to: str, nickname: str | None) -> None: ...
+
 
 class ConsoleEmailService(EmailService):
     def _send(self, subject: str, to: str, code: str) -> None:
@@ -28,6 +31,9 @@ class ConsoleEmailService(EmailService):
 
     def send_invite(self, to: str, link: str) -> None:
         print(f"[email:{get_settings().email_backend}] invite -> {to}: {link}")
+
+    def send_account_deleted(self, to: str, nickname: str | None) -> None:
+        print(f"[email:{get_settings().email_backend}] account deleted -> {to}")
 
 
 class SMTPEmailService(EmailService):
@@ -93,6 +99,21 @@ class SMTPEmailService(EmailService):
             to,
             "LinPass SSO 账号邀请",
             f"你被邀请注册 LinPass SSO 账号，请点击以下链接完成注册（7 天内有效）：\n{link}",
+        )
+
+    def send_account_deleted(self, to: str, nickname: str | None) -> None:
+        greeting = f"您好，{nickname}：" if nickname else "您好："
+        body = (
+            f"{greeting}\n\n"
+            f"您的 {get_settings().app_name} 账号（{to}）已被删除，您将无法再使用该账号"
+            "登录相关网站。\n"
+            "如非您本人操作或对此有疑问，请联系平台管理员。\n\n"
+            "此邮件由系统自动发送，请勿直接回复。"
+        )
+        self._send(
+            to,
+            f"您的 {get_settings().app_name} 账号已删除",
+            body,
         )
 
 

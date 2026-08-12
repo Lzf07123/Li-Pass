@@ -83,6 +83,7 @@ def _as_utc(dt: datetime) -> datetime:
 def _serialize_user(user: User) -> dict:
     return {
         "id": str(user.id),
+        "kind": "user",
         "email": user.email,
         "nickname": user.nickname,
         "phone": user.phone,
@@ -90,6 +91,23 @@ def _serialize_user(user: User) -> dict:
         "role": user.role.value,
         "status": user.status.value,
         "created_at": user.created_at,
+        "expires_at": None,
+    }
+
+
+def _serialize_invite(invite: AccountInvite, now: datetime) -> dict:
+    expired = _as_utc(invite.expires_at) <= now
+    return {
+        "id": str(invite.id),
+        "kind": "invite",
+        "email": invite.email,
+        "nickname": invite.nickname,
+        "phone": None,
+        "email_verified": False,
+        "role": None,
+        "status": "expired" if expired else "invited",
+        "created_at": invite.created_at,
+        "expires_at": invite.expires_at,
     }
 
 
@@ -99,12 +117,36 @@ def list_users(
     limit: int = Query(50, ge=1, le=200),
     db: Session = Depends(get_db),
 ) -> list[dict]:
-    stmt = select(User).order_by(User.created_at.desc()).limit(limit)
+    user_stmt = select(User)
+    invite_stmt = select(AccountInvite).where(AccountInvite.used_at.is_(None))
     if q:
-        stmt = stmt.where(
-            or_(User.email.ilike(f"%{q}%"), User.nickname.ilike(f"%{q}%"))
+        pattern = f"%{q}%"
+        user_stmt = user_stmt.where(
+            or_(User.email.ilike(pattern), User.nickname.ilike(pattern))
         )
-    return [_serialize_user(user) for user in db.scalars(stmt).all()]
+        invite_stmt = invite_stmt.where(
+            or_(
+                AccountInvite.email.ilike(pattern),
+                AccountInvite.nickname.ilike(pattern),
+            )
+        )
+
+    now = datetime.now(timezone.utc)
+    rows = [
+        {"created_at": user.created_at, "item": _serialize_user(user)}
+        for user in db.scalars(user_stmt).all()
+    ]
+    rows.extend(
+        {
+            "created_at": invite.created_at,
+            "item": _serialize_invite(invite, now),
+        }
+        for invite in db.scalars(invite_stmt).all()
+    )
+    # 已注册用户与待注册邀请按创建时间倒序合并展示，
+    # 方便管理员在用户栏直接看到每封邀请所处的状态。
+    rows.sort(key=lambda row: _as_utc(row["created_at"]), reverse=True)
+    return [row["item"] for row in rows[:limit]]
 
 
 @router.post("/users", response_model=dict, status_code=status.HTTP_201_CREATED)
@@ -478,6 +520,9 @@ def batch_delete_users(
         )
 
     deleted = [{"id": str(user.id), "email": user.email} for user in users]
+    notification_targets = [
+        {"email": user.email, "nickname": user.nickname} for user in users
+    ]
     for user in users:
         delete_user_account(db, user, commit=False)
     db.commit()
@@ -495,6 +540,15 @@ def batch_delete_users(
             "emails": [item["email"] for item in deleted],
         },
     )
+    for target in notification_targets:
+        try:
+            get_email_service().send_account_deleted(
+                target["email"], target["nickname"]
+            )
+        except Exception:
+            logger.exception(
+                "账号删除通知邮件发送失败：%s", target["email"]
+            )
     return {"message": f"已删除 {len(deleted)} 个账号", "deleted": deleted}
 
 
@@ -521,6 +575,8 @@ def delete_user(
     if not verify_password(payload.current_password, actor.password_hash):
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "当前密码错误")
 
+    user_email = user.email
+    user_nickname = user.nickname
     delete_user_account(db, user)
     log_audit(
         db,
@@ -533,6 +589,10 @@ def delete_user(
         user_agent=request.headers.get("user-agent"),
         detail={"email": user.email},
     )
+    try:
+        get_email_service().send_account_deleted(user_email, user_nickname)
+    except Exception:
+        logger.exception("账号删除通知邮件发送失败：%s", user_email)
     return {"message": "账号已删除"}
 
 

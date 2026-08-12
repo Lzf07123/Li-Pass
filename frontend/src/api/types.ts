@@ -100,13 +100,15 @@ export interface TotpSetup {
 
 export interface AdminUserOut {
   id: string;
+  kind: "user" | "invite";
   email: string;
-  nickname: string;
+  nickname: string | null;
   phone: string | null;
   email_verified: boolean;
-  role: string;
+  role: string | null;
   status: string;
   created_at: string;
+  expires_at: string | null;
 }
 
 export interface BatchInviteResult {
