@@ -1,10 +1,14 @@
+import os
+
 from sqlalchemy import select
 
 from app.core.db import SessionLocal
 from app.models.oauth_client import OAuthClient
 
-CLIENT_ID = "demo-site"
-REDIRECT_URI = "http://localhost:3001/callback"
+CLIENT_ID = os.environ.get("DEMO_CLIENT_ID", "demo-site")
+REDIRECT_URI = os.environ.get("DEMO_REDIRECT_URI", "http://localhost:3001/callback")
+HOME_URL = os.environ.get("DEMO_HOME_URL", "http://localhost:3001")
+LOGOUT_URI = os.environ.get("DEMO_LOGOUT_URI", "http://localhost:3001/logout")
 
 
 def main() -> None:
@@ -17,16 +21,16 @@ def main() -> None:
                 client_id=CLIENT_ID,
                 name="Demo Site",
                 description="OIDC 示例授权网站",
-                home_url="http://localhost:3001",
-                logout_uri="http://localhost:3001/logout",
+                home_url=HOME_URL,
+                logout_uri=LOGOUT_URI,
                 redirect_uris=[REDIRECT_URI],
                 scopes=["openid", "profile", "email"],
             )
             db.add(client)
         else:
             client.redirect_uris = [REDIRECT_URI]
-            client.home_url = "http://localhost:3001"
-            client.logout_uri = "http://localhost:3001/logout"
+            client.home_url = HOME_URL
+            client.logout_uri = LOGOUT_URI
             client.is_active = True
         db.commit()
     print(f"示例客户端就绪: client_id={CLIENT_ID}（公开客户端，无 secret）")

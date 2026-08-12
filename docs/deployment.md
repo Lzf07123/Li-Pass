@@ -15,9 +15,9 @@ Portal OSS 使用 Docker Compose 部署。仓库**不内置反向代理**：前�
 ## 一条命令启动（生产形态）
 
 ```bash
-cp .env.prod.example .env.prod
-# 按需修改 .env.prod（域名、Cookie、邮件、密码等）
-docker compose -f docker-compose.prod.yml --env-file .env.prod up -d --build
+cp .env.production.example .env.production
+# 按需修改 .env.production（域名、Cookie、邮件、密码等）
+docker compose -f compose.prod.yaml --env-file .env.production up -d --build
 ```
 
 启动后：
@@ -94,7 +94,7 @@ docker run --rm -v portal_backend-keys:/keys -v "$PWD":/backup alpine \
 备份：
 
 ```bash
-docker compose -f docker-compose.prod.yml --env-file .env.prod exec postgres \
+docker compose -f compose.prod.yaml --env-file .env.production exec postgres \
   pg_dump -U portal portal | gzip > portal-$(date +%Y%m%d-%H%M%S).sql.gz
 ```
 
@@ -102,7 +102,7 @@ docker compose -f docker-compose.prod.yml --env-file .env.prod exec postgres \
 
 ```bash
 gunzip -c portal-20260101-120000.sql.gz | \
-  docker compose -f docker-compose.prod.yml --env-file .env.prod exec -T postgres \
+  docker compose -f compose.prod.yaml --env-file .env.production exec -T postgres \
   psql -U portal portal
 ```
 
@@ -113,7 +113,7 @@ gunzip -c portal-20260101-120000.sql.gz | \
 仓库不包含反代组件。生产上线时：
 
 1. 在部署环境配置 TLS 与路由（例如 K8s Ingress、云负载均衡或外部网关），把域名指向前端与后端服务。
-2. 更新 `.env.prod`：
+2. 更新 `.env.production`：
    - `JWT_ISSUER=https://auth.example.com`
    - `FRONTEND_BASE_URL=https://portal.example.com`
    - `CORS_ORIGINS=["https://portal.example.com"]`
@@ -123,7 +123,7 @@ gunzip -c portal-20260101-120000.sql.gz | \
 
 ## 常见运维操作
 
-- 查看日志：`docker compose -f docker-compose.prod.yml --env-file .env.prod logs -f backend`
-- 查看健康状态：`docker compose -f docker-compose.prod.yml --env-file .env.prod ps`
+- 查看日志：`docker compose -f compose.prod.yaml --env-file .env.production logs -f backend`
+- 查看健康状态：`docker compose -f compose.prod.yaml --env-file .env.production ps`
 - 升级：拉取新代码后 `up -d --build`，后端启动时会自动执行 `alembic upgrade head`
 - 审计查询：管理员登录门户后调用 `GET /api/v1/admin/audit-logs`（或直接查 `audit_logs` 表）

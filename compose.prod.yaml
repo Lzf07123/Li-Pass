@@ -1,7 +1,7 @@
 services:
   postgres:
     image: postgres:16-alpine
-    env_file: .env.prod
+    env_file: .env.production
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
@@ -25,7 +25,7 @@ services:
 
   backend:
     build: ./backend
-    env_file: .env.prod
+    env_file: .env.production
     ports:
       - "8000:8000"
     volumes:
@@ -49,7 +49,7 @@ services:
     build:
       context: ./frontend
       args:
-        VITE_API_BASE_URL: "http://localhost:8000"
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://localhost:8000}
     ports:
       - "5173:5173"
     depends_on:
@@ -69,9 +69,11 @@ services:
   demo-site:
     build: ./examples/demo-site
     environment:
-      PORTAL_ISSUER: ${JWT_ISSUER:-http://localhost:8000}
+      PORTAL_ISSUER: ${JWT_ISSUER}
       PORTAL_API_BASE: http://backend:8000
-      PORTAL_CLIENT_ID: demo-site
+      PORTAL_CLIENT_ID: ${DEMO_CLIENT_ID:-demo-site}
+      DEMO_REDIRECT_URI: ${DEMO_REDIRECT_URI}
+      DEMO_SECRET_KEY: ${DEMO_SECRET_KEY:-}
     ports:
       - "3001:3001"
     depends_on:

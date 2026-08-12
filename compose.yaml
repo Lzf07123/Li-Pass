@@ -2,9 +2,9 @@ services:
   postgres:
     image: postgres:16-alpine
     environment:
-      POSTGRES_USER: portal
-      POSTGRES_PASSWORD: portal
-      POSTGRES_DB: portal
+      POSTGRES_USER: ${POSTGRES_USER:-portal}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-portal}
+      POSTGRES_DB: ${POSTGRES_DB:-portal}
     ports:
       - "5432:5432"
     volumes:
@@ -25,13 +25,14 @@ services:
   backend:
     build: ./backend
     environment:
-      DATABASE_URL: postgresql+psycopg://portal:portal@postgres:5432/portal
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-portal}:${POSTGRES_PASSWORD:-portal}@postgres:5432/${POSTGRES_DB:-portal}
       REDIS_URL: redis://redis:6379/0
-      CORS_ORIGINS: '["http://localhost:5173"]'
+      CORS_ORIGINS: "${CORS_ORIGINS:-[\"http://localhost:5173\"]}"
       SESSION_COOKIE_SECURE: "false"
       SESSION_COOKIE_SAMESITE: lax
       PENDING_REQUEST_STORE: redis
-      FRONTEND_BASE_URL: http://localhost:5173
+      FRONTEND_BASE_URL: ${FRONTEND_BASE_URL:-http://localhost:5173}
+      JWT_ISSUER: ${JWT_ISSUER:-http://localhost:8000}
       TWOFA_STORE: redis
       RATE_LIMITER: redis
     ports:
@@ -44,7 +45,7 @@ services:
     build:
       context: ./frontend
       args:
-        VITE_API_BASE_URL: http://localhost:8000
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://localhost:8000}
     ports:
       - "5173:5173"
     depends_on:
@@ -53,9 +54,11 @@ services:
   demo-site:
     build: ./examples/demo-site
     environment:
-      PORTAL_ISSUER: http://localhost:8000
+      PORTAL_ISSUER: ${JWT_ISSUER:-http://localhost:8000}
       PORTAL_API_BASE: http://backend:8000
-      PORTAL_CLIENT_ID: demo-site
+      PORTAL_CLIENT_ID: ${DEMO_CLIENT_ID:-demo-site}
+      DEMO_REDIRECT_URI: ${DEMO_REDIRECT_URI:-http://localhost:3001/callback}
+      DEMO_SECRET_KEY: ${DEMO_SECRET_KEY:-}
     ports:
       - "3001:3001"
     depends_on:

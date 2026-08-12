@@ -7,13 +7,13 @@ from urllib.parse import urlencode
 import requests
 from flask import Flask, redirect, render_template_string, request, session, url_for
 
-ISSUER = os.environ.get("PORTAL_ISSUER", "http://localhost:8000")
+ISSUER = os.environ["PORTAL_ISSUER"]
 API_BASE = os.environ.get("PORTAL_API_BASE", ISSUER)
-CLIENT_ID = os.environ.get("PORTAL_CLIENT_ID", "demo-site")
-REDIRECT_URI = os.environ.get("DEMO_REDIRECT_URI", "http://localhost:3001/callback")
+CLIENT_ID = os.environ["PORTAL_CLIENT_ID"]
+REDIRECT_URI = os.environ["DEMO_REDIRECT_URI"]
 
 app = Flask(__name__)
-app.secret_key = os.environ.get("DEMO_SECRET_KEY", "demo-secret-key")
+app.secret_key = os.environ.get("DEMO_SECRET_KEY") or secrets.token_urlsafe(32)
 
 AUTHORIZE_URL = f"{ISSUER}/oauth2/authorize"
 TOKEN_URL = f"{API_BASE}/oauth2/token"

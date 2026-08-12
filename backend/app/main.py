@@ -51,7 +51,7 @@ def create_app() -> FastAPI:
         response.headers["X-Frame-Options"] = "DENY"
         response.headers["Referrer-Policy"] = "no-referrer"
         response.headers["Content-Security-Policy"] = (
-            "default-src 'self'; connect-src 'self' http://localhost:8000; "
+            f"default-src 'self'; connect-src 'self' {settings.jwt_issuer}; "
             "img-src 'self' data:; style-src 'self' 'unsafe-inline'"
         )
         return response

@@ -1,5 +1,6 @@
 from functools import lru_cache
 
+from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -39,6 +40,20 @@ class Settings(BaseSettings):
     login_rate_window_seconds: int = 900
     otp_send_limit: int = 5
     otp_send_window_seconds: int = 3600
+
+    @model_validator(mode="after")
+    def _validate_production(self):
+        if self.environment != "production":
+            return self
+        for field in ("jwt_issuer", "frontend_base_url", "database_url", "redis_url"):
+            value = getattr(self, field)
+            if not value or "localhost" in value or "127.0.0.1" in value:
+                raise ValueError(f"{field} 在生产环境必须显式配置真实地址，禁止使用默认值")
+        if self.email_backend != "smtp" or not self.smtp_host or not self.smtp_from:
+            raise ValueError(
+                "生产环境邮件必须配置 EMAIL_BACKEND=smtp 与 SMTP_HOST/SMTP_FROM"
+            )
+        return self
 
 
 @lru_cache

@@ -49,7 +49,7 @@ portal-oss/
 │   └── tests/
 ├── examples/demo-site/      # 示例授权网站
 ├── docs/                    # 设计文档与对接文档
-└── docker-compose.yml       # frontend + backend + postgres + redis（不含反向代理）
+└── compose.yaml             # frontend + backend + postgres + redis（不含反向代理）
 ```
 
 ## 快速开始（开发环境）
@@ -86,6 +86,7 @@ docker compose up -d --build
 
    ```bash
    cd frontend
+   cp .env.example .env
    export VITE_API_BASE_URL=http://localhost:8000
    npm install
    npm run dev
@@ -96,6 +97,8 @@ docker compose up -d --build
    ```bash
    cd examples/demo-site
    pip install -r requirements.txt
+   export PORTAL_ISSUER=http://localhost:8000 PORTAL_CLIENT_ID=demo-site \
+     DEMO_REDIRECT_URI=http://localhost:3001/callback
    python app.py
    ```
 
@@ -104,8 +107,8 @@ docker compose up -d --build
 ### 生产形态启动
 
 ```bash
-cp .env.prod.example .env.prod
-docker compose -f docker-compose.prod.yml --env-file .env.prod up -d --build
+cp .env.production.example .env.production
+docker compose -f compose.prod.yaml --env-file .env.production up -d --build
 ```
 
 详细部署、密钥备份与 HTTPS 说明见 [docs/deployment.md](docs/deployment.md)。
