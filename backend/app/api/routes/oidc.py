@@ -92,6 +92,12 @@ def authorize(
             ),
             status_code=302,
         )
+    if "email" in requested and user.email_verified_at is None:
+        settings = get_settings()
+        verify_url = (
+            f"{settings.frontend_base_url}/verify-email?email={quote(user.email, safe='')}"
+        )
+        return RedirectResponse(verify_url, status_code=302)
 
     consent = db.scalar(
         select(UserConsent).where(

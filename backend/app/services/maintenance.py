@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
 from app.models.account_invite import AccountInvite
+from app.models.audit_log import AuditLog
 from app.models.authorization_code import AuthorizationCode
 from app.models.otp import Otp
 
@@ -24,9 +25,16 @@ def cleanup_expired_ephemeral_rows(db: Session) -> dict[str, int]:
     invite_result = db.execute(
         delete(AccountInvite).where(AccountInvite.expires_at < cutoff)
     )
+    audit_cutoff = datetime.now(timezone.utc) - timedelta(
+        days=get_settings().audit_retention_days
+    )
+    audit_result = db.execute(
+        delete(AuditLog).where(AuditLog.created_at < audit_cutoff)
+    )
     db.commit()
     return {
         "otps": otp_result.rowcount or 0,
         "authorization_codes": code_result.rowcount or 0,
         "account_invites": invite_result.rowcount or 0,
+        "audit_logs": audit_result.rowcount or 0,
     }

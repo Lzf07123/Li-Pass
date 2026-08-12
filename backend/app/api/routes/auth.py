@@ -370,8 +370,23 @@ def login(
             detail={"action": "login", "reason": "ip_rate_limit"},
         )
         raise HTTPException(status.HTTP_429_TOO_MANY_REQUESTS, "尝试次数过多，请稍后再试")
+    email_for_limit = payload.email.lower()
+    email_login_count = get_rate_limiter().hit(
+        "login_email", email_for_limit, settings.login_email_rate_window_seconds
+    )
+    if email_login_count > settings.login_email_rate_limit:
+        log_rate_limit_rejected_once(
+            db,
+            "login_email",
+            email_login_count,
+            settings.login_email_rate_limit,
+            ip=ip,
+            user_agent=request.headers.get("user-agent"),
+            detail={"action": "login", "reason": "email_rate_limit"},
+        )
+        raise HTTPException(status.HTTP_429_TOO_MANY_REQUESTS, "尝试次数过多，请稍后再试")
     user_agent = request.headers.get("user-agent")
-    user = db.scalar(select(User).where(User.email == payload.email.lower()))
+    user = db.scalar(select(User).where(User.email == email_for_limit))
     if user is None or not verify_password(payload.password, user.password_hash):
         count = get_rate_limiter().hit(
             "login",
@@ -411,6 +426,7 @@ def login(
         )
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "邮箱或密码错误")
     get_rate_limiter().reset("login", f"{user.email}:{ip}")
+    get_rate_limiter().reset("login_email", user.email)
 
     methods = []
     if user.email_otp_enabled:

@@ -6,13 +6,15 @@ from fastapi import APIRouter, Depends, Header, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.core.config import get_settings
 from app.core.db import get_db
 from app.models.client_user_block import ClientUserBlock
 from app.models.oauth_client import OAuthClient
 from app.schemas.oauth import ClientBlockCreate
 from app.security.tokens import hash_token
 from app.services.blocks import add_block, list_blocks, remove_block
-from app.services.audit import log_audit
+from app.services.audit import log_audit, log_rate_limit_rejected_once
+from app.services.rate_limit import get_rate_limiter
 
 router = APIRouter(prefix="/oauth2/client", tags=["client-blocks"])
 
@@ -30,6 +32,21 @@ def _auth_client(authorization: str, db: Session) -> OAuthClient:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "invalid_client")
     if not secrets.compare_digest(hash_token(client_secret), client.client_secret_hash):
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "invalid_client")
+    settings = get_settings()
+    count = get_rate_limiter().hit(
+        "client_block", client_id, settings.client_block_rate_window_seconds
+    )
+    if count > settings.client_block_rate_limit:
+        log_rate_limit_rejected_once(
+            db,
+            "client_block",
+            count,
+            settings.client_block_rate_limit,
+            actor_type="client",
+            actor_id=client_id,
+            detail={"action": "client_block", "reason": "rate_limit"},
+        )
+        raise HTTPException(status.HTTP_429_TOO_MANY_REQUESTS, "请求过于频繁，请稍后再试")
     return client
 
 
