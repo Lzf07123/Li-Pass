@@ -1,15 +1,15 @@
 # 部署与运维
 
-Portal OSS 使用 Docker Compose 部署。仓库**不内置反向代理**：前端与后端作为独立服务直接暴露，生产环境的 HTTPS、域名与路由由部署环境（K8s Ingress、云负载均衡、外部网关）负责。
-
-编排内的 `gateway` 是单域名网关（`/` 前端、`/api`、`/oauth2` 等）；后端与前端容器**只绑定宿主机回环地址**（`127.0.0.1:8000` / `127.0.0.1:5173`），仅供本机调试，生产对外的唯一入口是网关的 80 端口（HTTPS 由部署环境终止）。
+Portal OSS 使用 Docker Compose 部署。仓库内置 `gateway`（nginx）作为**唯一对外入口**：前端、后端与演示站都不向宿主机映射端口，仅在容器内网互通；生产环境的 HTTPS 与域名由部署环境（K8s Ingress、云负载均衡、外部网关）负责，终止后转发到 gateway 的 80 端口。
 
 ## 架构
 
 ```text
 浏览器 → [部署环境的 HTTPS / 反向代理，不属于本仓库]
-          ├── 前端服务（:5173，React 静态资源）
-          └── 后端服务（:8000，FastAPI /api /oauth2）
+          → gateway（nginx :80，本仓库唯一对外入口）
+              ├── 前端服务（容器内 :5173，React 静态资源）
+              ├── 后端服务（容器内 :8000，FastAPI /api /oauth2）
+              └── 演示站（容器内 :3001，/demo）
 后端 → PostgreSQL 16（数据）+ Redis 7（挑战/限流/待授权请求）
 后端密钥卷：/app/keys（JWT 私钥 + Fernet 加密密钥）
 后端上传卷：/app/uploads（用户头像）
@@ -29,16 +29,16 @@ docker compose -f docker-compose.yaml --profile bundle --env-file .env up -d --b
 
 启动后：
 
-- 门户：http://localhost:5173
-- 后端健康检查：http://localhost:8000/healthz（存活），http://localhost:8000/readyz（就绪，含数据库/Redis 检查）
+- 门户：http://localhost
+- 健康检查：http://localhost/healthz（存活），http://localhost/readyz（就绪，含数据库/Redis 检查）
 
-前端容器（nginx）内置安全响应头与 CSP：`img-src` 已放行后端 API 源（由 `CONNECT_SRC` / `VITE_API_BASE_URL` 注入），因此后端托管的用户头像（`/uploads/avatars`）可跨源正常显示；生产更换后端域名时，同步更新 `VITE_API_BASE_URL` 并重建前端即可。
+前端容器（nginx）内置安全响应头与 CSP：默认同源网关部署（`VITE_API_BASE_URL` 为空）时，前端、API 与头像资源同源加载；若改为独立后端域名，需同步更新 `VITE_API_BASE_URL` / `CONNECT_SRC` 并重建前端。
 
 示例授权网站（仅本地演示）默认**不随生产栈启动**，需要时单独启用：
 
 ```bash
 docker compose --profile bundle --profile demo up -d --build
-# 演示网站：http://localhost:3001
+# 演示网站：http://localhost/demo/
 ```
 
 ## 首次使用

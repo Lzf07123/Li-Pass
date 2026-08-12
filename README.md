@@ -62,7 +62,7 @@ portal-oss/
 docker compose --profile bundle up -d --build
 ```
 
-启动后通过单域名网关访问 http://localhost （前端 `/`、后端 API `/api`、OIDC `/oauth2`、演示站 `/demo`）；开发直连地址仍保留：前端 http://localhost:5173 、后端 API http://localhost:8000 （存活检查 `GET /healthz`，就绪检查 `GET /readyz`）。开发环境邮件验证码默认打印到后端容器日志（`docker compose logs backend | grep "code="`）。
+启动后通过单域名网关访问 http://localhost （前端 `/`、后端 API `/api`、OIDC `/oauth2`、演示站 `/demo`）。前端与后端容器**不向宿主机开放端口**，唯一对外入口是网关（nginx）的 80 端口。健康检查：`GET /healthz`（存活）、`GET /readyz`（就绪）。开发环境邮件验证码默认打印到后端容器日志（`docker compose logs backend | grep "code="`）。
 
 `bundle` profile 会一并启动编排内的 PostgreSQL 与 Redis。如果改用远程 PostgreSQL/Redis，只需在 `.env` 中配置 `DATABASE_URL` / `REDIS_URL`，并去掉 `--profile bundle`（编排内不再启动这两个服务）：
 
@@ -71,6 +71,9 @@ docker compose up -d --build
 ```
 
 如需在宿主机上分别运行各服务，按以下步骤执行：
+
+> 以下仅适用于不使用 Docker 的宿主机开发；容器部署请使用上方的 compose 方式，
+> 前端/后端端口不映射到宿主机，唯一对外入口是 gateway（nginx）。
 
 1. 启动基础设施：
 
