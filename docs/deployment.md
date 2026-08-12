@@ -174,6 +174,44 @@ docker run --rm -v portal-oss_backend-uploads:/uploads -v "$PWD":/backup alpine 
   tar czf /backup/backend-uploads.tar.gz -C /uploads .
 ```
 
+仓库提供一键备份/恢复脚本（仅编排内 PostgreSQL，`--profile bundle`）：
+
+```bash
+bash scripts/backup-db.sh                  # 备份到 backups/portal-<时间戳>.sql.gz
+bash scripts/restore-db.sh backups/portal-20260813-120000.sql.gz
+```
+
+## 数据库迁移与升级策略
+
+当前为初版（`alembic` 迁移版本 `9a1b2c3d4e5f`）。后续开发版本必须遵循以下规则，保证平滑升级且不丢数据：
+
+1. **所有结构变更都走 Alembic 增量迁移**：禁止手工改生产库，也禁止用 `Base.metadata.create_all` 初始化已有库。后端启动命令已内置 `alembic upgrade head`，新版本上线时自动升级到最新结构。
+2. **迁移必须可降级**：每个迁移的 `downgrade()` 要完整可执行；无法安全回退的结构变更要写成“先加后删”的两阶段迁移（expand → migrate → contract），而不是一步重命名/删列。
+3. **新增 NOT NULL 列必须带 `server_default` 或先 nullable 再回填**，避免对存量行直接失败；枚举/状态新增取值只能追加，不能删除旧值。
+4. **禁止在迁移里清理业务数据**：例如删除用户、清空 OTP、重置会话等属于运维动作，不应放进 schema 迁移。
+5. **升级前必须备份**：执行 `bash scripts/backup-db.sh`，并确认 `backend-keys` / `backend-uploads` 卷已有备份。
+6. **迁移只执行一次**：单实例可依赖后端启动自动迁移；多副本部署应在发布流程中单独执行一次 `docker compose run --rm backend alembic upgrade head`，再扩容副本。
+7. **升级后验证**：检查 `/readyz`、查看 `alembic current` 是否等于代码 head，并抽样验证登录/注册/授权主流程。
+
+推荐升级流程：
+
+```bash
+# 1. 备份
+bash scripts/backup-db.sh
+
+# 2. 拉取新代码并重建启动（后端启动时自动执行 alembic upgrade head）
+docker compose --profile bundle up -d --build
+
+# 3. 确认迁移版本
+docker compose --profile bundle exec backend alembic current
+```
+
+如需回滚到上一个迁移版本（先确认新迁移对数据的破坏范围，必要时用备份恢复）：
+
+```bash
+docker compose --profile bundle exec backend alembic downgrade -1
+```
+
 ## 容器数据持久化说明
 
 | 服务 | 数据内容 | 存储位置 | 重建容器后 |
@@ -223,7 +261,8 @@ Redis 已通过 `--appendonly yes` 显式开启 AOF（可用 `REDIS_APPENDONLY=n
 
 - 查看日志：`docker compose -f docker-compose.yaml --env-file .env logs -f backend`
 - 查看健康状态：`docker compose -f docker-compose.yaml --env-file .env ps`
-- 升级：拉取新代码后 `up -d --build`，后端启动时会自动执行 `alembic upgrade head`
+- 升级：`bash scripts/backup-db.sh` 备份后，拉取新代码执行 `docker compose --profile bundle up -d --build`，后端启动时会自动执行 `alembic upgrade head`
+- 迁移回滚：`docker compose --profile bundle exec backend alembic downgrade -1`（先评估数据影响，必要时用备份恢复）
 - 多副本部署：迁移应在发布流程中只执行一次（例如 `docker compose run --rm backend alembic upgrade head`），再扩容后端副本；单实例部署可继续依赖启动自动迁移
 - 审计查询：管理员登录门户后调用 `GET /api/v1/admin/audit-logs`（或直接查 `audit_logs` 表）
 

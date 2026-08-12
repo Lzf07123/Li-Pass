@@ -50,6 +50,9 @@ logs/
 postgres-data/
 redis-data/
 
+# 数据库备份
+backups/
+
 # 本地上传
 uploads/
 
