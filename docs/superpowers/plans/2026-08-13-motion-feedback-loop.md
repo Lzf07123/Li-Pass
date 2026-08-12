@@ -16,6 +16,7 @@
 - 所有异步按钮防重复提交；pending 时 `aria-busy="true"`。
 - 不把 emoji 当图标；状态图标继续使用 `StatusIcon`。
 - 不要 `git add -A`；每步只暂存本任务列出的文件，避免把尚未提交的 `AuthSkeleton.tsx`/`PageSkeleton.tsx` 等无关改动带进本计划提交。
+- 仓库约定测试不入库：`frontend/src/test/` 与 `frontend/src/__tests__/` 被根 `.gitignore` 第 77-78 行忽略。测试文件只在本地创建并运行验证，**提交时不要 `git add` 测试文件**（否则会报 pathspec ignored）。
 - 提交信息用中文 `feat:` / `test:` 前缀，风格与仓库历史一致。
 
 ---
@@ -193,7 +194,7 @@ Expected: PASS
 - [ ] **Step 7: 提交**
 
 ```bash
-git add frontend/src/lib/ripple.ts frontend/src/__tests__/ripple.test.tsx frontend/src/index.css frontend/src/main.tsx
+git add frontend/src/lib/ripple.ts frontend/src/index.css frontend/src/main.tsx
 git commit -m "feat: 按钮点击波纹与 reduced-motion 降级"
 ```
 
@@ -307,7 +308,7 @@ Expected: PASS
 - [ ] **Step 6: 提交**
 
 ```bash
-git add frontend/src/index.css frontend/src/components/ToastProvider.tsx frontend/src/__tests__/ToastProvider.test.tsx
+git add frontend/src/index.css frontend/src/components/ToastProvider.tsx
 git commit -m "feat: Toast 图标弹跳与入场错峰"
 ```
 
@@ -632,7 +633,7 @@ Expected: PASS
 - [ ] **Step 7: 提交**
 
 ```bash
-git add frontend/src/hooks/useAsyncAction.ts frontend/src/components/AsyncButton.tsx frontend/src/__tests__/useAsyncAction.test.tsx frontend/src/__tests__/AsyncButton.test.tsx frontend/src/index.css
+git add frontend/src/hooks/useAsyncAction.ts frontend/src/components/AsyncButton.tsx frontend/src/index.css
 git commit -m "feat: 请求状态机 useAsyncAction 与 AsyncButton 三态反馈"
 ```
 
@@ -839,7 +840,7 @@ Expected: PASS
 - [ ] **Step 7: 提交**
 
 ```bash
-git add frontend/src/components/AnimatedNumber.tsx frontend/src/hooks/useBreathOnChange.ts frontend/src/__tests__/AnimatedNumber.test.tsx frontend/src/__tests__/useBreathOnChange.test.tsx frontend/src/index.css
+git add frontend/src/components/AnimatedNumber.tsx frontend/src/hooks/useBreathOnChange.ts frontend/src/index.css
 git commit -m "feat: 数字滚动组件与数据更新呼吸动画 Hook"
 ```
 
@@ -1276,7 +1277,7 @@ Expected: PASS
 - [ ] **Step 5: 提交**
 
 ```bash
-git add frontend/src/pages/DashboardPage.tsx frontend/src/components/ConfirmDialog.tsx frontend/src/__tests__/ConfirmDialog.test.tsx
+git add frontend/src/pages/DashboardPage.tsx frontend/src/components/ConfirmDialog.tsx
 git commit -m "feat: 用户中心操作按钮接入请求状态闭环"
 ```
 
