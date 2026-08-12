@@ -90,7 +90,7 @@ services:
       # 只信任编排内网关的固定 IP（见下方 gateway.networks），
       # 防止同网段内其他容器伪造 X-Forwarded-For 绕过限流/污染审计 IP；
       # 自定义网络/外部反代时按实际网关地址覆盖。
-      FORWARDED_ALLOW_IPS: ${FORWARDED_ALLOW_IPS:-172.30.0.2}
+      FORWARDED_ALLOW_IPS: ${FORWARDED_ALLOW_IPS:-172.30.0.10}
       FRONTEND_BASE_URL: ${PUBLIC_BASE_URL:-http://localhost:5173}
       JWT_ISSUER: ${PUBLIC_BASE_URL:-http://localhost:8000}
       JWT_PRIVATE_KEY_PATH: ${JWT_PRIVATE_KEY_PATH:-/app/keys/jwt_private.pem}
@@ -174,9 +174,10 @@ services:
     security_opt:
       - no-new-privileges:true
     # 固定容器 IP：后端 FORWARDED_ALLOW_IPS 只信任这一台网关。
+    # 避开编排内其他动态分配的 .2/.3 等地址，固定使用高位地址。
     networks:
       default:
-        ipv4_address: 172.30.0.2
+        ipv4_address: 172.30.0.10
     ports:
       - "80:80"
     volumes:
@@ -245,5 +246,5 @@ networks:
     name: portal-oss-net
     ipam:
       config:
-        # 固定子网：网关固定在 172.30.0.2，后端只信任该 IP 追加的 X-Forwarded-For。
+        # 固定子网：网关固定在 172.30.0.10，后端只信任该 IP 追加的 X-Forwarded-For。
         - subnet: 172.30.0.0/24

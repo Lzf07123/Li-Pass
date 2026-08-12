@@ -80,7 +80,7 @@ docker compose -f docker-compose.yaml --env-file .env exec backend \
 | `SMTP_FROM` / `SMTP_FROM_NAME` | 真实发件地址与发件人名称（生产必填 `SMTP_FROM`） |
 | `SMTP_USE_TLS` | 是否使用 STARTTLS（默认 `true`） |
 | `REDIS_PASSWORD` | Redis AUTH 口令，生产必须设置长度 ≥12 的强口令 |
-| `FORWARDED_ALLOW_IPS` | 反向代理 IP/CIDR 白名单；编排内默认只信任网关固定 IP `172.30.0.2`（compose 固定子网），使用外部反代时改为其网关 IP 或网段 |
+| `FORWARDED_ALLOW_IPS` | 反向代理 IP/CIDR 白名单；编排内默认只信任网关固定 IP `172.30.0.10`（compose 固定子网），使用外部反代时改为其网关 IP 或网段 |
 
 ## 编排内 / 远程数据库切换
 
@@ -202,7 +202,7 @@ Redis 已通过 `--appendonly yes` 显式开启 AOF（可用 `REDIS_APPENDONLY=n
    - `ALLOWED_HOSTS=["portal.example.com","127.0.0.1"]`（真实域名必填；`127.0.0.1` 供容器健康检查）
    - `SESSION_COOKIE_SECURE=true`
    - `SESSION_COOKIE_SAMESITE`：按「SameSite 与部署拓扑」选择 `lax` 或 `none`
-   - `FORWARDED_ALLOW_IPS`：使用编排内网关时保持默认（`172.30.0.2`）；改用外部反代时填网关 IP/CIDR，让限流/审计拿到真实客户端 IP
+   - `FORWARDED_ALLOW_IPS`：使用编排内网关时保持默认（`172.30.0.10`）；改用外部反代时填网关 IP/CIDR，让限流/审计拿到真实客户端 IP
 4. 重新构建并启动。
 
 ## 上线前安全清单
