@@ -446,6 +446,7 @@ def batch_invite_users(
     invited: list[str] = []
     skipped: list[dict] = []
     failed: list[dict] = []
+    pending_invites: list[tuple[AccountInvite, str]] = []
     for email in emails:
         if email in existing:
             skipped.append({"email": email, "reason": "already_registered"})
@@ -465,16 +466,22 @@ def batch_invite_users(
         db.add(invite)
         db.commit()
         link = f"{settings.frontend_base_url.rstrip('/')}/invite?token={token}"
-        try:
-            get_email_service().send_invite(email, link)
-        except Exception:
-            # 单封邮件失败只回滚该封邀请，不影响其余批量邀请。
-            logger.exception("邀请邮件发送失败：%s", email)
+        pending_invites.append((invite, link))
+
+    if pending_invites:
+        results = get_email_service().send_invite_batch(
+            [(invite.email, link) for invite, link in pending_invites]
+        )
+        for (invite, _link), result in zip(pending_invites, results):
+            if result is None:
+                invited.append(invite.email)
+                continue
+            logger.error(
+                "邀请邮件发送失败：%s error=%s", invite.email, result
+            )
             db.delete(invite)
             db.commit()
-            failed.append({"email": email, "reason": "邮件发送失败"})
-        else:
-            invited.append(email)
+            failed.append({"email": invite.email, "reason": "邮件发送失败"})
 
     log_audit(
         db,
