@@ -2,8 +2,10 @@ import { useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 
 import { authApi } from "../api/client";
+import { AsyncButton } from "../components/AsyncButton";
 import { AuthShell } from "../components/AuthShell";
 import { Notice } from "../components/Notice";
+import { useAsyncAction } from "../hooks/useAsyncAction";
 import { useToast } from "../hooks/useToast";
 
 export function InviteRegisterPage() {
@@ -12,13 +14,27 @@ export function InviteRegisterPage() {
   const [nickname, setNickname] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [busy, setBusy] = useState(false);
   const toast = useToast();
   const navigate = useNavigate();
 
+  const submitAction = useAsyncAction(
+    async (nickname: string, password: string) => {
+      const result = await authApi.registerByInvite({
+        token,
+        nickname,
+        password,
+      });
+      toast.success(result.message);
+      navigate("/login");
+    },
+    {
+      onError: (err) =>
+        toast.error(err instanceof Error ? err.message : "注册失败"),
+    },
+  );
+
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (busy) return;
     if (password.length < 8) {
       toast.error("密码至少 8 位");
       return;
@@ -27,20 +43,7 @@ export function InviteRegisterPage() {
       toast.error("两次输入的密码不一致");
       return;
     }
-    setBusy(true);
-    try {
-      const result = await authApi.registerByInvite({
-        token,
-        nickname,
-        password,
-      });
-      toast.success(result.message);
-      navigate("/login");
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "注册失败");
-    } finally {
-      setBusy(false);
-    }
+    await submitAction.run(nickname, password);
   }
 
   if (!token) {
@@ -95,9 +98,13 @@ export function InviteRegisterPage() {
             required
           />
         </label>
-        <button type="submit" className="btn btn-primary w-full" disabled={busy}>
-          {busy ? "处理中…" : "完成注册"}
-        </button>
+        <AsyncButton
+          type="submit"
+          status={submitAction.status}
+          className="btn btn-primary w-full"
+        >
+          完成注册
+        </AsyncButton>
         <p className="text-center text-sm text-muted">
           已有账号？{" "}
           <Link to="/login" className="btn-link">

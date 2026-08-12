@@ -2,7 +2,9 @@ import { useEffect, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 
 import { authApi } from "../api/client";
+import { AsyncButton } from "../components/AsyncButton";
 import { AuthShell } from "../components/AuthShell";
+import { useAsyncAction } from "../hooks/useAsyncAction";
 import { useToast } from "../hooks/useToast";
 
 export function ResetPasswordPage() {
@@ -11,7 +13,6 @@ export function ResetPasswordPage() {
   const [code, setCode] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [resending, setResending] = useState(false);
   const [resendCountdown, setResendCountdown] = useState(0);
   const toast = useToast();
   const navigate = useNavigate();
@@ -22,27 +23,8 @@ export function ResetPasswordPage() {
     return () => clearTimeout(timer);
   }, [resendCountdown]);
 
-  async function resend() {
-    if (resending || resendCountdown > 0 || !email) return;
-    setResending(true);
-    try {
-      const result = await authApi.requestPasswordReset({ email });
-      setResendCountdown(60);
-      toast.success(result.message);
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "重新发送失败");
-    } finally {
-      setResending(false);
-    }
-  }
-
-  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (newPassword !== confirmPassword) {
-      toast.error("两次输入的新密码不一致");
-      return;
-    }
-    try {
+  const submitAction = useAsyncAction(
+    async (email: string, code: string, newPassword: string) => {
       const result = await authApi.confirmPasswordReset({
         email,
         code,
@@ -58,9 +40,37 @@ export function ResetPasswordPage() {
       setCode("");
       setNewPassword("");
       setConfirmPassword("");
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "重置失败");
+    },
+    {
+      onError: (err) =>
+        toast.error(err instanceof Error ? err.message : "重置失败"),
+    },
+  );
+
+  const resendAction = useAsyncAction(
+    async (email: string) => {
+      const result = await authApi.requestPasswordReset({ email });
+      setResendCountdown(60);
+      toast.success(result.message);
+    },
+    {
+      onError: (err) =>
+        toast.error(err instanceof Error ? err.message : "重新发送失败"),
+    },
+  );
+
+  async function resend() {
+    if (resendAction.pending || resendCountdown > 0 || !email) return;
+    await resendAction.run(email);
+  }
+
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (newPassword !== confirmPassword) {
+      toast.error("两次输入的新密码不一致");
+      return;
     }
+    await submitAction.run(email, code, newPassword);
   }
 
   return (
@@ -117,16 +127,20 @@ export function ResetPasswordPage() {
             required
           />
         </label>
-        <button type="submit" className="btn btn-primary w-full">
+        <AsyncButton
+          type="submit"
+          status={submitAction.status}
+          className="btn btn-primary w-full"
+        >
           重置密码
-        </button>
+        </AsyncButton>
         <button
           type="button"
           onClick={() => void resend()}
-          disabled={resending || !email || resendCountdown > 0}
+          disabled={resendAction.pending || !email || resendCountdown > 0}
           className="btn btn-secondary w-full"
         >
-          {resending
+          {resendAction.pending
             ? "发送中…"
             : resendCountdown > 0
               ? `重新发送（${resendCountdown}s）`

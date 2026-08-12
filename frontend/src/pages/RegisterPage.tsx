@@ -2,8 +2,10 @@ import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 
 import { authApi } from "../api/client";
+import { AsyncButton } from "../components/AsyncButton";
 import { AuthShell } from "../components/AuthShell";
 import { Notice } from "../components/Notice";
+import { useAsyncAction } from "../hooks/useAsyncAction";
 import { useToast } from "../hooks/useToast";
 import { APP_NAME } from "../lib/brand";
 
@@ -37,14 +39,20 @@ export function RegisterPage() {
     };
   }, []);
 
-  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    try {
+  const submitAction = useAsyncAction(
+    async (email: string, nickname: string, password: string) => {
       await authApi.register({ email, nickname, password });
       navigate(`/verify-email?email=${encodeURIComponent(email)}`);
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "注册失败");
-    }
+    },
+    {
+      onError: (err) =>
+        toast.error(err instanceof Error ? err.message : "注册失败"),
+    },
+  );
+
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    await submitAction.run(email, nickname, password);
   }
 
   if (registrationStatus === "loading") {
@@ -105,9 +113,13 @@ export function RegisterPage() {
             required
           />
         </label>
-        <button type="submit" className="btn btn-primary w-full">
+        <AsyncButton
+          type="submit"
+          status={submitAction.status}
+          className="btn btn-primary w-full"
+        >
           注册
-        </button>
+        </AsyncButton>
         <p className="text-center text-sm text-muted">
           已有账号？{" "}
           <Link to="/login" className="btn-link">

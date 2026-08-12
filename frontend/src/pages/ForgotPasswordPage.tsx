@@ -2,7 +2,9 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 
 import { authApi } from "../api/client";
+import { AsyncButton } from "../components/AsyncButton";
 import { AuthShell } from "../components/AuthShell";
+import { useAsyncAction } from "../hooks/useAsyncAction";
 import { useToast } from "../hooks/useToast";
 
 export function ForgotPasswordPage() {
@@ -10,9 +12,8 @@ export function ForgotPasswordPage() {
   const toast = useToast();
   const navigate = useNavigate();
 
-  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    try {
+  const submitAction = useAsyncAction(
+    async (email: string) => {
       const result = await authApi.requestPasswordReset({ email });
       toast.success(result.message, {
         duration: 8000,
@@ -22,9 +23,16 @@ export function ForgotPasswordPage() {
             navigate(`/reset-password?email=${encodeURIComponent(email)}`),
         },
       });
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "发送失败");
-    }
+    },
+    {
+      onError: (err) =>
+        toast.error(err instanceof Error ? err.message : "发送失败"),
+    },
+  );
+
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    await submitAction.run(email);
   }
 
   return (
@@ -41,9 +49,13 @@ export function ForgotPasswordPage() {
             required
           />
         </label>
-        <button type="submit" className="btn btn-primary w-full">
+        <AsyncButton
+          type="submit"
+          status={submitAction.status}
+          className="btn btn-primary w-full"
+        >
           发送重置验证码
-        </button>
+        </AsyncButton>
         <p className="text-center text-sm">
           <Link to="/login" className="btn-link">
             返回登录

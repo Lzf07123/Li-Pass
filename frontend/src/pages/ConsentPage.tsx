@@ -2,8 +2,10 @@ import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 
 import { consentApi } from "../api/client";
+import { AsyncButton } from "../components/AsyncButton";
 import { AuthShell } from "../components/AuthShell";
 import { Notice } from "../components/Notice";
+import { useAsyncAction } from "../hooks/useAsyncAction";
 import { useToast } from "../hooks/useToast";
 import type { ConsentInfo } from "../api/types";
 
@@ -29,15 +31,21 @@ export function ConsentPage() {
       .catch((err) => setError(err instanceof Error ? err.message : "加载失败"));
   }, [requestId]);
 
-  async function decide(approve: boolean) {
-    try {
+  const decideAction = useAsyncAction(
+    async (approve: boolean) => {
       const result = approve
         ? await consentApi.approve(requestId)
         : await consentApi.deny(requestId);
       window.location.href = result.redirect_url;
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "操作失败");
-    }
+    },
+    {
+      onError: (err) =>
+        toast.error(err instanceof Error ? err.message : "操作失败"),
+    },
+  );
+
+  function decide(approve: boolean) {
+    void decideAction.run(approve);
   }
 
   return (
@@ -84,18 +92,22 @@ export function ConsentPage() {
             登录后将跳回 {info.client.name}，不会向对方泄露你的密码。
           </p>
           <div className="flex gap-3">
-            <button
+            <AsyncButton
+              type="button"
+              status={decideAction.status}
               onClick={() => decide(true)}
               className="btn btn-primary flex-1"
             >
               同意授权
-            </button>
-            <button
+            </AsyncButton>
+            <AsyncButton
+              type="button"
+              status={decideAction.status}
               onClick={() => decide(false)}
               className="btn btn-secondary flex-1"
             >
               拒绝
-            </button>
+            </AsyncButton>
           </div>
         </div>
       ) : error ? (
