@@ -159,7 +159,11 @@ export const adminSettingsApi = {
 };
 
 export const meApi = {
-  updateProfile: (data: { nickname?: string; avatar_url?: string | null }) =>
+  updateProfile: (data: {
+    nickname?: string;
+    avatar_url?: string | null;
+    email_notifications?: boolean;
+  }) =>
     api<UserOut>("/api/v1/me", { method: "PUT", body: JSON.stringify(data) }),
   changePassword: (data: { current_password: string; new_password: string }) =>
     api<{ message: string }>("/api/v1/me/password", {

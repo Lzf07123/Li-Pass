@@ -33,6 +33,7 @@ export function DashboardPage() {
   const [sessions, setSessions] = useState<SessionOut[]>([]);
   const [nickname, setNickname] = useState("");
   const [avatarUrl, setAvatarUrl] = useState("");
+  const [emailNotifications, setEmailNotifications] = useState(true);
   const [phone, setPhone] = useState("");
   const [phoneCode, setPhoneCode] = useState("");
   const [phoneStep, setPhoneStep] = useState<"phone" | "code">("phone");
@@ -71,6 +72,7 @@ export function DashboardPage() {
         setUser(data);
         setNickname(data.nickname);
         setAvatarUrl(data.avatar_url ?? "");
+        setEmailNotifications(data.email_notifications);
         appsApi
           .list()
           .then((data) => {
@@ -101,13 +103,19 @@ export function DashboardPage() {
   }
 
   const saveProfileAction = useAsyncAction(
-    async (nickname: string, avatarUrl: string) => {
+    async (
+      nickname: string,
+      avatarUrl: string,
+      emailNotifications: boolean
+    ) => {
       const updated = await meApi.updateProfile({
         nickname,
         avatar_url: avatarUrl || null,
+        email_notifications: emailNotifications,
       });
       setUser(updated);
       setAvatarUrl(updated.avatar_url ?? "");
+      setEmailNotifications(updated.email_notifications);
       toast.success("资料已保存");
     },
     {
@@ -117,7 +125,7 @@ export function DashboardPage() {
 
   async function saveProfile(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    await saveProfileAction.run(nickname, avatarUrl);
+    await saveProfileAction.run(nickname, avatarUrl, emailNotifications);
   }
 
   const changePasswordAction = useAsyncAction(
@@ -463,6 +471,17 @@ export function DashboardPage() {
                       className="input"
                       required
                     />
+                  </label>
+                  <label className="flex items-center gap-2 text-sm text-foreground">
+                    <input
+                      type="checkbox"
+                      checked={emailNotifications}
+                      onChange={(event) =>
+                        setEmailNotifications(event.target.checked)
+                      }
+                      aria-label="接收邮件通知"
+                    />
+                    接收邮件通知（关闭后仍会收到站内信）
                   </label>
                   <AsyncButton
                     type="submit"

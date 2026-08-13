@@ -253,4 +253,88 @@ describe("DashboardPage", () => {
       "true"
     );
   });
+
+  it("保存资料时提交邮件通知开关", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ unread: 0 }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        })
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            id: "1",
+            email: "a@example.com",
+            nickname: "Alice",
+            email_verified: true,
+            email_notifications: true,
+            phone: null,
+            role: "user",
+            status: "active",
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } }
+        )
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify([]), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        })
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify([]), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        })
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            email_otp_enabled: false,
+            totp_enabled: false,
+            recovery_codes_remaining: 0,
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } }
+        )
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            id: "1",
+            email: "a@example.com",
+            nickname: "Alice",
+            email_verified: true,
+            email_notifications: false,
+            phone: null,
+            role: "user",
+            status: "active",
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } }
+        )
+      );
+    vi.stubGlobal("fetch", fetchMock);
+    renderWithProviders(<DashboardPage />);
+
+    await waitFor(() =>
+      expect(
+        screen.getByRole("checkbox", { name: "接收邮件通知" })
+      ).toBeChecked()
+    );
+    fireEvent.click(screen.getByRole("checkbox", { name: "接收邮件通知" }));
+    fireEvent.click(screen.getByRole("button", { name: "保存" }));
+    await waitFor(() => {
+      const put = fetchMock.mock.calls.find(
+        ([input, init]) =>
+          String(input).endsWith("/api/v1/me") && init?.method === "PUT"
+      );
+      expect(put).toBeDefined();
+      const body = JSON.parse(
+        String((put as [unknown, RequestInit])[1].body)
+      );
+      expect(body.email_notifications).toBe(false);
+    });
+  });
 });
