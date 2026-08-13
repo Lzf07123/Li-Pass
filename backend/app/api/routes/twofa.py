@@ -55,7 +55,7 @@ def enable_email_otp(
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "请先验证邮箱")
     user.email_otp_enabled = True
     db.commit()
-    log_audit(db, "user", str(user.id), "2fa_email_enable")
+    log_audit(db, "user", str(user.id), "2fa_email_enable", category="2fa")
     return {"message": "邮箱二次验证已开启"}
 
 
@@ -68,7 +68,7 @@ def disable_email_otp(
     _require_password(payload.current_password, user)
     user.email_otp_enabled = False
     db.commit()
-    log_audit(db, "user", str(user.id), "2fa_email_disable")
+    log_audit(db, "user", str(user.id), "2fa_email_disable", category="2fa")
     return {"message": "邮箱二次验证已关闭"}
 
 
@@ -97,7 +97,7 @@ def totp_enable(
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "验证码无效")
     enable_totp(user, payload.secret, db)
     codes = generate_recovery_codes(db, user)
-    log_audit(db, "user", str(user.id), "2fa_totp_enable")
+    log_audit(db, "user", str(user.id), "2fa_totp_enable", category="2fa")
     return {"message": "TOTP 已开启", "recovery_codes": codes}
 
 
@@ -116,5 +116,5 @@ def totp_disable(
     for code in codes:
         db.delete(code)
     db.commit()
-    log_audit(db, "user", str(user.id), "2fa_totp_disable")
+    log_audit(db, "user", str(user.id), "2fa_totp_disable", category="2fa")
     return {"message": "TOTP 已关闭"}

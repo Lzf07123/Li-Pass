@@ -34,7 +34,7 @@ from app.security.passwords import (
 from app.security.tokens import generate_token, hash_token
 from app.services.email import get_email_service
 from app.services.otps import create_otp, otp_attempts_exhausted, verify_otp
-from app.services.audit import log_audit
+from app.services.audit import log_audit, log_rate_limit_rejected_once
 from app.services.rate_limit import get_rate_limiter
 from app.services.site_settings import (
     PUBLIC_REGISTRATION_ENABLED_KEY,
@@ -115,12 +115,18 @@ def register(
             "注册渠道暂时关闭，只接收邀请注册",
         )
     ip = request.client.host if request.client else ""
-    if (
-        get_rate_limiter().hit(
-            "register", ip, settings.register_rate_window_seconds
+    register_count = get_rate_limiter().hit(
+        "register", ip, settings.register_rate_window_seconds
+    )
+    if register_count > settings.register_rate_limit:
+        log_rate_limit_rejected_once(
+            db,
+            "register",
+            register_count,
+            settings.register_rate_limit,
+            ip=ip,
+            detail={"action": "register", "reason": "rate_limit"},
         )
-        > settings.register_rate_limit
-    ):
         raise HTTPException(status.HTTP_429_TOO_MANY_REQUESTS, "注册过于频繁，请稍后再试")
     email = payload.email.lower()
     exists = db.scalar(select(User).where(User.email == email))
@@ -132,6 +138,18 @@ def register(
         )
         db.add(user)
         db.commit()
+        log_audit(
+            db,
+            "user",
+            str(user.id),
+            "user_register",
+            category="auth",
+            target_type="user",
+            target_id=str(user.id),
+            ip=ip,
+            user_agent=request.headers.get("user-agent"),
+            detail={"email": email},
+        )
         code = create_otp(db, OtpPurpose.register, email)
         try:
             get_email_service().send_verification(email, code)
@@ -188,6 +206,16 @@ def verify_email(
 
     user.email_verified_at = datetime.now(timezone.utc)
     db.commit()
+    log_audit(
+        db,
+        "user",
+        str(user.id),
+        "email_verify",
+        category="auth",
+        target_type="user",
+        target_id=str(user.id),
+        detail={"email": email},
+    )
     return {"message": "邮箱已验证"}
 
 
@@ -197,14 +225,17 @@ def resend_verify_email(
     db: Session = Depends(get_db),
 ) -> dict:
     email = payload.email.lower()
-    if (
-        get_rate_limiter().hit(
-            "email_resend",
-            email,
-            settings.email_verify_rate_window_seconds,
+    resend_count = get_rate_limiter().hit(
+        "email_resend", email, settings.email_verify_rate_window_seconds
+    )
+    if resend_count > settings.email_verify_rate_limit:
+        log_rate_limit_rejected_once(
+            db,
+            "email_verify_resend",
+            resend_count,
+            settings.email_verify_rate_limit,
+            detail={"action": "email_verify_resend", "reason": "rate_limit"},
         )
-        > settings.email_verify_rate_limit
-    ):
         raise HTTPException(
             status.HTTP_429_TOO_MANY_REQUESTS,
             f"验证码发送过于频繁，请在 "
@@ -216,6 +247,16 @@ def resend_verify_email(
         try:
             get_email_service().send_verification(email, code)
             db.commit()
+            log_audit(
+                db,
+                "user",
+                str(user.id),
+                "email_verify_resend",
+                category="auth",
+                target_type="user",
+                target_id=str(user.id),
+                detail={"email": email},
+            )
         except Exception:
             db.rollback()
             get_rate_limiter().decrement("email_resend", email)
@@ -296,6 +337,7 @@ def register_by_invite(
         "user",
         str(user.id),
         "user_register_by_invite",
+        category="auth",
         target_type="user",
         target_id=str(user.id),
         ip=ip,
@@ -314,15 +356,37 @@ def login(
 ) -> dict:
     ip = request.client.host if request.client else ""
     # 在 Argon2 之前按 IP 前置限流，防止分布式重试打满 CPU/内存。
-    if (
-        get_rate_limiter().hit(
-            "login_ip", ip, settings.login_rate_window_seconds
+    login_ip_count = get_rate_limiter().hit(
+        "login_ip", ip, settings.login_rate_window_seconds
+    )
+    if login_ip_count > settings.login_ip_rate_limit:
+        log_rate_limit_rejected_once(
+            db,
+            "login",
+            login_ip_count,
+            settings.login_ip_rate_limit,
+            ip=ip,
+            user_agent=request.headers.get("user-agent"),
+            detail={"action": "login", "reason": "ip_rate_limit"},
         )
-        > settings.login_ip_rate_limit
-    ):
+        raise HTTPException(status.HTTP_429_TOO_MANY_REQUESTS, "尝试次数过多，请稍后再试")
+    email_for_limit = payload.email.lower()
+    email_login_count = get_rate_limiter().hit(
+        "login_email", email_for_limit, settings.login_email_rate_window_seconds
+    )
+    if email_login_count > settings.login_email_rate_limit:
+        log_rate_limit_rejected_once(
+            db,
+            "login_email",
+            email_login_count,
+            settings.login_email_rate_limit,
+            ip=ip,
+            user_agent=request.headers.get("user-agent"),
+            detail={"action": "login", "reason": "email_rate_limit"},
+        )
         raise HTTPException(status.HTTP_429_TOO_MANY_REQUESTS, "尝试次数过多，请稍后再试")
     user_agent = request.headers.get("user-agent")
-    user = db.scalar(select(User).where(User.email == payload.email.lower()))
+    user = db.scalar(select(User).where(User.email == email_for_limit))
     if user is None or not verify_password(payload.password, user.password_hash):
         count = get_rate_limiter().hit(
             "login",
@@ -334,6 +398,7 @@ def login(
             "user",
             str(user.id) if user else None,
             "login_failed",
+            category="security",
             ip=ip,
             user_agent=user_agent,
         )
@@ -354,12 +419,14 @@ def login(
             "user",
             str(user.id),
             "login_failed",
+            category="security",
             detail={"reason": "disabled"},
             ip=ip,
             user_agent=user_agent,
         )
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "邮箱或密码错误")
     get_rate_limiter().reset("login", f"{user.email}:{ip}")
+    get_rate_limiter().reset("login_email", user.email)
 
     methods = []
     if user.email_otp_enabled:
@@ -382,6 +449,7 @@ def login(
             "user",
             str(user.id),
             "login_step1",
+            category="auth",
             ip=ip,
             user_agent=user_agent,
         )
@@ -407,6 +475,7 @@ def login(
         "user",
         str(user.id),
         "login",
+        category="auth",
         ip=ip,
         user_agent=user_agent,
     )
@@ -439,6 +508,18 @@ def send_twofa_code(
         "otp_send", user.email, settings.otp_send_window_seconds
     )
     if send_count > settings.otp_send_limit:
+        log_rate_limit_rejected_once(
+            db,
+            "twofa_send",
+            send_count,
+            settings.otp_send_limit,
+            actor_type="user",
+            actor_id=str(user.id),
+            detail={
+                "action": "twofa_send",
+                "reason": "rate_limit",
+            },
+        )
         raise HTTPException(
             status.HTTP_429_TOO_MANY_REQUESTS,
             f"验证码发送过于频繁，请在 "
@@ -509,6 +590,7 @@ def verify_twofa(
             "user",
             str(challenge.user_id),
             "2fa_login_failed",
+            category="security",
             detail={
                 "method": payload.method,
                 "reason": "invalid_code",
@@ -533,6 +615,7 @@ def verify_twofa(
         "user",
         str(user.id),
         "2fa_login",
+        category="auth",
         detail={"method": payload.method},
         ip=request.client.host if request.client else None,
         user_agent=request.headers.get("user-agent"),
@@ -550,6 +633,17 @@ def logout(request: Request, response: Response, db: Session = Depends(get_db)) 
         if session is not None:
             session.revoked_at = datetime.now(timezone.utc)
             db.commit()
+            log_audit(
+                db,
+                "user",
+                str(session.user_id),
+                "logout",
+                category="auth",
+                target_type="user",
+                target_id=str(session.user_id),
+                ip=request.client.host if request.client else None,
+                user_agent=request.headers.get("user-agent"),
+            )
     # 删除 Cookie 必须镜像设置时的属性（Secure/SameSite/HttpOnly），
     # 否则 HTTPS 生产环境下浏览器可能不认可这条删除指令，导致登出后 Cookie 仍有效。
     response.delete_cookie(
@@ -566,14 +660,19 @@ def request_password_reset(
     db: Session = Depends(get_db),
 ) -> dict:
     email = payload.email.lower()
-    if (
-        get_rate_limiter().hit(
+    reset_count = get_rate_limiter().hit(
+        "password_reset",
+        email,
+        settings.password_reset_rate_window_seconds,
+    )
+    if reset_count > settings.password_reset_rate_limit:
+        log_rate_limit_rejected_once(
+            db,
             "password_reset",
-            email,
-            settings.password_reset_rate_window_seconds,
+            reset_count,
+            settings.password_reset_rate_limit,
+            detail={"action": "password_reset", "reason": "rate_limit"},
         )
-        > settings.password_reset_rate_limit
-    ):
         raise HTTPException(
             status.HTTP_429_TOO_MANY_REQUESTS,
             f"请求过于频繁，请在 "
@@ -585,6 +684,16 @@ def request_password_reset(
         try:
             get_email_service().send_password_reset(email, code)
             db.commit()
+            log_audit(
+                db,
+                "user",
+                str(user.id),
+                "password_reset_request",
+                category="auth",
+                target_type="user",
+                target_id=str(user.id),
+                detail={"email": email},
+            )
         except Exception:
             db.rollback()
             get_rate_limiter().decrement("password_reset", email)
@@ -620,5 +729,5 @@ def confirm_password_reset(
     for session in sessions:
         session.revoked_at = now
     db.commit()
-    log_audit(db, "user", str(user.id), "password_reset")
+    log_audit(db, "user", str(user.id), "password_reset", category="auth")
     return {"message": "密码已重置"}

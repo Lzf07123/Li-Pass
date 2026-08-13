@@ -53,6 +53,7 @@ def update_site_settings(
         "admin",
         str(actor.id),
         "admin_update_site_setting",
+        category="admin_settings",
         target_type="setting",
         target_id=PUBLIC_REGISTRATION_ENABLED_KEY,
         ip=request.client.host if request.client else None,

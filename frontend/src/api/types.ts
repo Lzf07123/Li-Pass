@@ -160,6 +160,7 @@ export interface AuditLogOut {
   actor_type: string;
   actor_id: string | null;
   action: string;
+  category: string | null;
   target_type: string | null;
   target_id: string | null;
   ip: string | null;

@@ -9,6 +9,7 @@ from app.core.db import get_db
 from app.models.client_user_block import ClientUserBlock
 from app.models.oauth_client import OAuthClient
 from app.models.user import User
+from app.schemas.auth import PasswordConfirm
 from app.schemas.oauth import (
     ClientBlockCreate,
     ClientCreate,
@@ -16,6 +17,7 @@ from app.schemas.oauth import (
     ClientUpdate,
     serialize_client,
 )
+from app.security.passwords import verify_password
 from app.security.tokens import generate_client_id, generate_client_secret, hash_token
 from app.services.blocks import add_block, list_blocks, remove_block
 from app.services.audit import log_audit
@@ -65,6 +67,7 @@ def create_client(
         "admin",
         str(actor.id),
         "admin_create_client",
+        category="admin_client",
         target_type="oauth_client",
         target_id=str(client.id),
         detail={
@@ -103,6 +106,7 @@ def update_client(
         "admin",
         str(actor.id),
         "admin_update_client",
+        category="admin_client",
         target_type="oauth_client",
         target_id=str(client.id),
         detail={"name": client.name, "is_active": client.is_active},
@@ -113,17 +117,21 @@ def update_client(
 @router.delete("/{client_id:uuid}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_client(
     client_id: uuid.UUID,
+    payload: PasswordConfirm,
     actor: User = Depends(get_current_admin),
     db: Session = Depends(get_db),
 ) -> None:
     client = db.get(OAuthClient, client_id)
     if client is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "应用不存在")
+    if not verify_password(payload.current_password, actor.password_hash):
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "当前密码错误")
     log_audit(
         db,
         "admin",
         str(actor.id),
         "admin_delete_client",
+        category="admin_client",
         target_type="oauth_client",
         target_id=str(client.id),
         detail={"name": client.name, "client_id": client.client_id},
@@ -135,12 +143,15 @@ def delete_client(
 @router.post("/{client_id:uuid}/reset-secret", response_model=ClientSecretOut)
 def reset_secret(
     client_id,
+    payload: PasswordConfirm,
     actor: User = Depends(get_current_admin),
     db: Session = Depends(get_db),
 ) -> dict:
     client = db.get(OAuthClient, client_id)
     if client is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "应用不存在")
+    if not verify_password(payload.current_password, actor.password_hash):
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "当前密码错误")
     if client.client_secret_hash is None:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "公开客户端没有密钥")
     client_secret = generate_client_secret()
@@ -151,6 +162,7 @@ def reset_secret(
         "admin",
         str(actor.id),
         "admin_reset_client_secret",
+        category="admin_client",
         target_type="oauth_client",
         target_id=str(client.id),
         detail={"name": client.name},
@@ -201,6 +213,7 @@ def admin_add_block(
         "admin",
         str(actor.id),
         "block_add",
+        category="admin_block",
         target_type="oauth_client",
         target_id=str(client.id),
         detail={"email": block.email, "user_id": str(block.user_id) if block.user_id else None},
@@ -229,6 +242,7 @@ def admin_remove_block(
         "admin",
         str(actor.id),
         "block_remove",
+        category="admin_block",
         target_type="oauth_client",
         target_id=str(client.id),
     )

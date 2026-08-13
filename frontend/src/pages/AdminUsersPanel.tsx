@@ -36,6 +36,7 @@ export function AdminUsersPanel({ currentAdminId }: { currentAdminId: string }) 
   const [batchInviteOpen, setBatchInviteOpen] = useState(false);
   const [batchInviteText, setBatchInviteText] = useState("");
   const [inviteBusyId, setInviteBusyId] = useState<string | null>(null);
+  const [adminPassword, setAdminPassword] = useState("");
   const toast = useToast();
   const usersBreathing = useBreathOnChange(users);
 
@@ -84,14 +85,20 @@ export function AdminUsersPanel({ currentAdminId }: { currentAdminId: string }) 
   function startResetPassword(user: AdminUserOut) {
     setPasswordTarget(user);
     setNewPassword("");
+    setAdminPassword("");
   }
 
   const resetPasswordAction = useAsyncAction(
-    async (id: string, newPassword: string) => {
-      const result = await adminUsersApi.resetPassword(id, newPassword);
+    async (id: string, newPassword: string, currentPassword: string) => {
+      const result = await adminUsersApi.resetPassword(
+        id,
+        newPassword,
+        currentPassword,
+      );
       toast.success(result.message);
       setPasswordTarget(null);
       setNewPassword("");
+      setAdminPassword("");
     },
     {
       onError: (err) =>
@@ -105,10 +112,15 @@ export function AdminUsersPanel({ currentAdminId }: { currentAdminId: string }) 
       toast.error("新密码至少 8 位");
       return;
     }
-    await resetPasswordAction.run(passwordTarget.id, newPassword);
+    await resetPasswordAction.run(
+      passwordTarget.id,
+      newPassword,
+      adminPassword,
+    );
   }
 
   function startReset2fa(user: AdminUserOut) {
+    setAdminPassword("");
     setConfirmTarget({ user, action: "reset2fa" });
   }
 
@@ -124,6 +136,7 @@ export function AdminUsersPanel({ currentAdminId }: { currentAdminId: string }) 
     async (
       user: AdminUserOut,
       action: "toggle" | "reset2fa" | "cancelInvite" | "removeInvite",
+      currentPassword?: string,
     ) => {
       if (action === "toggle") {
         const nextStatus = user.status === "active" ? "disabled" : "active";
@@ -137,7 +150,10 @@ export function AdminUsersPanel({ currentAdminId }: { currentAdminId: string }) 
           `${user.email} 已${nextStatus === "active" ? "启用" : "禁用"}`,
         );
       } else if (action === "reset2fa") {
-        const result = await adminUsersApi.reset2fa(user.id);
+        const result = await adminUsersApi.reset2fa(
+          user.id,
+          currentPassword ?? "",
+        );
         toast.success(result.message);
       } else if (action === "cancelInvite") {
         const result = await adminUsersApi.cancelInvite(user.id);
@@ -172,7 +188,11 @@ export function AdminUsersPanel({ currentAdminId }: { currentAdminId: string }) 
 
   function runConfirm() {
     if (!confirmTarget) return;
-    void confirmAction.run(confirmTarget.user, confirmTarget.action);
+    void confirmAction.run(
+      confirmTarget.user,
+      confirmTarget.action,
+      confirmTarget.action === "reset2fa" ? adminPassword : undefined,
+    );
   }
 
   function startDelete(user: AdminUserOut) {
@@ -687,7 +707,21 @@ export function AdminUsersPanel({ currentAdminId }: { currentAdminId: string }) 
         status={confirmAction.status}
         onConfirm={runConfirm}
         onCancel={() => setConfirmTarget(null)}
-      />
+      >
+        {confirmTarget?.action === "reset2fa" && (
+          <label className="mt-3 block">
+            <span className="label">管理员当前密码</span>
+            <input
+              type="password"
+              value={adminPassword}
+              onChange={(e) => setAdminPassword(e.target.value)}
+              className="input"
+              autoComplete="current-password"
+              autoFocus
+            />
+          </label>
+        )}
+      </ConfirmDialog>
 
       <Modal
         open={passwordTarget !== null}
@@ -720,6 +754,17 @@ export function AdminUsersPanel({ currentAdminId }: { currentAdminId: string }) 
           onSubmit={submitResetPassword}
           className="space-y-3"
         >
+          <label className="block">
+            <span className="label">管理员当前密码</span>
+            <input
+              type="password"
+              value={adminPassword}
+              onChange={(e) => setAdminPassword(e.target.value)}
+              className="input"
+              autoComplete="current-password"
+              autoFocus
+            />
+          </label>
           <label className="block">
             <span className="label">新密码</span>
             <input

@@ -48,10 +48,11 @@ def _run_maintenance(app: FastAPI) -> None:
             total = sum(counts.values())
             if total:
                 logger.info(
-                    "临时凭证清理：OTP %d 条、授权码 %d 条、邀请 %d 条",
+                    "临时凭证清理：OTP %d 条、授权码 %d 条、邀请 %d 条、审计日志 %d 条",
                     counts["otps"],
                     counts["authorization_codes"],
                     counts["account_invites"],
+                    counts["audit_logs"],
                 )
         finally:
             db.close()

@@ -31,6 +31,7 @@ export function AdminClientsPage() {
     client_id: string;
     secret: string;
   } | null>(null);
+  const [adminPassword, setAdminPassword] = useState("");
   const toast = useToast();
   const clientsBreathing = useBreathOnChange(clients);
 
@@ -139,10 +140,11 @@ export function AdminClientsPage() {
   }
 
   const removeAction = useAsyncAction(
-    async (client: ClientOut) => {
-      await adminClientsApi.remove(client.id);
+    async (client: ClientOut, currentPassword: string) => {
+      await adminClientsApi.remove(client.id, currentPassword);
       setClients((prev) => prev.filter((item) => item.id !== client.id));
       setRemoveTarget(null);
+      setAdminPassword("");
       toast.success(`应用“${client.name}”已删除`);
     },
     {
@@ -153,7 +155,7 @@ export function AdminClientsPage() {
 
   function confirmRemove() {
     if (!removeTarget) return;
-    void removeAction.run(removeTarget);
+    void removeAction.run(removeTarget, adminPassword);
   }
 
   function startEdit(client: ClientOut) {
@@ -224,9 +226,13 @@ export function AdminClientsPage() {
   }
 
   const resetSecretAction = useAsyncAction(
-    async (client: ClientOut) => {
-      const result = await adminClientsApi.resetSecret(client.id);
+    async (client: ClientOut, currentPassword: string) => {
+      const result = await adminClientsApi.resetSecret(
+        client.id,
+        currentPassword,
+      );
       setResetTarget(null);
+      setAdminPassword("");
       setSecretModal({
         name: client.name,
         client_id: client.client_id,
@@ -240,7 +246,7 @@ export function AdminClientsPage() {
   );
 
   function resetSecret(client: ClientOut) {
-    void resetSecretAction.run(client);
+    void resetSecretAction.run(client, adminPassword);
   }
 
   async function copyText(text: string, label: string) {
@@ -258,6 +264,7 @@ export function AdminClientsPage() {
   }
 
   function startResetSecret(client: ClientOut) {
+    setAdminPassword("");
     setResetTarget(client);
   }
 
@@ -587,7 +594,19 @@ export function AdminClientsPage() {
         status={removeAction.status}
         onConfirm={confirmRemove}
         onCancel={() => setRemoveTarget(null)}
-      />
+      >
+        <label className="mt-3 block">
+          <span className="label">管理员当前密码</span>
+          <input
+            type="password"
+            value={adminPassword}
+            onChange={(e) => setAdminPassword(e.target.value)}
+            className="input"
+            autoComplete="current-password"
+            autoFocus
+          />
+        </label>
+      </ConfirmDialog>
 
       <ConfirmDialog
         open={resetTarget !== null}
@@ -604,7 +623,19 @@ export function AdminClientsPage() {
         status={resetSecretAction.status}
         onConfirm={() => resetTarget && void resetSecret(resetTarget)}
         onCancel={() => setResetTarget(null)}
-      />
+      >
+        <label className="mt-3 block">
+          <span className="label">管理员当前密码</span>
+          <input
+            type="password"
+            value={adminPassword}
+            onChange={(e) => setAdminPassword(e.target.value)}
+            className="input"
+            autoComplete="current-password"
+            autoFocus
+          />
+        </label>
+      </ConfirmDialog>
 
       <Modal
         open={secretModal !== null}

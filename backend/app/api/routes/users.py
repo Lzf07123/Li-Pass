@@ -29,7 +29,7 @@ from app.schemas.auth import (
 from app.security.passwords import hash_password, verify_password
 from app.services.account_deletion import delete_user_account
 from app.services.avatar_cleanup import delete_avatar_file
-from app.services.audit import log_audit
+from app.services.audit import log_audit, mask_phone
 from app.services.email import get_email_service
 from app.services.otps import create_otp, verify_otp
 from app.services.rate_limit import get_rate_limiter
@@ -75,6 +75,16 @@ def update_profile(
     if payload.avatar_url is not None:
         user.avatar_url = payload.avatar_url
     db.commit()
+    log_audit(
+        db,
+        "user",
+        str(user.id),
+        "profile_update",
+        category="user",
+        target_type="user",
+        target_id=str(user.id),
+        detail={"nickname_changed": payload.nickname is not None},
+    )
     # 头像地址被替换/改为外链/清空时，旧的本地上传文件不再被引用，立即删除。
     if old_avatar and old_avatar != user.avatar_url:
         upload_dir = Path(get_settings().avatar_upload_dir)
@@ -107,7 +117,7 @@ def change_password(
     for session in others:
         session.revoked_at = datetime.now(timezone.utc)
     db.commit()
-    log_audit(db, "user", str(user.id), "password_change")
+    log_audit(db, "user", str(user.id), "password_change", category="user")
     return {"message": "密码已修改，其他会话已退出"}
 
 
@@ -139,6 +149,7 @@ def delete_own_account(
         "user",
         user_id,
         "user_delete_self",
+        category="user",
         target_type="user",
         target_id=user_id,
         ip=request.client.host if request.client else None,
@@ -171,6 +182,15 @@ def send_phone_bind_code(
     try:
         get_email_service().send_verification(user.email, code)
         db.commit()
+        log_audit(
+            db,
+            "user",
+            str(user.id),
+            "phone_bind_send",
+            category="user",
+            target_type="user",
+            target_id=str(user.id),
+        )
     except Exception:
         db.rollback()
         get_rate_limiter().decrement("otp_send", user.email)
@@ -193,6 +213,16 @@ def bind_phone(
     user.phone = payload.phone
     user.phone_verified_at = datetime.now(timezone.utc)
     db.commit()
+    log_audit(
+        db,
+        "user",
+        str(user.id),
+        "phone_bind",
+        category="user",
+        target_type="user",
+        target_id=str(user.id),
+        detail={"phone": mask_phone(payload.phone)},
+    )
     return serialize_user(user)
 
 
@@ -241,6 +271,15 @@ def revoke_session(
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "不能退出当前会话")
     session.revoked_at = datetime.now(timezone.utc)
     db.commit()
+    log_audit(
+        db,
+        "user",
+        str(user.id),
+        "session_revoke",
+        category="user",
+        target_type="session",
+        target_id=str(session.id),
+    )
 
 
 @router.get("/apps", response_model=list[AppOut])
@@ -313,6 +352,7 @@ def revoke_app(
         "user",
         str(user.id),
         "app_consent_revoke",
+        category="consent",
         target_type="oauth_client",
         target_id=str(client.id),
     )
@@ -363,4 +403,13 @@ async def upload_avatar(
 
     user.avatar_url = f"/uploads/avatars/{user.id}/{filename}"
     db.commit()
+    log_audit(
+        db,
+        "user",
+        str(user.id),
+        "avatar_upload",
+        category="user",
+        target_type="user",
+        target_id=str(user.id),
+    )
     return serialize_user(user)

@@ -15,10 +15,11 @@ from app.models.audit_log import AuditLog
 from app.models.recovery_code import RecoveryCode
 from app.models.session import Session as SessionModel
 from app.models.user import User, UserRole, UserStatus
+from app.schemas.auth import PasswordConfirm
 from app.security.passwords import hash_password, verify_password
 from app.security.tokens import generate_token, hash_token
 from app.services.account_deletion import delete_user_account
-from app.services.audit import log_audit
+from app.services.audit import log_audit, log_rate_limit_rejected_once
 from app.services.email import get_email_service
 from app.services.rate_limit import get_rate_limiter
 
@@ -34,10 +35,12 @@ router = APIRouter(
 class AdminUserUpdate(BaseModel):
     status: UserStatus | None = None
     role: UserRole | None = None
+    current_password: str | None = None
 
 
 class AdminResetPassword(BaseModel):
     new_password: str = Field(min_length=8, max_length=128)
+    current_password: str = Field(min_length=1, max_length=128)
 
 
 class AdminDeleteUser(BaseModel):
@@ -63,6 +66,7 @@ class AdminBatchUserUpdate(BaseModel):
     user_ids: list[uuid.UUID] = Field(min_length=1, max_length=200)
     status: UserStatus | None = None
     role: UserRole | None = None
+    current_password: str | None = None
 
 
 class AdminBatchDeleteUser(BaseModel):
@@ -196,6 +200,7 @@ def create_user(
         "admin",
         str(actor.id),
         "admin_create_user",
+        category="admin_user",
         target_type="user",
         target_id=str(user.id),
         ip=request.client.host if request.client else None,
@@ -214,12 +219,20 @@ def invite_user(
 ) -> dict:
     ip = request.client.host if request.client else ""
     settings = get_settings()
-    if (
-        get_rate_limiter().hit(
-            "admin_invite", ip, settings.admin_invite_rate_window_seconds
+    invite_count = get_rate_limiter().hit(
+        "admin_invite", ip, settings.admin_invite_rate_window_seconds
+    )
+    if invite_count > settings.admin_invite_rate_limit:
+        log_rate_limit_rejected_once(
+            db,
+            "admin_invite",
+            invite_count,
+            settings.admin_invite_rate_limit,
+            actor_type="admin",
+            actor_id=str(actor.id),
+            ip=ip,
+            detail={"action": "admin_invite", "reason": "rate_limit"},
         )
-        > settings.admin_invite_rate_limit
-    ):
         raise HTTPException(status.HTTP_429_TOO_MANY_REQUESTS, "发送邀请过于频繁，请稍后再试")
     email = payload.email.lower()
     if db.scalar(select(User).where(User.email == email)) is not None:
@@ -262,6 +275,7 @@ def invite_user(
         "admin",
         str(actor.id),
         "admin_invite_user",
+        category="admin_user",
         target_type="user",
         target_id=email,
         ip=ip,
@@ -292,6 +306,7 @@ def cancel_invite(
         "admin",
         str(actor.id),
         "admin_cancel_invite",
+        category="admin_user",
         target_type="invite",
         target_id=str(invite.id),
         detail={"email": invite.email},
@@ -308,12 +323,20 @@ def resend_invite(
 ) -> dict:
     ip = request.client.host if request.client else ""
     settings = get_settings()
-    if (
-        get_rate_limiter().hit(
-            "admin_invite", ip, settings.admin_invite_rate_window_seconds
+    resend_count = get_rate_limiter().hit(
+        "admin_invite", ip, settings.admin_invite_rate_window_seconds
+    )
+    if resend_count > settings.admin_invite_rate_limit:
+        log_rate_limit_rejected_once(
+            db,
+            "admin_resend_invite",
+            resend_count,
+            settings.admin_invite_rate_limit,
+            actor_type="admin",
+            actor_id=str(actor.id),
+            ip=ip,
+            detail={"action": "admin_resend_invite", "reason": "rate_limit"},
         )
-        > settings.admin_invite_rate_limit
-    ):
         raise HTTPException(status.HTTP_429_TOO_MANY_REQUESTS, "发送邀请过于频繁，请稍后再试")
 
     invite = db.get(AccountInvite, invite_id)
@@ -374,6 +397,7 @@ def resend_invite(
         "admin",
         str(actor.id),
         "admin_resend_invite",
+        category="admin_user",
         target_type="invite",
         target_id=str(invite.id),
         ip=ip,
@@ -400,6 +424,7 @@ def delete_invite(
         "admin",
         str(actor.id),
         "admin_delete_invite",
+        category="admin_user",
         target_type="invite",
         target_id=str(invite_id),
         detail={"email": email},
@@ -417,15 +442,24 @@ def batch_invite_users(
     ip = request.client.host if request.client else ""
     settings = get_settings()
     emails = list(dict.fromkeys(email.lower() for email in payload.emails))
-    if (
-        get_rate_limiter().hit(
-            "admin_invite",
-            ip,
-            settings.admin_invite_rate_window_seconds,
-            len(emails),
+    batch_count = get_rate_limiter().hit(
+        "admin_invite",
+        ip,
+        settings.admin_invite_rate_window_seconds,
+        len(emails),
+    )
+    if batch_count > settings.admin_invite_rate_limit:
+        log_rate_limit_rejected_once(
+            db,
+            "admin_batch_invite",
+            batch_count,
+            settings.admin_invite_rate_limit,
+            increment=len(emails),
+            actor_type="admin",
+            actor_id=str(actor.id),
+            ip=ip,
+            detail={"action": "admin_batch_invite", "reason": "rate_limit"},
         )
-        > settings.admin_invite_rate_limit
-    ):
         raise HTTPException(status.HTTP_429_TOO_MANY_REQUESTS, "发送邀请过于频繁，请稍后再试")
 
     now = datetime.now(timezone.utc)
@@ -481,6 +515,7 @@ def batch_invite_users(
         "admin",
         str(actor.id),
         "admin_batch_invite_user",
+        category="admin_user",
         target_type="user",
         target_id=None,
         ip=ip,
@@ -520,6 +555,11 @@ def batch_update_users(
             raise HTTPException(
                 status.HTTP_400_BAD_REQUEST, "不能批量取消自己的管理员角色"
             )
+    if payload.role is not None:
+        if not payload.current_password or not verify_password(
+            payload.current_password, actor.password_hash
+        ):
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, "当前密码错误")
 
     for user in users:
         if payload.status is not None:
@@ -532,6 +572,7 @@ def batch_update_users(
         "admin",
         str(actor.id),
         "admin_batch_update_user",
+        category="admin_user",
         target_type="user",
         target_id=None,
         detail={
@@ -558,6 +599,11 @@ def update_user(
             raise HTTPException(status.HTTP_400_BAD_REQUEST, "不能禁用自己")
         if payload.role is not None and payload.role != UserRole.admin:
             raise HTTPException(status.HTTP_400_BAD_REQUEST, "不能取消自己的管理员角色")
+    if payload.role is not None:
+        if not payload.current_password or not verify_password(
+            payload.current_password, actor.password_hash
+        ):
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, "当前密码错误")
     if payload.status is not None:
         user.status = payload.status
     if payload.role is not None:
@@ -568,6 +614,7 @@ def update_user(
         "admin",
         str(actor.id),
         "admin_update_user",
+        category="admin_user",
         target_type="user",
         target_id=str(user.id),
         detail={
@@ -588,6 +635,8 @@ def reset_password(
     user = db.get(User, user_id)
     if user is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "用户不存在")
+    if not verify_password(payload.current_password, actor.password_hash):
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "当前密码错误")
     user.password_hash = hash_password(payload.new_password)
     sessions = db.scalars(
         select(SessionModel).where(
@@ -604,6 +653,7 @@ def reset_password(
         "admin",
         str(actor.id),
         "admin_reset_password",
+        category="admin_user",
         target_type="user",
         target_id=str(user.id),
     )
@@ -613,12 +663,15 @@ def reset_password(
 @router.post("/users/{user_id}/reset-2fa")
 def reset_twofa(
     user_id: uuid.UUID,
+    payload: PasswordConfirm,
     actor: User = Depends(get_current_admin),
     db: Session = Depends(get_db),
 ) -> dict:
     user = db.get(User, user_id)
     if user is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "用户不存在")
+    if not verify_password(payload.current_password, actor.password_hash):
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "当前密码错误")
     # 2FA 被重置后，旧会话（可能基于 2FA 建立）一并失效。
     sessions = db.scalars(
         select(SessionModel).where(
@@ -643,6 +696,7 @@ def reset_twofa(
         "admin",
         str(actor.id),
         "admin_reset_2fa",
+        category="admin_user",
         target_type="user",
         target_id=str(user.id),
     )
@@ -690,6 +744,7 @@ def batch_delete_users(
         "admin",
         str(actor.id),
         "admin_batch_delete_user",
+        category="admin_user",
         target_type="user",
         target_id=None,
         ip=request.client.host if request.client else None,
@@ -742,6 +797,7 @@ def delete_user(
         "admin",
         str(actor.id),
         "admin_delete_user",
+        category="admin_user",
         target_type="user",
         target_id=str(user_id),
         ip=request.client.host if request.client else None,
@@ -757,11 +813,28 @@ def delete_user(
 
 @router.get("/audit-logs", response_model=list[dict])
 def list_audit_logs(
+    category: str | None = Query(None),
+    action: str | None = Query(None),
+    actor_id: str | None = Query(None),
+    start: datetime | None = Query(None),
+    end: datetime | None = Query(None),
     limit: int = Query(100, ge=1, le=500),
+    offset: int = Query(0, ge=0),
     db: Session = Depends(get_db),
 ) -> list[dict]:
+    stmt = select(AuditLog)
+    if category:
+        stmt = stmt.where(AuditLog.category == category)
+    if action:
+        stmt = stmt.where(AuditLog.action == action)
+    if actor_id:
+        stmt = stmt.where(AuditLog.actor_id == actor_id)
+    if start:
+        stmt = stmt.where(AuditLog.created_at >= start)
+    if end:
+        stmt = stmt.where(AuditLog.created_at <= end)
     logs = db.scalars(
-        select(AuditLog).order_by(AuditLog.created_at.desc()).limit(limit)
+        stmt.order_by(AuditLog.created_at.desc()).offset(offset).limit(limit)
     ).all()
     return [
         {
@@ -769,6 +842,7 @@ def list_audit_logs(
             "actor_type": log.actor_type,
             "actor_id": log.actor_id,
             "action": log.action,
+            "category": log.category,
             "target_type": log.target_type,
             "target_id": log.target_id,
             "ip": log.ip,
