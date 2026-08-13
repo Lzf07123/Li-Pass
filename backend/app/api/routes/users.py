@@ -74,6 +74,8 @@ def update_profile(
         user.nickname = payload.nickname
     if payload.avatar_url is not None:
         user.avatar_url = payload.avatar_url
+    if payload.email_notifications is not None:
+        user.email_notifications = payload.email_notifications
     db.commit()
     log_audit(
         db,
@@ -83,7 +85,11 @@ def update_profile(
         category="user",
         target_type="user",
         target_id=str(user.id),
-        detail={"nickname_changed": payload.nickname is not None},
+        detail={
+            "nickname_changed": payload.nickname is not None,
+            "email_notifications_changed": payload.email_notifications
+            is not None,
+        },
     )
     # 头像地址被替换/改为外链/清空时，旧的本地上传文件不再被引用，立即删除。
     if old_avatar and old_avatar != user.avatar_url:

@@ -25,6 +25,20 @@ def test_update_profile_and_password(client, captured_email, db_session) -> None
     assert verify_password("newpassword456", user.password_hash)
 
 
+def test_update_profile_email_notifications(client, captured_email) -> None:
+    register_and_login(client, captured_email)
+    me = client.get("/api/v1/me").json()
+    assert me["email_notifications"] is True
+
+    updated = client.put(
+        "/api/v1/me", json={"email_notifications": False}
+    ).json()
+    assert updated["email_notifications"] is False
+    again = client.put("/api/v1/me", json={"nickname": "New"}).json()
+    assert again["email_notifications"] is False  # 未传字段不重置
+    assert again["nickname"] == "New"
+
+
 def test_phone_bind_demo(client, captured_email) -> None:
     register_and_login(client, captured_email)
     assert client.post("/api/v1/me/phone/bind/send").status_code == 200

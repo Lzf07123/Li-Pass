@@ -51,6 +51,7 @@ class UserOut(BaseModel):
     email_verified: bool
     avatar_url: str | None = None
     phone: str | None = None
+    email_notifications: bool
     role: str
     status: str
 
@@ -58,6 +59,7 @@ class UserOut(BaseModel):
 class ProfileUpdate(BaseModel):
     nickname: str | None = Field(default=None, min_length=1, max_length=80)
     avatar_url: str | None = Field(default=None, max_length=500)
+    email_notifications: bool | None = None
 
     @field_validator("avatar_url")
     @classmethod
@@ -163,6 +165,7 @@ def serialize_user(user) -> dict:
         "email_verified": user.email_verified_at is not None,
         "avatar_url": user.avatar_url,
         "phone": user.phone,
+        "email_notifications": user.email_notifications,
         "role": user.role.value,
         "status": user.status.value,
     }
