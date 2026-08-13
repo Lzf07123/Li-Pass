@@ -3,6 +3,7 @@ import uuid
 from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
+from pydantic import BaseModel, Field
 from sqlalchemy import func, or_, select, update
 from sqlalchemy.orm import Session
 
@@ -12,7 +13,8 @@ from app.core.db import get_db
 from app.models.session import Session as SessionModel
 from app.models.user import User
 from app.schemas.auth import AdminSessionListOut
-from app.services.audit import log_audit
+from app.services.audit import log_audit, log_rate_limit_rejected_once
+from app.services.rate_limit import get_rate_limiter
 
 logger = logging.getLogger(__name__)
 
@@ -21,6 +23,33 @@ router = APIRouter(
     tags=["admin-sessions"],
     dependencies=[Depends(get_current_admin)],
 )
+
+
+class AdminBatchRevokeSessions(BaseModel):
+    session_ids: list[uuid.UUID] = Field(min_length=1, max_length=200)
+
+
+def _enforce_revoke_rate_limit(actor: User, db: Session) -> None:
+    """批量/全部下线属于高影响管理操作，按管理员维度限流兜底。"""
+    settings = get_settings()
+    count = get_rate_limiter().hit(
+        "admin_session_revoke",
+        str(actor.id),
+        settings.admin_session_revoke_rate_window_seconds,
+    )
+    if count > settings.admin_session_revoke_rate_limit:
+        log_rate_limit_rejected_once(
+            db,
+            "admin_session_revoke",
+            count,
+            settings.admin_session_revoke_rate_limit,
+            actor_type="admin",
+            actor_id=str(actor.id),
+            detail={"action": "admin_session_revoke", "reason": "rate_limit"},
+        )
+        raise HTTPException(
+            status.HTTP_429_TOO_MANY_REQUESTS, "操作过于频繁，请稍后再试"
+        )
 
 
 def _serialize_session(session: SessionModel, user: User, current: bool) -> dict:
@@ -102,6 +131,106 @@ def list_sessions(
         ],
         "total": total,
     }
+
+
+@router.post("/sessions/batch-revoke", response_model=dict)
+def batch_revoke_sessions(
+    payload: AdminBatchRevokeSessions,
+    request: Request,
+    actor: User = Depends(get_current_admin),
+    db: Session = Depends(get_db),
+) -> dict:
+    """批量强制下线指定会话。
+
+    当前会话、已下线或不存在的会话自动跳过（幂等），不视为错误；
+    响应返回实际下线的数量与被跳过的数量。
+    """
+    _enforce_revoke_rate_limit(actor, db)
+    current = get_current_session(request, db)
+    ids = list(dict.fromkeys(payload.session_ids))
+    rows = db.execute(
+        select(SessionModel, User)
+        .join(User, SessionModel.user_id == User.id)
+        .where(
+            SessionModel.id.in_(ids),
+            SessionModel.revoked_at.is_(None),
+            SessionModel.id != current.id,
+        )
+    ).all()
+    revoked = []
+    for session, user in rows:
+        session.revoked_at = datetime.now(timezone.utc)
+        revoked.append((session, user))
+    db.commit()
+    skipped = len(ids) - len(revoked)
+    log_audit(
+        db,
+        "admin",
+        str(actor.id),
+        "admin_batch_revoke_session",
+        target_type="session",
+        target_id=None,
+        ip=request.client.host if request.client else None,
+        user_agent=request.headers.get("user-agent"),
+        detail={
+            "count": len(revoked),
+            "skipped": skipped,
+            "emails": [user.email for _, user in revoked],
+            "user_ids": [str(session.user_id) for session, _ in revoked],
+        },
+    )
+    return {"revoked": len(revoked), "skipped": skipped}
+
+
+@router.post("/sessions/revoke-all", response_model=dict)
+def revoke_all_sessions(
+    request: Request,
+    actor: User = Depends(get_current_admin),
+    db: Session = Depends(get_db),
+) -> dict:
+    """下线除当前会话外的全部在线会话；当前会话不受影响。"""
+    _enforce_revoke_rate_limit(actor, db)
+    settings = get_settings()
+    now = datetime.now(timezone.utc)
+    idle_cutoff = now - timedelta(days=settings.session_idle_days)
+    # 先清理过期/空闲超时的“僵尸”会话，与列表接口口径一致，
+    # 避免把它们也算进“在线”数量。
+    db.execute(
+        update(SessionModel)
+        .where(
+            SessionModel.revoked_at.is_(None),
+            or_(
+                SessionModel.expires_at < now,
+                SessionModel.last_used_at < idle_cutoff,
+            ),
+        )
+        .values(revoked_at=now)
+        .execution_options(synchronize_session=False)
+    )
+    current = get_current_session(request, db)
+    result = db.execute(
+        update(SessionModel)
+        .where(
+            SessionModel.revoked_at.is_(None),
+            SessionModel.id != current.id,
+        )
+        .values(revoked_at=now)
+        .execution_options(synchronize_session=False)
+    )
+    count = result.rowcount or 0
+    db.commit()
+    log_audit(
+        db,
+        "admin",
+        str(actor.id),
+        "admin_revoke_all_sessions",
+        target_type="session",
+        target_id=None,
+        ip=request.client.host if request.client else None,
+        user_agent=request.headers.get("user-agent"),
+        detail={"count": count},
+    )
+    return {"revoked": count}
 
 
 @router.delete(

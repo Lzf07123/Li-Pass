@@ -176,6 +176,168 @@ def test_admin_revoke_missing_session_returns_404(client, db_session) -> None:
     assert response.status_code == 404
 
 
+def test_admin_batch_revoke_sessions(client, db_session) -> None:
+    login_admin(client, db_session)
+    bob = User(
+        email="bob@example.com",
+        password_hash=hash_password("password123"),
+        nickname="Bob",
+    )
+    db_session.add(bob)
+    db_session.commit()
+    db_session.refresh(bob)
+    first, _ = create_session(db_session, bob, device_name="Device 1")
+    second, _ = create_session(db_session, bob, device_name="Device 2")
+
+    response = client.post(
+        "/api/v1/admin/sessions/batch-revoke",
+        json={"session_ids": [str(first.id), str(second.id)]},
+    )
+    assert response.status_code == 200
+    assert response.json() == {"revoked": 2, "skipped": 0}
+    db_session.refresh(first)
+    db_session.refresh(second)
+    assert first.revoked_at is not None
+    assert second.revoked_at is not None
+
+    audit = db_session.scalar(
+        select(AuditLog).where(
+            AuditLog.action == "admin_batch_revoke_session"
+        )
+    )
+    assert audit is not None
+    assert audit.actor_type == "admin"
+    assert audit.detail["count"] == 2
+    assert sorted(audit.detail["emails"]) == [
+        "bob@example.com",
+        "bob@example.com",
+    ]
+
+
+def test_admin_batch_revoke_skips_current_missing_and_revoked(
+    client, db_session
+) -> None:
+    login_admin(client, db_session)
+    bob = User(
+        email="bob@example.com",
+        password_hash=hash_password("password123"),
+        nickname="Bob",
+    )
+    db_session.add(bob)
+    db_session.commit()
+    db_session.refresh(bob)
+    active, _ = create_session(db_session, bob, device_name="Active")
+    revoked, _ = create_session(db_session, bob, device_name="Revoked")
+    revoked.revoked_at = datetime.now(timezone.utc)
+    db_session.commit()
+
+    sessions = client.get("/api/v1/admin/sessions").json()["items"]
+    current_id = next(s["id"] for s in sessions if s["current"])
+
+    response = client.post(
+        "/api/v1/admin/sessions/batch-revoke",
+        json={
+            "session_ids": [
+                str(active.id),
+                str(revoked.id),
+                current_id,
+                str(uuid.uuid4()),
+            ]
+        },
+    )
+    assert response.status_code == 200
+    assert response.json() == {"revoked": 1, "skipped": 3}
+    db_session.refresh(active)
+    assert active.revoked_at is not None
+    current = db_session.get(SessionModel, uuid.UUID(current_id))
+    assert current.revoked_at is None
+
+
+def test_admin_batch_revoke_requires_non_empty_ids(client, db_session) -> None:
+    login_admin(client, db_session)
+    response = client.post(
+        "/api/v1/admin/sessions/batch-revoke", json={"session_ids": []}
+    )
+    assert response.status_code == 422
+
+
+def test_admin_batch_revoke_rate_limited(client, db_session) -> None:
+    login_admin(client, db_session)
+    from app.services.rate_limit import get_rate_limiter
+
+    admin = db_session.scalar(
+        select(User).where(User.email == "admin@example.com")
+    )
+    get_rate_limiter().hit(
+        "admin_session_revoke", str(admin.id), 60, increment=31
+    )
+    response = client.post(
+        "/api/v1/admin/sessions/batch-revoke",
+        json={"session_ids": [str(uuid.uuid4())]},
+    )
+    assert response.status_code == 429
+
+
+def test_admin_revoke_all_sessions_except_current(client, db_session) -> None:
+    login_admin(client, db_session)
+    bob = User(
+        email="bob@example.com",
+        password_hash=hash_password("password123"),
+        nickname="Bob",
+    )
+    db_session.add(bob)
+    db_session.commit()
+    db_session.refresh(bob)
+    first, _ = create_session(db_session, bob, device_name="Device 1")
+    second, _ = create_session(db_session, bob, device_name="Device 2")
+
+    response = client.post("/api/v1/admin/sessions/revoke-all")
+    assert response.status_code == 200
+    assert response.json() == {"revoked": 2}
+    db_session.refresh(first)
+    db_session.refresh(second)
+    assert first.revoked_at is not None
+    assert second.revoked_at is not None
+
+    remaining = client.get("/api/v1/admin/sessions").json()["items"]
+    assert len(remaining) == 1
+    assert remaining[0]["current"] is True
+
+    audit = db_session.scalar(
+        select(AuditLog).where(
+            AuditLog.action == "admin_revoke_all_sessions"
+        )
+    )
+    assert audit is not None
+    assert audit.detail["count"] == 2
+
+
+def test_admin_revoke_all_rate_limited(client, db_session) -> None:
+    login_admin(client, db_session)
+    from app.services.rate_limit import get_rate_limiter
+
+    admin = db_session.scalar(
+        select(User).where(User.email == "admin@example.com")
+    )
+    get_rate_limiter().hit(
+        "admin_session_revoke", str(admin.id), 60, increment=31
+    )
+    response = client.post("/api/v1/admin/sessions/revoke-all")
+    assert response.status_code == 429
+
+
+def test_admin_revoke_all_keeps_current_when_only_session(
+    client, db_session
+) -> None:
+    login_admin(client, db_session)
+    response = client.post("/api/v1/admin/sessions/revoke-all")
+    assert response.status_code == 200
+    assert response.json() == {"revoked": 0}
+    remaining = client.get("/api/v1/admin/sessions").json()["items"]
+    assert len(remaining) == 1
+    assert remaining[0]["current"] is True
+
+
 def test_non_admin_cannot_access_session_monitoring(
     client, captured_email, db_session
 ) -> None:
@@ -184,4 +346,14 @@ def test_non_admin_cannot_access_session_monitoring(
     assert (
         client.delete(f"/api/v1/admin/sessions/{uuid.uuid4()}").status_code
         == 403
+    )
+    assert (
+        client.post(
+            "/api/v1/admin/sessions/batch-revoke",
+            json={"session_ids": [str(uuid.uuid4())]},
+        ).status_code
+        == 403
+    )
+    assert (
+        client.post("/api/v1/admin/sessions/revoke-all").status_code == 403
     )

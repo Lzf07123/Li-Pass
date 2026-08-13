@@ -58,10 +58,18 @@ def test_notification_settings_defaults(monkeypatch) -> None:
     assert settings.admin_notification_rate_window_seconds == 3600
     assert settings.notification_max_recipients == 500
     assert settings.notification_retention_days == 180
+    assert settings.admin_session_revoke_rate_limit == 30
+    assert settings.admin_session_revoke_rate_window_seconds == 60
 
 
 def test_notification_settings_reject_invalid_values(monkeypatch) -> None:
     monkeypatch.setenv("NOTIFICATION_MAX_RECIPIENTS", "0")
+    with pytest.raises(ValueError):
+        Settings(_env_file=None)
+
+
+def test_session_revoke_rate_limit_reject_invalid_values(monkeypatch) -> None:
+    monkeypatch.setenv("ADMIN_SESSION_REVOKE_RATE_LIMIT", "0")
     with pytest.raises(ValueError):
         Settings(_env_file=None)
 

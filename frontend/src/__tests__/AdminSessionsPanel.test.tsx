@@ -217,4 +217,182 @@ describe("AdminSessionsPanel", () => {
       expect(screen.queryByRole("dialog")).not.toBeInTheDocument()
     );
   });
+
+  it("全选仅勾选非当前会话，当前会话不可勾选", async () => {
+    const items = [
+      sessionOut({ current: true }),
+      sessionOut({
+        id: "s2",
+        user: {
+          id: "u2",
+          email: "bob@example.com",
+          nickname: "Bob",
+          role: "user",
+          status: "active",
+        },
+      }),
+    ];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(listResponse(items, items.length))
+    );
+
+    renderWithProviders(<AdminSessionsPanel />);
+    await waitFor(() =>
+      expect(screen.getByText("alice@example.com")).toBeInTheDocument()
+    );
+
+    const currentBox = screen.getByRole("checkbox", {
+      name: "选择 alice@example.com",
+    });
+    expect(currentBox).toBeDisabled();
+
+    fireEvent.click(screen.getByRole("checkbox", { name: "全选会话" }));
+    expect(screen.getByText("已选 1 个会话")).toBeInTheDocument();
+    expect(
+      screen.getByRole("checkbox", { name: "选择 bob@example.com" })
+    ).toBeChecked();
+    expect(currentBox).not.toBeChecked();
+  });
+
+  it("勾选会话后批量下线并刷新列表", async () => {
+    const items = [
+      sessionOut(),
+      sessionOut({
+        id: "s2",
+        user: {
+          id: "u2",
+          email: "bob@example.com",
+          nickname: "Bob",
+          role: "user",
+          status: "active",
+        },
+      }),
+    ];
+    const fetchMock = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (init?.method === "POST" && url.includes("/batch-revoke")) {
+        return Promise.resolve(
+          new Response(JSON.stringify({ revoked: 2, skipped: 0 }), {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          })
+        );
+      }
+      return Promise.resolve(listResponse(items, items.length));
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    renderWithProviders(<AdminSessionsPanel />);
+    await waitFor(() =>
+      expect(screen.getByText("alice@example.com")).toBeInTheDocument()
+    );
+
+    fireEvent.click(
+      screen.getByRole("checkbox", { name: "选择 alice@example.com" })
+    );
+    fireEvent.click(
+      screen.getByRole("checkbox", { name: "选择 bob@example.com" })
+    );
+    expect(screen.getByText("已选 2 个会话")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "批量下线" }));
+    const dialog = await screen.findByRole("dialog");
+    expect(
+      within(dialog).getByText(/将强制下线选中的 2 个会话/)
+    ).toBeInTheDocument();
+    fireEvent.click(
+      within(dialog).getByRole("button", { name: "确认下线" })
+    );
+
+    await waitFor(() => {
+      const batch = fetchMock.mock.calls.find(
+        ([input, init]) =>
+          String(input).includes("/batch-revoke") && init?.method === "POST"
+      );
+      expect(batch).toBeDefined();
+      const body = JSON.parse(
+        String((batch as [unknown, RequestInit])[1].body)
+      ) as { session_ids: string[] };
+      expect(body.session_ids).toEqual(
+        expect.arrayContaining(["s1", "s2"])
+      );
+    });
+    await screen.findByText("已下线 2 个会话");
+    await waitFor(() =>
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument()
+    );
+    expect(screen.queryByText(/已选 \d+ 个会话/)).not.toBeInTheDocument();
+  });
+
+  it("确认后调用全部下线并刷新列表", async () => {
+    const items = [
+      sessionOut(),
+      sessionOut({
+        id: "s2",
+        user: {
+          id: "u2",
+          email: "bob@example.com",
+          nickname: "Bob",
+          role: "user",
+          status: "active",
+        },
+      }),
+    ];
+    const fetchMock = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (init?.method === "POST" && url.includes("/revoke-all")) {
+        return Promise.resolve(
+          new Response(JSON.stringify({ revoked: 2 }), {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          })
+        );
+      }
+      return Promise.resolve(listResponse(items, items.length));
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    renderWithProviders(<AdminSessionsPanel />);
+    await waitFor(() =>
+      expect(screen.getByText("alice@example.com")).toBeInTheDocument()
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "全部下线" }));
+    const dialog = await screen.findByRole("dialog");
+    expect(
+      within(dialog).getByText(/将强制下线除你当前会话外的全部在线会话/)
+    ).toBeInTheDocument();
+    fireEvent.click(
+      within(dialog).getByRole("button", { name: "全部下线" })
+    );
+
+    await waitFor(() => {
+      expect(
+        fetchMock.mock.calls.some(
+          ([input, init]) =>
+            String(input).includes("/revoke-all") && init?.method === "POST"
+        )
+      ).toBe(true);
+    });
+    await screen.findByText("已下线 2 个会话");
+    await waitFor(() =>
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument()
+    );
+  });
+
+  it("无在线会话时禁用全部下线", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(listResponse([], 0))
+    );
+
+    renderWithProviders(<AdminSessionsPanel />);
+    await waitFor(() =>
+      expect(screen.getByText(/暂无在线会话/)).toBeInTheDocument()
+    );
+    expect(
+      screen.getByRole("button", { name: "全部下线" })
+    ).toBeDisabled();
+  });
 });
