@@ -1,9 +1,30 @@
-from app.services.email import ConsoleEmailService, SMTPEmailService, get_email_service
+import logging
+import smtplib
+
+from app.services.email import (
+    ConsoleEmailService,
+    SMTPEmailService,
+    get_email_service,
+    warn_email_config,
+)
 import pytest
 
 
 def test_console_backend_by_default() -> None:
     assert isinstance(get_email_service(), ConsoleEmailService)
+
+
+def test_warn_email_config_logs_localhost_warning(caplog) -> None:
+    from app.core.config import Settings
+
+    settings = Settings(
+        _env_file=None,
+        email_backend="smtp",
+        frontend_base_url="http://localhost",
+    )
+    with caplog.at_level(logging.WARNING, logger="app.services.email"):
+        warn_email_config(settings)
+    assert "localhost" in caplog.text
 
 
 def test_smtp_message_builds_with_from_and_code() -> None:
@@ -23,6 +44,24 @@ def test_smtp_message_builds_with_from_and_code() -> None:
     assert "LinPass SSO" in message["From"]
     assert message["To"] == "a@example.com"
     assert "123456" in message.get_body().get_content()
+
+
+def test_smtp_message_has_date_and_message_id() -> None:
+    service = SMTPEmailService(
+        host="smtp.example.com",
+        port=587,
+        username="noreply@example.com",
+        password="pass",
+        from_addr="noreply@example.com",
+        from_name="LinPass SSO",
+        use_tls=True,
+    )
+    message = service._build_message(
+        "a@example.com", "邮箱验证码", "你的验证码是 123456"
+    )
+    assert message["Date"] is not None
+    assert message["Message-ID"] is not None
+    assert "example.com" in message["Message-ID"]
 
 
 def test_smtp_from_falls_back_to_username() -> None:
@@ -129,6 +168,245 @@ def test_smtp_port_587_uses_starttls(monkeypatch) -> None:
     )
     service.send_password_reset("a@example.com", "123456")
     assert started_tls == [True]
+
+
+def test_smtp_retries_transient_failure_then_succeeds(monkeypatch) -> None:
+    attempts = {"n": 0}
+
+    class FakeSMTP:
+        def __init__(self, host, port, timeout=None):
+            pass
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            return False
+
+        def login(self, username, password):
+            pass
+
+        def send_message(self, message):
+            attempts["n"] += 1
+            if attempts["n"] < 3:
+                raise smtplib.SMTPServerDisconnected("transient")
+
+    monkeypatch.setattr("app.services.email.smtplib.SMTP_SSL", FakeSMTP)
+    service = SMTPEmailService(
+        host="smtp.example.com",
+        port=465,
+        username="user@example.com",
+        password="pass",
+        from_addr="user@example.com",
+        from_name="LinPass SSO",
+        use_tls=True,
+        max_retries=2,
+        retry_delay_seconds=0,
+    )
+    service.send_verification("a@example.com", "123456")
+    assert attempts["n"] == 3
+
+
+def test_smtp_raises_after_exhausting_retries(monkeypatch) -> None:
+    attempts = {"n": 0}
+
+    class FakeSMTP:
+        def __init__(self, host, port, timeout=None):
+            pass
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            return False
+
+        def login(self, username, password):
+            pass
+
+        def send_message(self, message):
+            attempts["n"] += 1
+            raise smtplib.SMTPServerDisconnected("transient")
+
+    monkeypatch.setattr("app.services.email.smtplib.SMTP_SSL", FakeSMTP)
+    service = SMTPEmailService(
+        host="smtp.example.com",
+        port=465,
+        username="user@example.com",
+        password="pass",
+        from_addr="user@example.com",
+        from_name="LinPass SSO",
+        use_tls=True,
+        max_retries=2,
+        retry_delay_seconds=0,
+    )
+    with pytest.raises(smtplib.SMTPServerDisconnected):
+        service.send_verification("a@example.com", "123456")
+    assert attempts["n"] == 3
+
+
+def test_smtp_does_not_retry_authentication_error(monkeypatch) -> None:
+    attempts = {"n": 0}
+
+    class FakeSMTP:
+        def __init__(self, host, port, timeout=None):
+            pass
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            return False
+
+        def login(self, username, password):
+            attempts["n"] += 1
+            raise smtplib.SMTPAuthenticationError(535, b"bad credentials")
+
+        def send_message(self, message):
+            pass
+
+    monkeypatch.setattr("app.services.email.smtplib.SMTP_SSL", FakeSMTP)
+    service = SMTPEmailService(
+        host="smtp.example.com",
+        port=465,
+        username="user@example.com",
+        password="pass",
+        from_addr="user@example.com",
+        from_name="LinPass SSO",
+        use_tls=True,
+        max_retries=2,
+        retry_delay_seconds=0,
+    )
+    with pytest.raises(smtplib.SMTPAuthenticationError):
+        service.send_verification("a@example.com", "123456")
+    assert attempts["n"] == 1
+
+
+def test_smtp_logs_success(monkeypatch, caplog) -> None:
+    class FakeSMTP:
+        def __init__(self, host, port, timeout=None):
+            pass
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            return False
+
+        def login(self, username, password):
+            pass
+
+        def send_message(self, message):
+            pass
+
+    monkeypatch.setattr("app.services.email.smtplib.SMTP_SSL", FakeSMTP)
+    service = SMTPEmailService(
+        host="smtp.example.com",
+        port=465,
+        username="user@example.com",
+        password="pass",
+        from_addr="user@example.com",
+        from_name="LinPass SSO",
+        use_tls=True,
+    )
+    with caplog.at_level(logging.INFO, logger="app.services.email"):
+        service.send_verification("a@example.com", "123456")
+    assert "邮件发送成功" in caplog.text
+
+
+def test_smtp_send_invite_batch_reuses_connection(monkeypatch) -> None:
+    state = {"connections": 0, "messages": 0}
+
+    class FakeSMTP:
+        def __init__(self, host, port, timeout=None):
+            state["connections"] += 1
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            return False
+
+        def login(self, username, password):
+            pass
+
+        def send_message(self, message):
+            state["messages"] += 1
+
+        def close(self):
+            pass
+
+        def quit(self):
+            pass
+
+    monkeypatch.setattr("app.services.email.smtplib.SMTP_SSL", FakeSMTP)
+    service = SMTPEmailService(
+        host="smtp.example.com",
+        port=465,
+        username="user@example.com",
+        password="pass",
+        from_addr="user@example.com",
+        from_name="LinPass SSO",
+        use_tls=True,
+    )
+    results = service.send_invite_batch(
+        [
+            ("a@example.com", "http://localhost/invite?token=a"),
+            ("b@example.com", "http://localhost/invite?token=b"),
+        ]
+    )
+    assert results == [None, None]
+    assert state["connections"] == 1
+    assert state["messages"] == 2
+
+
+def test_smtp_send_invite_batch_isolates_failure(monkeypatch) -> None:
+    state = {"n": 0}
+
+    class FakeSMTP:
+        def __init__(self, host, port, timeout=None):
+            pass
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            return False
+
+        def login(self, username, password):
+            pass
+
+        def send_message(self, message):
+            state["n"] += 1
+            if state["n"] == 2:
+                raise RuntimeError("boom")
+
+        def close(self):
+            pass
+
+        def quit(self):
+            pass
+
+    monkeypatch.setattr("app.services.email.smtplib.SMTP_SSL", FakeSMTP)
+    service = SMTPEmailService(
+        host="smtp.example.com",
+        port=465,
+        username="user@example.com",
+        password="pass",
+        from_addr="user@example.com",
+        from_name="LinPass SSO",
+        use_tls=True,
+    )
+    results = service.send_invite_batch(
+        [
+            ("a@example.com", "http://localhost/invite?token=a"),
+            ("b@example.com", "http://localhost/invite?token=b"),
+            ("c@example.com", "http://localhost/invite?token=c"),
+        ]
+    )
+    assert results[0] is None
+    assert isinstance(results[1], RuntimeError)
+    assert results[2] is None
+    assert state["n"] == 3
 
 
 def test_smtp_account_deleted_message_is_polite(monkeypatch) -> None:

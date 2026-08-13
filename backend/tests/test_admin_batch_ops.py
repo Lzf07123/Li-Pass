@@ -226,6 +226,16 @@ def test_batch_invite_isolates_email_failure(client, captured_email, db_session,
                 raise RuntimeError("smtp down")
             captured_email.messages.append(("invite", to, link))
 
+        def send_invite_batch(self, items):
+            results = []
+            for to, link in items:
+                try:
+                    self.send_invite(to, link)
+                    results.append(None)
+                except Exception as exc:
+                    results.append(exc)
+            return results
+
     monkeypatch.setattr(
         "app.api.routes.admin_users.get_email_service", lambda: BrokenEmail()
     )

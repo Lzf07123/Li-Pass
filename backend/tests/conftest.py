@@ -92,6 +92,18 @@ class CapturingEmailService:
     def send_account_deleted(self, to: str, nickname: str | None) -> None:
         self.messages.append(("account_deleted", to, nickname or ""))
 
+    def send_invite_batch(
+        self, items: list[tuple[str, str]]
+    ) -> list[Exception | None]:
+        results: list[Exception | None] = []
+        for to, link in items:
+            try:
+                self.send_invite(to, link)
+                results.append(None)
+            except Exception as exc:
+                results.append(exc)
+        return results
+
 
 @pytest.fixture()
 def captured_email(monkeypatch):
