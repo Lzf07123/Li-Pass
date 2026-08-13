@@ -48,6 +48,24 @@ def test_unknown_environment_rejected(monkeypatch) -> None:
         _settings(monkeypatch, ENVIRONMENT="prod")
 
 
+def test_notification_settings_defaults(monkeypatch) -> None:
+    monkeypatch.delenv("ADMIN_NOTIFICATION_RATE_LIMIT", raising=False)
+    monkeypatch.delenv("ADMIN_NOTIFICATION_RATE_WINDOW_SECONDS", raising=False)
+    monkeypatch.delenv("NOTIFICATION_MAX_RECIPIENTS", raising=False)
+    monkeypatch.delenv("NOTIFICATION_RETENTION_DAYS", raising=False)
+    settings = Settings(_env_file=None)
+    assert settings.admin_notification_rate_limit == 20
+    assert settings.admin_notification_rate_window_seconds == 3600
+    assert settings.notification_max_recipients == 500
+    assert settings.notification_retention_days == 180
+
+
+def test_notification_settings_reject_invalid_values(monkeypatch) -> None:
+    monkeypatch.setenv("NOTIFICATION_MAX_RECIPIENTS", "0")
+    with pytest.raises(ValueError):
+        Settings(_env_file=None)
+
+
 def test_invalid_samesite_rejected(monkeypatch) -> None:
     with pytest.raises(ValueError, match="SESSION_COOKIE_SAMESITE"):
         _settings(monkeypatch, SESSION_COOKIE_SAMESITE="weird")

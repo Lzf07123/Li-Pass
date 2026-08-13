@@ -66,6 +66,10 @@ class Settings(BaseSettings):
     public_registration_enabled: bool = True
     admin_invite_rate_limit: int = 100
     admin_invite_rate_window_seconds: int = 3600
+    admin_notification_rate_limit: int = 20
+    admin_notification_rate_window_seconds: int = 3600
+    notification_max_recipients: int = 500
+    notification_retention_days: int = 180
     password_reset_rate_limit: int = 5
     password_reset_rate_window_seconds: int = 3600
     email_verify_rate_limit: int = 30
@@ -122,6 +126,18 @@ class Settings(BaseSettings):
             raise ValueError(
                 "ADMIN_INVITE_RATE_LIMIT/ADMIN_INVITE_RATE_WINDOW_SECONDS 必须 ≥1"
             )
+        if (
+            self.admin_notification_rate_limit < 1
+            or self.admin_notification_rate_window_seconds < 1
+        ):
+            raise ValueError(
+                "ADMIN_NOTIFICATION_RATE_LIMIT/"
+                "ADMIN_NOTIFICATION_RATE_WINDOW_SECONDS 必须 ≥1"
+            )
+        if not 1 <= self.notification_max_recipients <= 10000:
+            raise ValueError("NOTIFICATION_MAX_RECIPIENTS 必须在 1–10000 之间")
+        if self.notification_retention_days < 1:
+            raise ValueError("NOTIFICATION_RETENTION_DAYS 必须 ≥1")
         if self.ephemeral_retention_hours < 1:
             raise ValueError("EPHEMERAL_RETENTION_HOURS 必须 ≥1")
         if self.session_idle_days < 1:
