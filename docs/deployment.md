@@ -79,11 +79,13 @@ docker compose -f docker-compose.yaml --env-file .env exec backend \
 | `LOGIN_EMAIL_RATE_LIMIT` / `LOGIN_EMAIL_RATE_WINDOW_SECONDS` | 全局限邮箱登录限流，防分布式 IP 爆破（默认 20 次/15 分钟） |
 | `CLIENT_BLOCK_RATE_LIMIT` / `CLIENT_BLOCK_RATE_WINDOW_SECONDS` | OAuth 客户端黑名单接口限流（默认 100 次/小时/client_id） |
 | `AUDIT_RETENTION_DAYS` | 审计日志保留天数，超期由后台维护任务删除（默认 180） |
+| `SESSION_RETENTION_DAYS` | 已吊销/已过期会话保留天数，超期由后台维护任务删除（默认 30） |
 | `AVATAR_CLEANUP_INTERVAL_SECONDS` | 孤儿头像清理周期（秒）；`0` 关闭周期任务，仍保留启动时清理一次（默认 21600） |
 | `EPHEMERAL_RETENTION_HOURS` | 过期 OTP/授权码/邀请的保留期（小时），超期由后台维护任务删除（默认 168） |
 | `DB_POOL_SIZE` / `DB_MAX_OVERFLOW` | SQLAlchemy 连接池大小（默认 `5` + `10`；提高 worker 数时应同步放大） |
 | `UVICORN_WORKERS` | 后端 uvicorn worker 数（默认 `1`；使用 memory 存储的本地模式必须保持 1） |
 | `JWT_PRIVATE_KEY_PATH` / `ENCRYPTION_KEY_PATH` | 密钥文件路径（生产必须为绝对路径，指向 `/app/keys` 卷） |
+| `JWT_KEYS_DIR` / `JWT_ACTIVE_KID` | 可选密钥轮换：目录内每个 `*.pem` 文件名即 kid；`JWT_ACTIVE_KID` 指定签名 kid（缺省取字典序最大），详见「密钥管理」 |
 | `EMAIL_BACKEND` | `console`（开发）或 `smtp`（生产） |
 | `SMTP_HOST` / `SMTP_PORT` | SMTP 服务器地址与端口（生产必填） |
 | `SMTP_USERNAME` / `SMTP_PASSWORD` | SMTP 登录凭据（按需） |
@@ -165,6 +167,23 @@ docker run --rm -v account-service_backend-keys:/keys -v "$PWD":/backup alpine \
 - 丢失 JWT 私钥：所有已签发 access token 失效，需重新部署并让用户重新登录。
 - 丢失 Fernet 密钥：已加密的 TOTP 密钥无法解密，管理员需逐个重置用户 2FA。
 - 生产环境强制密钥路径为绝对路径（默认 `/app/keys/…`），避免工作目录变化导致密钥漂移。
+
+### JWT 签名密钥轮换
+
+单文件模式使用固定 kid `portal-rs256-1`。需要轮换时切换到目录模式：
+
+1. 把现有私钥重命名为 `portal-rs256-1.pem` 放入密钥目录（如 `/app/keys/jwt/`，仍位于 `backend-keys` 卷内），配置 `JWT_KEYS_DIR=/app/keys/jwt`。
+2. 在 backend 容器内生成下一把密钥：
+
+   ```bash
+   docker compose exec backend python -m scripts.rotate_jwt_key
+   ```
+
+   脚本生成 `portal-rs256-2.pem`（依次递增）并打印发布步骤。
+3. 设置 `JWT_ACTIVE_KID=portal-rs256-2` 并滚动重启 backend。新进程用新 kid 签名；JWKS 端点会同时发布目录内全部公钥，旧 kid 签发的 token 仍可验证。
+4. 等待超过 access token 最长有效期（15 分钟，建议 1 小时）后，删除目录内旧 `*.pem` 文件并再次滚动重启。`JWT_ACTIVE_KID` 必须始终指向目录中存在的密钥。
+
+注意事项：密钥目录在进程内按路径缓存，新增/删除密钥后必须重启进程生效；不要在多个 worker 进程同时跑轮换脚本（`atomic_write` 的独占创建会保证只生成一次，但应避免并发执行）。
 
 ## PostgreSQL 备份与恢复
 

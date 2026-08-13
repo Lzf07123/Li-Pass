@@ -7,6 +7,7 @@ from app.models.audit_log import AuditLog
 from app.models.authorization_code import AuthorizationCode
 from app.models.oauth_client import OAuthClient
 from app.models.otp import Otp, OtpPurpose
+from app.models.session import Session as SessionModel
 from app.models.user import User
 from app.services.maintenance import cleanup_expired_ephemeral_rows
 
@@ -114,3 +115,61 @@ def test_cleanup_removes_audit_logs_beyond_retention(
     assert counts["audit_logs"] == 1
     remaining = db_session.scalars(select(AuditLog)).all()
     assert [row.actor_id for row in remaining] == ["u2"]
+
+
+def test_cleanup_removes_stale_sessions(db_session, monkeypatch) -> None:
+    from app.core.config import Settings
+
+    now = datetime.now(timezone.utc)
+    user = User(
+        email="session-cleanup@example.com",
+        password_hash="x",
+        nickname="S",
+    )
+    db_session.add(user)
+    db_session.flush()
+    db_session.add_all(
+        [
+            # 活跃会话：保留。
+            SessionModel(
+                user_id=user.id,
+                token_hash="a" * 64,
+                expires_at=now + timedelta(days=1),
+                last_used_at=now,
+            ),
+            # 31 天前吊销：删除。
+            SessionModel(
+                user_id=user.id,
+                token_hash="b" * 64,
+                expires_at=now + timedelta(days=1),
+                last_used_at=now,
+                revoked_at=now - timedelta(days=31),
+            ),
+            # 40 天前已过期但从未吊销的僵尸会话：删除。
+            SessionModel(
+                user_id=user.id,
+                token_hash="c" * 64,
+                expires_at=now - timedelta(days=40),
+                last_used_at=now - timedelta(days=40),
+            ),
+            # 1 天前吊销：仍在保留期内，保留。
+            SessionModel(
+                user_id=user.id,
+                token_hash="d" * 64,
+                expires_at=now + timedelta(days=1),
+                last_used_at=now,
+                revoked_at=now - timedelta(days=1),
+            ),
+        ]
+    )
+    db_session.commit()
+    settings = Settings(_env_file=None, session_retention_days=30)
+    monkeypatch.setattr(
+        "app.services.maintenance.get_settings", lambda: settings
+    )
+
+    counts = cleanup_expired_ephemeral_rows(db_session)
+
+    assert counts["sessions"] == 2
+    remaining = db_session.scalars(select(SessionModel)).all()
+    assert {row.token_hash for row in remaining} == {"a" * 64, "d" * 64}

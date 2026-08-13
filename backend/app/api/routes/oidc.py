@@ -17,10 +17,12 @@ from app.models.oauth_client import OAuthClient
 from app.models.user import User, UserStatus
 from app.models.user_consent import UserConsent
 from app.security.jwt import (
+    absolute_avatar_url,
     create_access_token,
     create_id_token,
     decode_token,
     public_jwks,
+    userinfo_audience,
 )
 from app.security.tokens import hash_token
 from app.services.blocks import find_block
@@ -257,7 +259,10 @@ def userinfo(
     if not authorization or not authorization.startswith("Bearer "):
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "invalid_token")
     try:
-        claims = decode_token(authorization.removeprefix("Bearer "))
+        claims = decode_token(
+            authorization.removeprefix("Bearer "),
+            audience=userinfo_audience(get_settings()),
+        )
     except pyjwt.PyJWTError:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "invalid_token")
     user = db.get(User, uuid.UUID(claims["sub"]))
@@ -277,4 +282,7 @@ def userinfo(
     if "profile" in scopes:
         data["nickname"] = user.nickname
         data["name"] = user.nickname
+        picture = absolute_avatar_url(get_settings(), user.avatar_url)
+        if picture:
+            data["picture"] = picture
     return data

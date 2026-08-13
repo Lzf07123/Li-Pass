@@ -109,9 +109,23 @@ curl {issuer}/oauth2/userinfo -H "Authorization: Bearer ACCESS_TOKEN"
   "email": "user@example.com",
   "email_verified": true,
   "nickname": "Alice",
-  "name": "Alice"
+  "name": "Alice",
+  "picture": "https://auth.example.com/uploads/avatars/00000000-0000-0000-0000-000000000001/a.jpg"
 }
 ```
+
+claims 按授权 scope 裁剪：`email` scope 才返回 `email` / `email_verified`，`profile` scope 才返回 `nickname` / `name` / `picture`。`picture` 为用户头像的绝对 URL（未设置头像时不返回）。
+
+### 2.5 令牌校验（audience 与密钥轮换）
+
+两类令牌的 `aud` 语义不同，接入方校验时注意区分：
+
+| 令牌 | `aud` | 说明 |
+| --- | --- | --- |
+| `id_token` | 你的 `client_id` | OIDC 标准：必须校验等于自身 client_id |
+| `access_token` | `{issuer}/oauth2/userinfo` | 只用于调用 userinfo 端点；不要用 client_id 去校验它 |
+
+`iss` 均为 `https://auth.example.com`，签名算法为 RS256。JWKS（`/oauth2/jwks`）在密钥轮换期间会同时发布多把公钥（每把带唯一 `kid`），应按 token 头部的 `kid` 选对应公钥，而不是缓存单把公钥。
 
 ## 3. 示例代码
 

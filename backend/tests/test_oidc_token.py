@@ -1,6 +1,10 @@
 from urllib.parse import parse_qs, urlparse
 
-from app.security.jwt import decode_token
+from sqlalchemy import select
+
+from app.core.config import get_settings
+from app.models.user import User
+from app.security.jwt import decode_token, userinfo_audience
 from tests.helpers import TEST_VERIFIER, authorize_params, create_client, register_and_login
 
 
@@ -37,9 +41,15 @@ def test_token_and_userinfo_flow(client, captured_email, db_session) -> None:
     body = response.json()
     assert body["token_type"] == "Bearer"
     access = body["access_token"]
-    claims = decode_token(access, audience="cli_demo")
+    claims = decode_token(access, audience=userinfo_audience(get_settings()))
     assert claims["sub"]
     assert "openid" in claims["scope"]
+    assert claims["aud"] == "http://localhost:8000/oauth2/userinfo"
+
+    user = db_session.scalar(select(User))
+    assert user is not None
+    user.avatar_url = "/uploads/avatars/u/avatar.jpg"
+    db_session.commit()
 
     response = client.get(
         "/oauth2/userinfo",
@@ -49,9 +59,13 @@ def test_token_and_userinfo_flow(client, captured_email, db_session) -> None:
     data = response.json()
     assert data["email"] == "a@example.com"
     assert data["email_verified"] is True
+    assert data["picture"] == (
+        "http://localhost:8000/uploads/avatars/u/avatar.jpg"
+    )
 
     id_claims = decode_token(body["id_token"], audience="cli_demo")
     assert id_claims["nonce"] == "n-1"
+    assert id_claims["aud"] == "cli_demo"
 
 
 def test_code_is_single_use(client, captured_email, db_session) -> None:

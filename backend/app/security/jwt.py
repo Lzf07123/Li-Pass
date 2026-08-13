@@ -11,14 +11,34 @@ from cryptography.hazmat.primitives.asymmetric import rsa
 from app.core.config import get_settings
 from app.security.crypto import atomic_write_bytes, read_key_bytes_with_retry
 
-KID = "portal-rs256-1"
+# 单文件模式（历史部署）使用的固定 kid；目录模式下 kid 取自文件名。
+LEGACY_KID = "portal-rs256-1"
+
+
+def _generate_private_key() -> object:
+    return rsa.generate_private_key(public_exponent=65537, key_size=2048)
+
+
+def _load_private_key(key_path: Path) -> object:
+    last_error: Exception | None = None
+    for _ in range(20):
+        try:
+            return serialization.load_pem_private_key(
+                read_key_bytes_with_retry(key_path), password=None
+            )
+        except (ValueError, TypeError) as exc:
+            last_error = exc
+            time.sleep(0.05)
+    if last_error is not None:
+        raise last_error
+    raise ValueError(f"无法加载 JWT 私钥: {key_path}")
 
 
 @lru_cache
 def _load_key_pair(path: str) -> tuple[object, object]:
     key_path = Path(path)
     if not key_path.exists():
-        key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+        key = _generate_private_key()
         atomic_write_bytes(
             key_path,
             key.private_bytes(
@@ -27,19 +47,44 @@ def _load_key_pair(path: str) -> tuple[object, object]:
                 serialization.NoEncryption(),
             ),
         )
-    last_error: Exception | None = None
-    for _ in range(20):
-        try:
-            private_key = serialization.load_pem_private_key(
-                read_key_bytes_with_retry(key_path), password=None
-            )
-            return private_key, private_key.public_key()
-        except (ValueError, TypeError) as exc:
-            last_error = exc
-            time.sleep(0.05)
-    if last_error is not None:
-        raise last_error
-    raise ValueError(f"无法加载 JWT 私钥: {path}")
+    private_key = _load_private_key(key_path)
+    return private_key, private_key.public_key()
+
+
+@lru_cache
+def _load_key_dir(dir_path: str) -> dict[str, tuple[object, object]]:
+    """加载密钥目录中全部 *.pem 私钥，文件名（不含扩展名）即 kid。"""
+    directory = Path(dir_path)
+    if not directory.is_dir():
+        raise ValueError(f"JWT 密钥目录不存在: {dir_path}")
+    keys: dict[str, tuple[object, object]] = {}
+    for pem_path in sorted(directory.glob("*.pem")):
+        private_key = _load_private_key(pem_path)
+        keys[pem_path.stem] = (private_key, private_key.public_key())
+    if not keys:
+        raise ValueError(f"JWT 密钥目录下没有 *.pem 密钥: {dir_path}")
+    return keys
+
+
+def _signing_key(settings) -> tuple[str, object]:
+    if settings.jwt_keys_dir:
+        keys = _load_key_dir(settings.jwt_keys_dir)
+        kid = settings.jwt_active_kid or max(keys)
+        if kid not in keys:
+            raise ValueError(f"JWT_ACTIVE_KID={kid} 在密钥目录中不存在")
+        return kid, keys[kid][0]
+    return LEGACY_KID, _load_key_pair(settings.jwt_private_key_path)[0]
+
+
+def _verification_key(settings, kid: str | None) -> object:
+    if settings.jwt_keys_dir:
+        keys = _load_key_dir(settings.jwt_keys_dir)
+        if kid is None or kid not in keys:
+            raise jwt.InvalidKeyError(f"未知 kid: {kid}")
+        return keys[kid][1]
+    if kid is not None and kid != LEGACY_KID:
+        raise jwt.InvalidKeyError(f"未知 kid: {kid}")
+    return _load_key_pair(settings.jwt_private_key_path)[1]
 
 
 def _b64(number: int) -> str:
@@ -53,8 +98,22 @@ def _now() -> datetime:
 
 def _encode(payload: dict) -> str:
     settings = get_settings()
-    private_key, _ = _load_key_pair(settings.jwt_private_key_path)
-    return jwt.encode(payload, private_key, algorithm="RS256", headers={"kid": KID})
+    kid, private_key = _signing_key(settings)
+    return jwt.encode(payload, private_key, algorithm="RS256", headers={"kid": kid})
+
+
+def userinfo_audience(settings) -> str:
+    """access token 的 aud：本 IdP 的 userinfo 端点（RFC 9068 资源服务器标识）。"""
+    return f"{settings.jwt_issuer.rstrip('/')}/oauth2/userinfo"
+
+
+def absolute_avatar_url(settings, avatar_url: str | None) -> str | None:
+    """把头像相对路径拼成绝对 URL，用于 userinfo/id_token 的 picture claim。"""
+    if not avatar_url:
+        return None
+    if avatar_url.startswith(("http://", "https://")):
+        return avatar_url
+    return f"{settings.jwt_issuer.rstrip('/')}{avatar_url}"
 
 
 def create_access_token(user, client_id: str, scope: str) -> str:
@@ -63,7 +122,8 @@ def create_access_token(user, client_id: str, scope: str) -> str:
     payload = {
         "iss": settings.jwt_issuer,
         "sub": str(user.id),
-        "aud": client_id,
+        # access token 只面向 userinfo 端点；id_token 的 aud 才指向 client_id。
+        "aud": userinfo_audience(settings),
         "iat": now,
         "exp": now + timedelta(minutes=settings.oauth_access_token_ttl_minutes),
         "scope": scope,
@@ -99,12 +159,16 @@ def create_id_token(
     if "profile" in scopes:
         payload["nickname"] = user.nickname
         payload["name"] = user.nickname
+        picture = absolute_avatar_url(settings, getattr(user, "avatar_url", None))
+        if picture:
+            payload["picture"] = picture
     return _encode(payload)
 
 
 def decode_token(token: str, audience: str | None = None) -> dict:
     settings = get_settings()
-    _, public_key = _load_key_pair(settings.jwt_private_key_path)
+    kid = jwt.get_unverified_header(token).get("kid")
+    public_key = _verification_key(settings, kid)
     return jwt.decode(
         token,
         public_key,
@@ -117,17 +181,20 @@ def decode_token(token: str, audience: str | None = None) -> dict:
 
 def public_jwks() -> dict:
     settings = get_settings()
+    if settings.jwt_keys_dir:
+        keys = _load_key_dir(settings.jwt_keys_dir)
+        return {"keys": [_jwk(kid, public_key) for kid, (_, public_key) in sorted(keys.items())]}
     _, public_key = _load_key_pair(settings.jwt_private_key_path)
+    return {"keys": [_jwk(LEGACY_KID, public_key)]}
+
+
+def _jwk(kid: str, public_key) -> dict:
     numbers = public_key.public_numbers()
     return {
-        "keys": [
-            {
-                "kty": "RSA",
-                "kid": KID,
-                "use": "sig",
-                "alg": "RS256",
-                "n": _b64(numbers.n),
-                "e": _b64(numbers.e),
-            }
-        ]
+        "kty": "RSA",
+        "kid": kid,
+        "use": "sig",
+        "alg": "RS256",
+        "n": _b64(numbers.n),
+        "e": _b64(numbers.e),
     }

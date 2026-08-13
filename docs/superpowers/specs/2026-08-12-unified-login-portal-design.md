@@ -87,7 +87,10 @@ portal-oss/
 
 - 标准 OIDC 发现文档：`/.well-known/openid-configuration`。
 - 授权码 + PKCE 流程（第一版只做授权码流程，不做隐式流程）。
-- `userinfo` 返回用户基础信息（邮箱、昵称、头像等标准 claims）。
+- `userinfo` 返回用户基础信息（邮箱、昵称、头像等标准 claims）：按 scope 裁剪，
+  `email` scope 返回 `email`/`email_verified`，`profile` scope 返回
+  `nickname`/`name`/`picture`（头像绝对 URL）。access token 的 `aud` 指向
+  userinfo 端点，`id_token` 的 `aud` 为 `client_id`。
 - `id_token` 携带 `acr` 声明，区分普通登录与二次验证登录，供需要强认证的网站自行判断。
 - 网站自助黑名单 API：网站用 `client_id + client_secret` 管理自己的账号黑名单。
 - 对接文档 + 示例网站（Python 小应用）。

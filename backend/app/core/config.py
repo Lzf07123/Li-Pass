@@ -33,6 +33,10 @@ class Settings(BaseSettings):
     frontend_base_url: str = "http://localhost:5173"
     jwt_issuer: str = "http://localhost:8000"
     jwt_private_key_path: str = "jwt_private.pem"
+    # 目录模式（可选）：从目录加载多把 *.pem 私钥，文件名即 kid；
+    # JWT_ACTIVE_KID 指定签名 kid，缺省取字典序最大的文件名。空目录退回单文件模式。
+    jwt_keys_dir: str = ""
+    jwt_active_kid: str = ""
     oauth_access_token_ttl_minutes: int = 15
     oauth_id_token_ttl_minutes: int = 5
     oauth_code_ttl_minutes: int = 10
@@ -48,6 +52,8 @@ class Settings(BaseSettings):
     client_block_rate_limit: int = 100
     client_block_rate_window_seconds: int = 3600
     audit_retention_days: int = 180
+    # 已吊销/已过期会话的保留天数：保留窗口用于近期排查，超期由后台维护任务删除。
+    session_retention_days: int = 30
     otp_send_limit: int = 5
     otp_send_window_seconds: int = 3600
     otp_resend_cooldown_seconds: int = 60
@@ -95,10 +101,14 @@ class Settings(BaseSettings):
             or self.client_block_rate_limit < 1
             or self.client_block_rate_window_seconds < 1
             or self.audit_retention_days < 1
+            or self.session_retention_days < 1
         ):
             raise ValueError(
-                "LOGIN_EMAIL_RATE_LIMIT/CLIENT_BLOCK_RATE_LIMIT/AUDIT_RETENTION_DAYS 等配置必须 ≥1"
+                "LOGIN_EMAIL_RATE_LIMIT/CLIENT_BLOCK_RATE_LIMIT/AUDIT_RETENTION_DAYS/"
+                "SESSION_RETENTION_DAYS 等配置必须 ≥1"
             )
+        if self.jwt_active_kid and not self.jwt_keys_dir:
+            raise ValueError("JWT_ACTIVE_KID 必须与 JWT_KEYS_DIR 同时配置")
         if self.admin_invite_rate_limit < 1 or self.admin_invite_rate_window_seconds < 1:
             raise ValueError(
                 "ADMIN_INVITE_RATE_LIMIT/ADMIN_INVITE_RATE_WINDOW_SECONDS 必须 ≥1"
@@ -123,6 +133,10 @@ class Settings(BaseSettings):
                 raise ValueError(
                     f"{field} 在生产环境必须使用绝对路径（推荐 /app/keys/ 下的持久卷）"
                 )
+        if self.jwt_keys_dir and not self.jwt_keys_dir.startswith("/"):
+            raise ValueError(
+                "JWT_KEYS_DIR 在生产环境必须使用绝对路径（推荐 /app/keys/jwt）"
+            )
         if self.email_backend != "smtp" or not self.smtp_host or not self.smtp_from:
             raise ValueError(
                 "生产环境邮件必须配置 EMAIL_BACKEND=smtp 与 SMTP_HOST/SMTP_FROM"
