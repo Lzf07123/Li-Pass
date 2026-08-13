@@ -7,6 +7,14 @@ from abc import ABC, abstractmethod
 from email.message import EmailMessage
 
 from app.core.config import Settings, get_settings
+from app.services.email_templates import (
+    LOGO_BYTES,
+    render_account_deleted,
+    render_custom_notification,
+    render_invite,
+    render_password_reset,
+    render_verification,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -121,7 +129,9 @@ class SMTPEmailService(EmailService):
         self.max_retries = max_retries
         self.retry_delay_seconds = retry_delay_seconds
 
-    def _build_message(self, to: str, subject: str, body: str) -> EmailMessage:
+    def _build_message(
+        self, to: str, subject: str, body: str, html_body: str
+    ) -> EmailMessage:
         message = EmailMessage()
         message["From"] = f"{self.from_name} <{self.from_addr}>"
         message["To"] = to
@@ -129,7 +139,19 @@ class SMTPEmailService(EmailService):
         message["Date"] = formatdate(localtime=True)
         domain = self.from_addr.split("@")[-1] if "@" in self.from_addr else "localhost"
         message["Message-ID"] = make_msgid(domain=domain)
+        # multipart/alternative（纯文本 + HTML）；Logo 以 CID 内嵌在 HTML
+        # 子部分里（multipart/related），不依赖外网图片加载。
         message.set_content(body)
+        message.add_alternative(html_body, subtype="html")
+        for part in message.iter_parts():
+            if part.get_content_type() == "text/html":
+                part.add_related(
+                    LOGO_BYTES,
+                    maintype="image",
+                    subtype="png",
+                    cid="brand-logo",
+                )
+                break
         return message
 
     def _connect(self) -> smtplib.SMTP:
@@ -142,20 +164,22 @@ class SMTPEmailService(EmailService):
             server.starttls()
         return server
 
-    def _send(self, to: str, subject: str, body: str) -> None:
-        message = self._build_message(to, subject, body)
+    def _send(self, to: str, subject: str, body: str, html_body: str) -> None:
+        message = self._build_message(to, subject, body, html_body)
         with self._connect() as server:
             if self.username:
                 server.login(self.username, self.password)
             server.send_message(message)
 
-    def _send_with_retry(self, to: str, subject: str, body: str) -> None:
+    def _send_with_retry(
+        self, to: str, subject: str, body: str, html_body: str
+    ) -> None:
         last_error: Exception | None = None
         total_attempts = 1 + self.max_retries
         for attempt in range(1, total_attempts + 1):
             started = time.perf_counter()
             try:
-                self._send(to, subject, body)
+                self._send(to, subject, body, html_body)
                 logger.info(
                     "邮件发送成功 to=%s subject=%s duration=%.2fs",
                     to,
@@ -190,12 +214,18 @@ class SMTPEmailService(EmailService):
 
     def send_verification(self, to: str, code: str) -> None:
         self._send_with_retry(
-            to, "LinPass SSO 邮箱验证码", f"你的验证码是 {code}，10 分钟内有效。"
+            to,
+            "LinPass SSO 邮箱验证码",
+            f"你的验证码是 {code}，10 分钟内有效。",
+            render_verification(code),
         )
 
     def send_password_reset(self, to: str, code: str) -> None:
         self._send_with_retry(
-            to, "LinPass SSO 重置密码", f"你的重置验证码是 {code}，10 分钟内有效。"
+            to,
+            "LinPass SSO 重置密码",
+            f"你的重置验证码是 {code}，10 分钟内有效。",
+            render_password_reset(code),
         )
 
     def send_invite(self, to: str, link: str) -> None:
@@ -203,6 +233,7 @@ class SMTPEmailService(EmailService):
             to,
             "LinPass SSO 账号邀请",
             self._invite_body(link),
+            render_invite(link),
         )
 
     @staticmethod
@@ -213,7 +244,12 @@ class SMTPEmailService(EmailService):
         )
 
     def _build_invite_message(self, to: str, link: str) -> EmailMessage:
-        return self._build_message(to, "LinPass SSO 账号邀请", self._invite_body(link))
+        return self._build_message(
+            to,
+            "LinPass SSO 账号邀请",
+            self._invite_body(link),
+            render_invite(link),
+        )
 
     def send_invite_batch(
         self, items: list[tuple[str, str]]
@@ -271,10 +307,18 @@ class SMTPEmailService(EmailService):
             to,
             f"您的 {get_settings().app_name} 账号已删除",
             body,
+            render_account_deleted(to, nickname),
         )
 
     def send_custom_notification(self, to: str, subject: str, body: str) -> None:
-        self._send_with_retry(to, subject, body)
+        self._send_with_retry(
+            to,
+            subject,
+            body,
+            render_custom_notification(
+                subject, body, get_settings().frontend_base_url
+            ),
+        )
 
     def send_custom_notification_batch(
         self, items: list[tuple[str, str, str]]
@@ -292,7 +336,16 @@ class SMTPEmailService(EmailService):
                 server.login(self.username, self.password)
             for to, subject, body in items:
                 try:
-                    server.send_message(self._build_message(to, subject, body))
+                    server.send_message(
+                        self._build_message(
+                            to,
+                            subject,
+                            body,
+                            render_custom_notification(
+                                subject, body, get_settings().frontend_base_url
+                            ),
+                        )
+                    )
                     results.append(None)
                 except TRANSIENT_SMTP_ERRORS:
                     try:
@@ -303,7 +356,18 @@ class SMTPEmailService(EmailService):
                         server = self._connect()
                         if self.username:
                             server.login(self.username, self.password)
-                        server.send_message(self._build_message(to, subject, body))
+                        server.send_message(
+                            self._build_message(
+                                to,
+                                subject,
+                                body,
+                                render_custom_notification(
+                                    subject,
+                                    body,
+                                    get_settings().frontend_base_url,
+                                ),
+                            )
+                        )
                         results.append(None)
                     except Exception as exc:
                         results.append(exc)

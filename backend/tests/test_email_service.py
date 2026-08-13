@@ -7,7 +7,19 @@ from app.services.email import (
     get_email_service,
     warn_email_config,
 )
+from app.services.email_templates import (
+    render_custom_notification,
+    render_invite,
+    render_verification,
+)
 import pytest
+
+
+def _part_content(message, content_type: str) -> str:
+    for part in message.walk():
+        if part.get_content_type() == content_type:
+            return part.get_content()
+    raise AssertionError(f"缺少 {content_type} 部分")
 
 
 def test_console_backend_by_default() -> None:
@@ -38,12 +50,15 @@ def test_smtp_message_builds_with_from_and_code() -> None:
         use_tls=True,
     )
     message = service._build_message(
-        "a@example.com", "邮箱验证码", "你的验证码是 123456，10 分钟内有效"
+        "a@example.com",
+        "邮箱验证码",
+        "你的验证码是 123456，10 分钟内有效",
+        "<html><body>123456</body></html>",
     )
     assert "noreply@example.com" in message["From"]
     assert "LinPass SSO" in message["From"]
     assert message["To"] == "a@example.com"
-    assert "123456" in message.get_body().get_content()
+    assert "123456" in _part_content(message, "text/plain")
 
 
 def test_smtp_message_has_date_and_message_id() -> None:
@@ -57,7 +72,10 @@ def test_smtp_message_has_date_and_message_id() -> None:
         use_tls=True,
     )
     message = service._build_message(
-        "a@example.com", "邮箱验证码", "你的验证码是 123456"
+        "a@example.com",
+        "邮箱验证码",
+        "你的验证码是 123456",
+        "<html><body>123456</body></html>",
     )
     assert message["Date"] is not None
     assert message["Message-ID"] is not None
@@ -74,8 +92,85 @@ def test_smtp_from_falls_back_to_username() -> None:
         from_name="LinPass SSO",
         use_tls=True,
     )
-    message = service._build_message("a@example.com", "s", "b")
+    message = service._build_message(
+        "a@example.com", "s", "b", "<html><body>b</body></html>"
+    )
     assert "user@example.com" in message["From"]
+
+
+def test_verification_message_has_branded_html_alternative() -> None:
+    service = SMTPEmailService(
+        host="smtp.example.com",
+        port=587,
+        username="user",
+        password="pass",
+        from_addr="noreply@example.com",
+        from_name="LinPass SSO",
+        use_tls=True,
+    )
+    message = service._build_message(
+        "a@example.com",
+        "LinPass SSO 邮箱验证码",
+        "你的验证码是 123456，10 分钟内有效。",
+        render_verification("123456"),
+    )
+    assert message.is_multipart()
+    html_text = _part_content(message, "text/html")
+    assert "123456" in _part_content(message, "text/plain")
+    assert "123456" in html_text
+    assert "#0369A1" in html_text
+    assert "LinPass SSO" in html_text
+    assert "验证你的邮箱" in html_text
+    assert "prefers-color-scheme" in html_text
+
+
+def test_message_embeds_brand_logo_as_cid() -> None:
+    service = SMTPEmailService(
+        host="smtp.example.com",
+        port=587,
+        username="user",
+        password="pass",
+        from_addr="noreply@example.com",
+        from_name="LinPass SSO",
+        use_tls=True,
+    )
+    message = service._build_message(
+        "a@example.com",
+        "LinPass SSO 账号邀请",
+        "邀请正文",
+        render_invite("https://portal.example.com/invite?token=abc"),
+    )
+    image_parts = [
+        part
+        for part in message.walk()
+        if part.get_content_maintype() == "image"
+    ]
+    assert len(image_parts) == 1
+    assert image_parts[0]["Content-ID"] == "brand-logo"
+    assert image_parts[0].get_content_subtype() == "png"
+    assert "cid:brand-logo" in _part_content(message, "text/html")
+
+
+def test_invite_html_contains_branded_button() -> None:
+    html_text = render_invite("https://portal.example.com/invite?token=abc")
+    assert 'href="https://portal.example.com/invite?token=abc"' in html_text
+    assert "完成注册" in html_text
+    assert "#0369A1" in html_text
+
+
+def test_custom_notification_escapes_and_preserves_breaks() -> None:
+    html_text = render_custom_notification(
+        "标题 <script>",
+        "第一行\n<b>第二行</b>",
+        "https://portal.example.com",
+    )
+    assert "&lt;script&gt;" in html_text
+    assert "<script>" not in html_text
+    assert "&lt;b&gt;第二行&lt;/b&gt;" in html_text
+    assert "white-space:pre-line" in html_text
+    assert "第一行\n&lt;b&gt;第二行&lt;/b&gt;" in html_text
+    assert "前往用户中心关闭" in html_text
+    assert "https://portal.example.com" in html_text
 
 
 def test_smtp_from_requires_email_address() -> None:
@@ -109,7 +204,11 @@ def test_smtp_custom_notification_sends_rendered_body(monkeypatch) -> None:
 
         def send_message(self, message):
             sent.append(
-                ("message", message["Subject"], message.get_content().strip())
+                (
+                    "message",
+                    message["Subject"],
+                    _part_content(message, "text/plain").strip(),
+                )
             )
 
     monkeypatch.setattr("app.services.email.smtplib.SMTP", FakeSMTP)
@@ -494,7 +593,7 @@ def test_smtp_account_deleted_message_is_polite(monkeypatch) -> None:
     )
     captured: dict[str, str] = {}
 
-    def fake_send(to: str, subject: str, body: str) -> None:
+    def fake_send(to: str, subject: str, body: str, html_body: str) -> None:
         captured["to"] = to
         captured["subject"] = subject
         captured["body"] = body
