@@ -8,6 +8,7 @@ from app.services.email import (
     warn_email_config,
 )
 from app.services.email_templates import (
+    render_account_deleted,
     render_custom_notification,
     render_invite,
     render_verification,
@@ -171,6 +172,16 @@ def test_custom_notification_escapes_and_preserves_breaks() -> None:
     assert "第一行\n&lt;b&gt;第二行&lt;/b&gt;" in html_text
     assert "前往用户中心关闭" in html_text
     assert "https://portal.example.com" in html_text
+
+
+def test_account_deleted_html_renders_greeting_without_placeholder() -> None:
+    html_text = render_account_deleted("a@example.com", "Alice")
+    assert "您好，Alice：" in html_text
+    assert "{greeting}" not in html_text
+
+    no_nickname = render_account_deleted("a@example.com", None)
+    assert "您好：" in no_nickname
+    assert "{greeting}" not in no_nickname
 
 
 def test_smtp_from_requires_email_address() -> None:

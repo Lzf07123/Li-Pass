@@ -164,8 +164,8 @@ def render_account_deleted(email: str, nickname: str | None) -> str:
     greeting = html.escape(f"您好，{nickname}：" if nickname else "您好：")
     return _shell(
         "你的账号已被删除",
-        f'<p class="body" style="margin:0 0 12px;font-size:14px;'
-        "line-height:1.7;color:#334155;\">{greeting}</p>"
+        '<p class="body" style="margin:0 0 12px;font-size:14px;'
+        "line-height:1.7;color:#334155;\">" + greeting + "</p>"
         '<p class="body" style="margin:0 0 12px;font-size:14px;'
         "line-height:1.7;color:#334155;\">你的 LinPass SSO 账号"
         f"（{html.escape(email)}）已被删除，将无法再登录相关网站。</p>"
