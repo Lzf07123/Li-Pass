@@ -97,6 +97,32 @@ class SessionOut(BaseModel):
     current: bool
 
 
+class AdminSessionUserOut(BaseModel):
+    id: str
+    email: EmailStr
+    nickname: str | None
+    role: str
+    status: str
+
+
+class AdminSessionOut(BaseModel):
+    id: str
+    user: AdminSessionUserOut
+    auth_method: str
+    device_name: str
+    ip: str
+    user_agent: str
+    created_at: datetime
+    last_used_at: datetime
+    expires_at: datetime
+    current: bool
+
+
+class AdminSessionListOut(BaseModel):
+    items: list[AdminSessionOut]
+    total: int
+
+
 class AppOut(BaseModel):
     client_id: str
     name: str

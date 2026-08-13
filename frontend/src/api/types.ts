@@ -71,6 +71,32 @@ export interface SessionOut {
   current: boolean;
 }
 
+export interface AdminSessionUserOut {
+  id: string;
+  email: string;
+  nickname: string | null;
+  role: string;
+  status: string;
+}
+
+export interface AdminSessionOut {
+  id: string;
+  user: AdminSessionUserOut;
+  auth_method: string;
+  device_name: string;
+  ip: string;
+  user_agent: string;
+  created_at: string;
+  last_used_at: string;
+  expires_at: string;
+  current: boolean;
+}
+
+export interface AdminSessionListOut {
+  items: AdminSessionOut[];
+  total: number;
+}
+
 export interface AppOut {
   client_id: string;
   name: string;

@@ -60,7 +60,7 @@ def test_admin_list_sessions_with_search(client, db_session) -> None:
     db_session.refresh(bob)
     bob_session, _ = create_session(db_session, bob, device_name="Safari on iPhone")
 
-    sessions = client.get("/api/v1/admin/sessions").json()
+    sessions = client.get("/api/v1/admin/sessions").json()["items"]
     assert len(sessions) >= 2
     bob_item = next(s for s in sessions if s["id"] == str(bob_session.id))
     assert bob_item["user"]["email"] == "bob@example.com"
@@ -68,12 +68,14 @@ def test_admin_list_sessions_with_search(client, db_session) -> None:
     assert bob_item["auth_method"] == "password"
     assert any(s["current"] is True for s in sessions)
 
-    result = client.get("/api/v1/admin/sessions", params={"q": "bob"}).json()
+    result = client.get("/api/v1/admin/sessions", params={"q": "bob"}).json()[
+        "items"
+    ]
     assert [s["id"] for s in result] == [str(bob_session.id)]
 
     result = client.get(
         "/api/v1/admin/sessions", params={"q": "203.0.113"}
-    ).json()
+    ).json()["items"]
     assert any(s["id"] == str(bob_session.id) for s in result)
 
 
@@ -92,10 +94,39 @@ def test_admin_list_excludes_expired_sessions(client, db_session) -> None:
         db_session, bob, expires_at=now - timedelta(days=1)
     )
 
-    sessions = client.get("/api/v1/admin/sessions").json()
+    sessions = client.get("/api/v1/admin/sessions").json()["items"]
     assert all(s["id"] != str(expired.id) for s in sessions)
     db_session.refresh(expired)
     assert expired.revoked_at is not None
+
+
+def test_admin_list_sessions_paginates_in_sql(client, db_session) -> None:
+    login_admin(client, db_session)
+    bob = User(
+        email="bob@example.com",
+        password_hash=hash_password("password123"),
+        nickname="Bob",
+    )
+    db_session.add(bob)
+    db_session.commit()
+    db_session.refresh(bob)
+    for index in range(5):
+        create_session(db_session, bob, device_name=f"Device {index}")
+
+    page1 = client.get(
+        "/api/v1/admin/sessions", params={"limit": 2}
+    ).json()
+    page2 = client.get(
+        "/api/v1/admin/sessions", params={"limit": 2, "offset": 2}
+    ).json()
+
+    # bob 的 5 个会话 + 管理员自己的 1 个会话
+    assert page1["total"] == 6
+    assert len(page1["items"]) == 2
+    assert len(page2["items"]) == 2
+    first_ids = {s["id"] for s in page1["items"]}
+    second_ids = {s["id"] for s in page2["items"]}
+    assert first_ids.isdisjoint(second_ids)
 
 
 def test_admin_revoke_session(client, db_session) -> None:
@@ -132,7 +163,7 @@ def test_admin_revoke_session(client, db_session) -> None:
 
 def test_admin_cannot_revoke_current_session(client, db_session) -> None:
     login_admin(client, db_session)
-    sessions = client.get("/api/v1/admin/sessions").json()
+    sessions = client.get("/api/v1/admin/sessions").json()["items"]
     current = next(s for s in sessions if s["current"] is True)
     response = client.delete(f"/api/v1/admin/sessions/{current['id']}")
     assert response.status_code == 400

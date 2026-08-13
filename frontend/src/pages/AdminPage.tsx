@@ -9,10 +9,11 @@ import { SiteFooter } from "../components/SiteFooter";
 import { FadeIn } from "../components/bits/FadeIn";
 import { AdminAuditPanel } from "./AdminAuditPanel";
 import { AdminClientsPage } from "./AdminClientsPage";
+import { AdminSessionsPanel } from "./AdminSessionsPanel";
 import { AdminSettingsPanel } from "./AdminSettingsPanel";
 import { AdminUsersPanel } from "./AdminUsersPanel";
 
-type AdminTab = "users" | "clients" | "settings" | "audit";
+type AdminTab = "users" | "sessions" | "clients" | "settings" | "audit";
 
 export function AdminPage() {
   const [me, setMe] = useState<UserOut | null>(null);
@@ -47,6 +48,7 @@ export function AdminPage() {
 
   const tabs: { key: AdminTab; label: string }[] = [
     { key: "users", label: "用户管理" },
+    { key: "sessions", label: "会话监控" },
     { key: "clients", label: "应用管理" },
     { key: "settings", label: "站点设置" },
     { key: "audit", label: "审计日志" },
@@ -78,6 +80,7 @@ export function AdminPage() {
         </div>
         <FadeIn key={tab} inView={false} delay={0.04}>
           {tab === "users" && <AdminUsersPanel currentAdminId={me.id} />}
+          {tab === "sessions" && <AdminSessionsPanel />}
           {tab === "clients" && <AdminClientsPage />}
           {tab === "settings" && <AdminSettingsPanel />}
           {tab === "audit" && <AdminAuditPanel />}
