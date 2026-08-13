@@ -27,6 +27,12 @@ describe("AdminPage", () => {
         )
       )
       .mockResolvedValueOnce(
+        new Response(JSON.stringify({ unread: 0 }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        })
+      )
+      .mockResolvedValueOnce(
         new Response(
           JSON.stringify([
             {
@@ -108,6 +114,12 @@ describe("AdminPage", () => {
         )
       )
       .mockResolvedValueOnce(
+        new Response(JSON.stringify({ unread: 0 }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        })
+      )
+      .mockResolvedValueOnce(
         new Response(
           JSON.stringify([
             {
@@ -169,6 +181,12 @@ describe("AdminPage", () => {
           }),
           { status: 200, headers: { "Content-Type": "application/json" } }
         )
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ unread: 0 }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        })
       )
       .mockResolvedValueOnce(
         new Response(

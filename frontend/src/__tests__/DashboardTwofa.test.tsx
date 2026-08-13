@@ -13,6 +13,12 @@ describe("DashboardPage 2FA", () => {
     const fetchMock = vi
       .fn()
       .mockResolvedValueOnce(
+        new Response(JSON.stringify({ unread: 0 }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        })
+      )
+      .mockResolvedValueOnce(
         new Response(
           JSON.stringify({
             id: "1",

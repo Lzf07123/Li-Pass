@@ -41,6 +41,9 @@ const AdminPage = lazy(() =>
 const DashboardPage = lazy(() =>
   import("./pages/DashboardPage").then((m) => ({ default: m.DashboardPage }))
 );
+const MessagesPage = lazy(() =>
+  import("./pages/MessagesPage").then((m) => ({ default: m.MessagesPage }))
+);
 
 const AUTH_ROUTES = new Set([
   "/login",
@@ -88,6 +91,7 @@ export function AppRoutes() {
           <Route path="/consent" element={<ConsentPage />} />
           <Route path="/admin" element={<Navigate to="/admin/users" replace />} />
           <Route path="/admin/:tab" element={<AdminPage />} />
+          <Route path="/messages" element={<MessagesPage />} />
           <Route path="/" element={<DashboardPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

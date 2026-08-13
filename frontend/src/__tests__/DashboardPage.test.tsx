@@ -13,6 +13,12 @@ describe("DashboardPage", () => {
     const fetchMock = vi
       .fn()
       .mockResolvedValueOnce(
+        new Response(JSON.stringify({ unread: 0 }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        })
+      )
+      .mockResolvedValueOnce(
         new Response(
           JSON.stringify({
             id: "1",
@@ -73,6 +79,12 @@ describe("DashboardPage", () => {
     });
     const fetchMock = vi
       .fn()
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ unread: 0 }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        })
+      )
       .mockResolvedValueOnce(
         new Response(
           JSON.stringify({
@@ -138,6 +150,12 @@ describe("DashboardPage", () => {
     const fetchMock = vi
       .fn()
       .mockResolvedValueOnce(
+        new Response(JSON.stringify({ unread: 0 }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        })
+      )
+      .mockResolvedValueOnce(
         new Response(
           JSON.stringify({
             id: "1",
@@ -173,6 +191,12 @@ describe("DashboardPage", () => {
   it("修改密码失败时在当前密码旁内联展示错误", async () => {
     const fetchMock = vi
       .fn()
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ unread: 0 }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        })
+      )
       .mockResolvedValueOnce(
         new Response(
           JSON.stringify({

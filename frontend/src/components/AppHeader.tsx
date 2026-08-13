@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { Link } from "react-router-dom";
 
 import { APP_NAME } from "../lib/brand";
+import { MessageBell } from "./MessageBell";
 import { ShinyText } from "./bits/ShinyText";
 import { Brand } from "./Brand";
 import { ThemeToggle } from "./ThemeToggle";
@@ -30,6 +31,7 @@ export function AppHeader({
         </Link>
         <span className="hidden truncate text-sm text-muted sm:inline">{title}</span>
         <div className="ml-auto flex items-center gap-2">{actions}</div>
+        <MessageBell />
         <ThemeToggle />
       </div>
     </header>
