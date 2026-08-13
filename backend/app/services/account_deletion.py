@@ -1,9 +1,10 @@
 from pathlib import Path
 
-from sqlalchemy import delete
+from sqlalchemy import delete, update
 from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
+from app.models.account_invite import AccountInvite
 from app.models.authorization_code import AuthorizationCode
 from app.models.client_user_block import ClientUserBlock
 from app.models.otp import Otp
@@ -28,6 +29,20 @@ def delete_user_account(db: Session, user: User, *, commit: bool = True) -> None
     # OTP 以邮箱为目标存储：删除该邮箱的未消费验证码，
     # 防止旧验证码在邮箱重新注册后仍可被使用。
     db.execute(delete(Otp).where(Otp.target == user.email))
+
+    # 邀请注册的账号被删除后，把已消费的邀请还原为“待注册”，
+    # 避免管理端残留一条“已使用”却无对应账号的邀请记录；
+    # 还原后的邀请链接可在有效期内再次完成注册。
+    db.execute(
+        update(AccountInvite)
+        .where(
+            AccountInvite.email == user.email,
+            AccountInvite.used_at.is_not(None),
+            AccountInvite.cancelled_at.is_(None),
+        )
+        .values(used_at=None)
+        .execution_options(synchronize_session=False)
+    )
 
     # 删除本地上传的头像文件并清理用户专属目录。
     upload_dir = Path(get_settings().avatar_upload_dir).resolve()

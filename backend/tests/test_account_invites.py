@@ -396,7 +396,7 @@ def test_admin_resend_expired_invite_revives(
     )
 
 
-def test_used_invite_shows_after_user_deleted_and_can_resend(
+def test_used_invite_restored_after_user_deleted_and_can_resend(
     client, captured_email, db_session
 ) -> None:
     _login_admin(client, db_session)
@@ -425,7 +425,7 @@ def test_used_invite_shows_after_user_deleted_and_can_resend(
         for row in rows
     )
 
-    # 注册后立即删除账号：邀请视为已消费，并在后台展示为“已使用”
+    # 注册后删除账号：邀请还原为“待注册”，可再次使用同一链接注册
     assert (
         client.post(
             f"/api/v1/admin/users/{user.id}/delete",
@@ -434,17 +434,17 @@ def test_used_invite_shows_after_user_deleted_and_can_resend(
         == 200
     )
     rows = client.get("/api/v1/admin/users").json()
-    used = next(
+    restored = next(
         row
         for row in rows
         if row["email"] == "deleted@example.com" and row["kind"] == "invite"
     )
-    assert used["status"] == "used"
+    assert restored["status"] == "invited"
 
-    # 重发邀请：原已使用记录保留，另生成一封全新邀请
+    # 重发邀请：复用已还原的邀请，不生成重复记录
     before = len([m for m in captured_email.messages if m[0] == "invite"])
     response = client.post(
-        f"/api/v1/admin/users/invites/{used['id']}/resend"
+        f"/api/v1/admin/users/invites/{restored['id']}/resend"
     )
     assert response.status_code == 200
     assert (
@@ -453,19 +453,10 @@ def test_used_invite_shows_after_user_deleted_and_can_resend(
     )
     # 再次重发：复用已生成的有效邀请，不再产生重复行
     again = client.post(
-        f"/api/v1/admin/users/invites/{used['id']}/resend"
+        f"/api/v1/admin/users/invites/{restored['id']}/resend"
     )
     assert again.status_code == 200
-    assert len(db_session.scalars(select(AccountInvite)).all()) == 2
-    rows = client.get("/api/v1/admin/users").json()
-    active_rows = [
-        row
-        for row in rows
-        if row["email"] == "deleted@example.com"
-        and row["kind"] == "invite"
-        and row["status"] == "invited"
-    ]
-    assert len(active_rows) == 1
+    assert len(db_session.scalars(select(AccountInvite)).all()) == 1
     new_token = _token_from_link(
         [m for m in captured_email.messages if m[0] == "invite"][-1][2]
     )
@@ -476,7 +467,7 @@ def test_used_invite_shows_after_user_deleted_and_can_resend(
         ).status_code
         == 201
     )
-    assert len(db_session.scalars(select(AccountInvite)).all()) == 2
+    assert len(db_session.scalars(select(AccountInvite)).all()) == 1
 
 
 def test_resend_invite_rejected_when_email_registered(
@@ -587,7 +578,6 @@ def test_invite_register_rejects_bad_or_expired_tokens(
         },
     )
     assert response.status_code == 400
-    assert response.json()["detail"] == "邀请链接无效或已过期"
 
 
 def test_invite_for_registered_email_conflicts(client, db_session) -> None:

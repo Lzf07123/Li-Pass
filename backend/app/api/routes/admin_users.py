@@ -161,7 +161,7 @@ def list_users(
         }
         for invite in db.scalars(invite_stmt).all()
         # 已使用且邮箱仍注册的邀请由用户行展示，避免重复；
-        # 注册后账号被删除的邀请保留展示，状态为“已使用”。
+        # 账号被删除的邀请在删除时已还原为“待注册”。
         if invite.used_at is None or invite.email not in registered_emails
     )
     if status:

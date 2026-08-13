@@ -18,4 +18,5 @@
 - 新增站内信与自定义邮件通知：管理后台「通知管理」可向全部用户或在已注册用户列表中勾选发送站内信与邮件（正文支持 `{nickname}`、`{email}` 占位符）；用户中心新增收件箱与头部未读铃铛，并可在资料中关闭邮件通知。设计见 [站内信与自定义邮件通知设计](docs/superpowers/specs/2026-08-14-notifications-design.md)。
 - 邮件通知升级为品牌风 HTML 模板：验证码、重置密码、邀请、账号删除与自定义通知五类邮件统一使用品牌 Logo（CID 内嵌、不依赖外网）、安全蓝按钮/验证码底色块与 Z 形品牌暗线，支持深色模式自适应；同时保留纯文本降级（`multipart/alternative`）以保障送达率。
 - 新增 BIMI 发件人头像：内置从品牌 Logo 提取的 SVG Tiny P/S 矢量文件（`/bimi/logo.svg`），配合 DMARC 强制策略与 `default._bimi` DNS 记录即可在邮箱客户端展示品牌头像；配置说明见 [部署指南 §BIMI](docs/deployment.md)。
+- 邀请注册的账号被删除后，其已消费的邀请记录会还原为「待注册」而非残留「已使用」，同一邀请链接可在有效期内再次完成注册。
 - 前端品牌氛围「环境呼吸感」：新增纯 Canvas 循环飘动背景（Z 形 / 正方形 / 平行四边形），认证页含输入聚焦减速、用户中心含滚动风速联动、管理后台极致克制；移动端自动减量，全部尊重 `prefers-reduced-motion`。设计见 [循环飘动氛围层设计](docs/superpowers/specs/2026-08-14-ambient-background-design.md)。
