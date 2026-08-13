@@ -76,11 +76,11 @@ docker compose -f docker-compose.yaml --env-file .env exec backend \
 | `DATABASE_URL` / `REDIS_URL` | 数据与缓存连接串：留空时默认编排内 PostgreSQL/Redis（需 `bundle` profile）；填写远程地址即切换为远程实例 |
 | `PENDING_REQUEST_STORE` / `TWOFA_STORE` / `RATE_LIMITER` | 生产用 `redis` |
 | `ADMIN_INVITE_RATE_LIMIT` / `ADMIN_INVITE_RATE_WINDOW_SECONDS` | 管理端邀请限流（按来源 IP 计，批量邀请按人数累计；默认 100 次/小时） |
-| `LOGIN_EMAIL_RATE_LIMIT` / `LOGIN_EMAIL_RATE_WINDOW_SECONDS` | 全局限邮箱登录限流，防分布式 IP 爆破（默认 20 次/15 分钟） |
-| `CLIENT_BLOCK_RATE_LIMIT` / `CLIENT_BLOCK_RATE_WINDOW_SECONDS` | OAuth 客户端黑名单接口限流（默认 100 次/小时/client_id） |
-| `AUDIT_RETENTION_DAYS` | 审计日志保留天数，超期由后台维护任务删除（默认 180） |
-| `SESSION_RETENTION_DAYS` | 已吊销/已过期会话保留天数，超期由后台维护任务删除（默认 30） |
-| `AVATAR_CLEANUP_INTERVAL_SECONDS` | 孤儿头像清理周期（秒）；`0` 关闭周期任务，仍保留启动时清理一次（默认 21600） |
+| `LOGIN_EMAIL_RATE_LIMIT` / `LOGIN_EMAIL_RATE_WINDOW_SECONDS` | 全局限邮箱登录限流，防分布式 IP 爆破（默认 20 次/15 分钟）。注意这是短时账号级锁定：窗口内对同一邮箱的尝试超过阈值后，无论来源 IP 都会被拒绝，攻击者可用错误密码尝试暂时锁住目标账号；需在防爆破与可用性之间权衡 |
+| `CLIENT_BLOCK_RATE_LIMIT` / `CLIENT_BLOCK_RATE_WINDOW_SECONDS` | OAuth 客户端黑名单接口限流（默认 100 次/小时/client_id）。计数包含列表（GET）接口，高频轮询同样计入 |
+| `AUDIT_RETENTION_DAYS` | 审计日志保留天数，超期由后台维护任务删除（默认 180，且必须 ≥1 无法关闭）。安全审计痕迹到期即删，合规要求长期留存时请显式调大 |
+| `SESSION_RETENTION_DAYS` | 已吊销/已过期会话保留天数，超期由后台维护任务删除（默认 30）。空闲超时会话在访问时惰性吊销，此处按过期时间兜底删除 |
+| `AVATAR_CLEANUP_INTERVAL_SECONDS` | 孤儿头像清理周期（秒）；`0` 关闭周期任务，仍保留启动时清理一次（默认 21600）。该周期任务同时负责审计日志与已下线会话的保留期清理，设为 `0` 会一并停掉这些周期清理 |
 | `EPHEMERAL_RETENTION_HOURS` | 过期 OTP/授权码/邀请的保留期（小时），超期由后台维护任务删除（默认 168） |
 | `DB_POOL_SIZE` / `DB_MAX_OVERFLOW` | SQLAlchemy 连接池大小（默认 `5` + `10`；提高 worker 数时应同步放大） |
 | `UVICORN_WORKERS` | 后端 uvicorn worker 数（默认 `1`；使用 memory 存储的本地模式必须保持 1） |
@@ -143,7 +143,7 @@ SMTP_RETRY_DELAY_SECONDS=1
 邮件分为两类：注册/登录/重置/绑手机等场景发送 6 位验证码（10 分钟有效，重发会作废旧码）；邀请注册发送一次性邀请链接（7 天有效）。各发送接口的限流口径不同：
 
 - 登录后 2FA 验证码、手机绑定验证码：`OTP_SEND_LIMIT=5` 次/小时/邮箱；2FA 进入二次验证页不自动发信，需用户点击“获取验证码”，重发最小间隔 `OTP_RESEND_COOLDOWN_SECONDS`（默认 60 秒）
-- 登录失败：每邮箱+IP `LOGIN_RATE_LIMIT=10` 次/15 分钟，每 IP `LOGIN_IP_RATE_LIMIT=30` 次/15 分钟，全局限邮箱 `LOGIN_EMAIL_RATE_LIMIT=20` 次/15 分钟
+- 登录失败：每邮箱+IP `LOGIN_RATE_LIMIT=10` 次/15 分钟，每 IP `LOGIN_IP_RATE_LIMIT=30` 次/15 分钟，全局限邮箱 `LOGIN_EMAIL_RATE_LIMIT=20` 次/15 分钟；邮箱级限流附带短时账号锁定权衡，见上表说明
 - 邮箱激活验证码重发与验证尝试：`EMAIL_VERIFY_RATE_LIMIT=30` 次/小时/邮箱（不按 IP 限流，避免办公网/NAT 共享出口误伤）
 - 注册/邀请注册接口：`REGISTER_RATE_LIMIT=10` 次/小时/IP
 - 找回密码：`PASSWORD_RESET_RATE_LIMIT=5` 次/小时/邮箱（不按 IP 限流）
@@ -297,6 +297,8 @@ Redis 已通过 `--appendonly yes` 显式开启 AOF（可用 `REDIS_APPENDONLY=n
 - [ ] `EMAIL_BACKEND=smtp` 且 SMTP 可真实发信（未验证邮箱的用户无法完成 OIDC 授权）
 - [ ] `PUBLIC_BASE_URL` 为真实对外地址（不是 `localhost`），否则邀请邮件链接无法访问；启动日志中不应出现“FRONTEND_BASE_URL 指向本机”警告
 - [ ] 发信域名已配置 SPF，并尽量开启 DKIM/DMARC（阿里企业邮箱控制台开启；缺失时邮件易进垃圾箱或被拒收）
+- [ ] 已按合规要求评估 `AUDIT_RETENTION_DAYS`（默认 180 天，审计日志到期自动删除）
+- [ ] 已评估 `LOGIN_EMAIL_RATE_LIMIT` 的账号锁定权衡（防爆破 vs 短时拒绝目标账号登录）
 - [ ] 已备份 `backend-keys` 与 `backend-uploads` 卷，并演练过恢复
 - [ ] 网关已配置 TLS、HSTS、HTTP→HTTPS 跳转
 - [ ] 网关已放行 `/readyz`（或仅内部可达），不要把 `/docs` 暴露（生产已自动关闭）
@@ -306,7 +308,7 @@ Redis 已通过 `--appendonly yes` 显式开启 AOF（可用 `REDIS_APPENDONLY=n
 
 - 查看日志：`docker compose -f docker-compose.yaml --env-file .env logs -f backend`
 - 查看健康状态：`docker compose -f docker-compose.yaml --env-file .env ps`
-- 后台维护：后端启动时自动清理一次孤儿头像与过期 OTP/授权码/邀请，之后按 `AVATAR_CLEANUP_INTERVAL_SECONDS`（默认 6 小时）周期执行；可在日志中查看“头像自动清理 / 临时凭证清理”记录
+- 后台维护：后端启动时自动清理一次孤儿头像、过期 OTP/授权码/邀请、超期审计日志与已下线会话，之后按 `AVATAR_CLEANUP_INTERVAL_SECONDS`（默认 6 小时）周期执行；设为 `0` 时上述周期清理全部停用（仅保留启动时一次）。可在日志中查看“头像自动清理 / 临时凭证清理”记录
 - 用户与邀请：邀请注册/批量邀请、批量启用/禁用/删除、账号注销均在门户界面完成（管理后台 → 用户管理；用户中心 → 注销账号）
 - 升级：`bash scripts/backup-db.sh` 备份后，拉取新代码执行 `docker compose --profile bundle up -d --build`，后端启动时会自动执行 `alembic upgrade head`
 - 迁移回滚：`docker compose --profile bundle exec backend alembic downgrade -1`（先评估数据影响，必要时用备份恢复）
