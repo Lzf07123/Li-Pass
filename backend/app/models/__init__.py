@@ -3,6 +3,8 @@ from app.models.authorization_code import AuthorizationCode
 from app.models.audit_log import AuditLog
 from app.models.base import Base
 from app.models.client_user_block import ClientUserBlock
+from app.models.notification import Notification
+from app.models.notification_recipient import NotificationRecipient
 from app.models.oauth_client import OAuthClient
 from app.models.otp import Otp, OtpPurpose
 from app.models.recovery_code import RecoveryCode
@@ -17,6 +19,8 @@ __all__ = [
     "AuditLog",
     "Base",
     "ClientUserBlock",
+    "Notification",
+    "NotificationRecipient",
     "OAuthClient",
     "Otp",
     "OtpPurpose",

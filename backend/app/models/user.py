@@ -32,6 +32,7 @@ class User(Base):
     totp_secret_encrypted: Mapped[str | None] = mapped_column(String(500))
     totp_enabled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     email_otp_enabled: Mapped[bool] = mapped_column(Boolean, default=False)
+    email_notifications: Mapped[bool] = mapped_column(Boolean, default=True)
     role: Mapped[UserRole] = mapped_column(Enum(UserRole), default=UserRole.user)
     status: Mapped[UserStatus] = mapped_column(Enum(UserStatus), default=UserStatus.active)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
