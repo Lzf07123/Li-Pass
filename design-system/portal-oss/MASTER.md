@@ -3,6 +3,9 @@
 > **LOGIC:** When building a specific page, first check `design-system/pages/[page-name].md`.
 > If that file exists, its rules **override** this Master file.
 > If not, strictly follow the rules below.
+>
+> **品牌层：** 品牌定位、设计总思路、视觉识别与「环境呼吸感」氛围动效标准见 [BRAND.md](./BRAND.md)。
+> 先遵循 BRAND.md 的品牌意图，再按本文件落地令牌与组件规格。
 
 ---
 
@@ -95,6 +98,40 @@ WCAG AA（正文 ≥ 4.5:1）。深色模式使用去饱和浅色调变体，而
 - `.notice-*`：页面内持久提示条，与 Toast 同一视觉语言，带状态图标。
 - `.modal-*`：`modal-backdrop`（遮罩 + `backdrop-blur-sm`）+ `modal-panel`（`rounded-2xl`、状态色顶部条）。
 - `.toast-*`：`toast-viewport` 顶部居中（`z-[80]`，高于 Modal 遮罩 `z-[70]`），带进度条与进入/离开动画。
+
+### 环境呼吸层（`.FloatingBackground`）
+
+- 位置：`frontend/src/components/FloatingBackground/` + `frontend/src/hooks/useFloatingBackground.ts`，纯 Canvas 循环飘动背景，无第三方依赖。
+- 三种几何形状（Z 形 / 正方形 / 平行四边形）做「水平匀速漂移 + 垂直正弦摆动」，形状透明度 0.04~0.15、单程穿越约 60~120s、无限循环。
+
+#### Props
+
+| Props | 默认 | 说明 |
+| --- | --- | --- |
+| `theme` | `"dark"` | `dark` / `light` / `auto`；`auto` 跟随 `html.dark` 类（MutationObserver），400ms 逐通道过渡 |
+| `transparent` | `false` | `true` 时不绘制背景色，只清屏，站点令牌背景透出 |
+| `opacity` | `1` | 全局透明度倍率 |
+| `speed` | `1` | 全局速度倍率 |
+| `shapeCount` | `7` | 形状数量，夹取 3~40 |
+| `calm` | `false` | 焦点减速 ×0.5（平滑过渡） |
+| `scrollWind` | `false` | 滚动风速：静止 0.5x、快速滚动最高 1.5x |
+| `adaptive` | `true` | <768px 时 ≤6 个、速度 ×2/3、透明度 ×0.5 |
+
+#### 站点接入标准
+
+| 页面 | 配置 | 备注 |
+| --- | --- | --- |
+| 认证页（`AuthShell`） | `theme="auto" transparent shapeCount={10}` + 卡片聚焦 `calm` | 默认数量，`ambientShapeCount` 可覆盖 |
+| 授权确认 | `ambientShapeCount={4}` | 信任时刻氛围减半 |
+| 用户中心 | `theme="auto" transparent scrollWind shapeCount={10}` | 滚动风速联动 |
+| 管理后台 | `theme="auto" transparent shapeCount={4} opacity={0.5}` | 极致克制 |
+
+#### 层叠与约束
+
+- 画布类为 `pointer-events-none absolute inset-0 z-0 block h-full w-full`；父容器需 `relative`，前景内容相对定位并位于画布之后。
+- 画布必须垫底（z-0），内容永远在上；页脚等静态兄弟元素需 `relative` 才能压住画布。
+- `prefers-reduced-motion` 时只绘制静态单帧；后台标签切回 dt 夹取 100ms；卸载清理 rAF/监听/Observer/定时器。
+- 完整设计说明见 [`../../docs/superpowers/specs/2026-08-14-ambient-background-design.md`](../../docs/superpowers/specs/2026-08-14-ambient-background-design.md)。
 
 ---
 

@@ -417,3 +417,27 @@ erDiagram
 - 短信验证码接入
 - 门户与网站之间的全局单点登出（end_session）
 - API 令牌管理（面向应用的长期令牌）
+
+## 13. UI 与设计系统约定（统一风格）
+
+### 13.1 单一事实来源
+
+| 层级 | 文件 | 职责 |
+| --- | --- | --- |
+| 品牌意图 | `design-system/portal-oss/BRAND.md` | 品牌定位、设计原则、视觉方向、氛围动效标准 |
+| 落地规格 | `design-system/portal-oss/MASTER.md` | 令牌、组件、页面模式的实现快照 |
+| 代码事实 | `frontend/src/index.css` + `frontend/src/lib/brand.ts` | 颜色/阴影/动效令牌、品牌文案与资源 |
+
+冲突时以代码事实为准，但必须同步回写 MASTER.md 与 BRAND.md，防止文档漂移。
+
+### 13.2 氛围动效
+
+- 品牌背景氛围统一使用 `FloatingBackground`（纯 Canvas 循环飘动：Z 形 / 正方形 / 平行四边形），分页配置与交互联动（焦点减速、滚动风速、移动端减量）见[循环飘动氛围层设计](./2026-08-14-ambient-background-design.md)与 BRAND.md 第 4 章。
+- 所有动效尊重 `prefers-reduced-motion`；微交互 150~300ms，氛围循环 25~90s 级；只动 `transform`/`opacity`（DOM 动效）或 Canvas 位图。
+
+### 13.3 新页面 / 新组件约束
+
+- 复用 `AuthShell` / `AppHeader` / `SiteFooter` / `card` / `btn` 等既有模式；确需新模式时先更新 MASTER.md。
+- 组件内禁止硬编码颜色与文案：颜色走 `index.css` 语义令牌，文案走 `lib/brand.ts`。
+- 图标统一 SVG（Heroicons/Lucide 风格），禁止 emoji 充当图标；可点击元素必须有 `cursor-pointer` 与可见焦点。
+- 交付前执行 MASTER.md 的 Pre-Delivery Checklist（对比度 4.5:1、375/768/1024/1440 响应式、无横向滚动等）。
