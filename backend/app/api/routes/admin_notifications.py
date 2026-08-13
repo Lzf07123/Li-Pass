@@ -15,6 +15,7 @@ from app.models.notification_recipient import NotificationRecipient
 from app.models.user import User, UserStatus
 from app.services.audit import log_audit, log_rate_limit_rejected_once
 from app.services.email import get_email_service
+from app.services.notifications import render_template
 from app.services.rate_limit import get_rate_limiter
 
 logger = logging.getLogger(__name__)
@@ -44,13 +45,6 @@ def _unknown_placeholders(*texts: str) -> list[str]:
     for text in texts:
         tokens.update(_PLACEHOLDER_RE.findall(text))
     return sorted(tokens - _ALLOWED_PLACEHOLDERS)
-
-
-def _render(template: str, user: User) -> str:
-    return (
-        template.replace("{nickname}", user.nickname or "")
-        .replace("{email}", user.email)
-    )
 
 
 @router.post("/notifications", response_model=dict)
@@ -164,8 +158,8 @@ def send_notification(
         items = [
             (
                 user.email,
-                _render(payload.title, user),
-                _render(payload.body, user),
+                render_template(payload.title, user),
+                render_template(payload.body, user),
             )
             for user in targets
         ]

@@ -10,17 +10,18 @@ from app.core.db import get_db
 from app.models.notification import Notification
 from app.models.notification_recipient import NotificationRecipient
 from app.models.user import User
+from app.services.notifications import render_template
 
 router = APIRouter(prefix="/api/v1/me", tags=["messages"])
 
 
 def _serialize(
-    recipient: NotificationRecipient, notification: Notification
+    recipient: NotificationRecipient, notification: Notification, user: User
 ) -> dict:
     return {
         "id": str(recipient.id),
-        "title": notification.title,
-        "body": notification.body,
+        "title": render_template(notification.title, user),
+        "body": render_template(notification.body, user),
         "sent_at": notification.created_at,
         "read": recipient.read_at is not None,
     }
@@ -66,7 +67,10 @@ def list_messages(
         .limit(limit)
     ).all()
     return {
-        "items": [_serialize(recipient, notification) for recipient, notification in rows],
+        "items": [
+            _serialize(recipient, notification, user)
+            for recipient, notification in rows
+        ],
         "total": total,
         "unread": unread,
     }

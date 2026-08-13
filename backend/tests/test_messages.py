@@ -25,10 +25,16 @@ def login(client, email) -> None:
     )
 
 
-def send(db_session, sender: User, targets: list[User]) -> Notification:
+def send(
+    db_session,
+    sender: User,
+    targets: list[User],
+    title: str = "维护通知",
+    body: str = "您好",
+) -> Notification:
     notification = Notification(
-        title="维护通知",
-        body="您好",
+        title=title,
+        body=body,
         in_site=True,
         email=False,
         sender_id=sender.id,
@@ -45,6 +51,29 @@ def send(db_session, sender: User, targets: list[User]) -> Notification:
         )
     db_session.commit()
     return notification
+
+
+def test_messages_render_placeholders_per_recipient(
+    client, db_session
+) -> None:
+    admin = make_user(db_session, "admin@example.com")
+    alice = make_user(db_session, "alice@example.com")
+    bob = make_user(db_session, "bob@example.com")
+    send(
+        db_session,
+        admin,
+        [alice, bob],
+        title="你好 {nickname}",
+        body="邮箱：{email}",
+    )
+    login(client, "alice@example.com")
+
+    data = client.get("/api/v1/me/messages").json()
+    item = data["items"][0]
+    assert item["title"] == "你好 alice"
+    assert item["body"] == "邮箱：alice@example.com"
+    assert "{nickname}" not in item["title"]
+    assert "{email}" not in item["body"]
 
 
 def test_list_messages_and_unread_count(client, db_session) -> None:
