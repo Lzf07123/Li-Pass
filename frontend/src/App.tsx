@@ -38,11 +38,6 @@ const ConsentPage = lazy(() =>
 const AdminPage = lazy(() =>
   import("./pages/AdminPage").then((m) => ({ default: m.AdminPage }))
 );
-const AdminClientsPage = lazy(() =>
-  import("./pages/AdminClientsPage").then((m) => ({
-    default: m.AdminClientsPage,
-  }))
-);
 const DashboardPage = lazy(() =>
   import("./pages/DashboardPage").then((m) => ({ default: m.DashboardPage }))
 );
@@ -91,8 +86,7 @@ export function AppRoutes() {
           <Route path="/reset-password" element={<GuestOnly><ResetPasswordPage /></GuestOnly>} />
           <Route path="/verify-email" element={<VerifyEmailPage />} />
           <Route path="/consent" element={<ConsentPage />} />
-          <Route path="/admin" element={<AdminPage />} />
-          <Route path="/admin/clients" element={<AdminClientsPage />} />
+          <Route path="/admin/:tab?" element={<AdminPage />} />
           <Route path="/" element={<DashboardPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

@@ -62,9 +62,9 @@ describe("AdminPage", () => {
         )
       );
     vi.stubGlobal("fetch", fetchMock);
-    renderWithProviders(<AdminPage />);
+    renderWithProviders(<AdminPage />, ["/admin/users"]);
     await waitFor(() => expect(screen.getByText("bob@example.com")).toBeInTheDocument());
-    fireEvent.click(screen.getByRole("button", { name: "审计日志" }));
+    fireEvent.click(screen.getByRole("link", { name: "审计日志" }));
     await waitFor(() => expect(screen.getByText("login")).toBeInTheDocument());
   });
 
