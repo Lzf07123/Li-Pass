@@ -149,6 +149,23 @@ SMTP_RETRY_DELAY_SECONDS=1
 - 找回密码：`PASSWORD_RESET_RATE_LIMIT=5` 次/小时/邮箱（不按 IP 限流）
 - 管理端邀请：`ADMIN_INVITE_RATE_LIMIT=100` 次/小时/IP（批量邀请按人数累计）
 
+## BIMI 发件人头像（品牌 Logo）
+
+门户已内置 BIMI 合规的矢量 Logo（`frontend/public/bimi/logo.svg`，SVG Tiny P/S、方形纯色底、≤32KB），随前端构建发布，经 `https://<你的域名>/bimi/logo.svg` 对外提供。要让邮箱客户端在收件箱显示品牌发件头像，需完成两步：
+
+1. **DMARC 强制策略**：域名需有对齐的 SPF/DKIM，且 DMARC 策略为 `p=quarantine` 或 `p=reject`。
+2. **BIMI DNS 记录**：在 DNS 添加 TXT 记录（把域名替换为真实域名）：
+
+   ```text
+   default._bimi  IN  TXT  "v=BIMI1; l=https://portal.example.com/bimi/logo.svg"
+   ```
+
+说明：
+
+- Gmail / Apple Mail 显示 BIMI 头像还需要 Verified Mark Certificate（VMC）：取得 VMC 后在其 PEM 文件 URL 加 `a=` 段，例如 `v=BIMI1; l=https://portal.example.com/bimi/logo.svg; a=https://portal.example.com/bimi/vmc.pem`；Yahoo 等无需 VMC 即可显示。
+- 尚未取得 VMC 时可以先只写 `l=` 段，不影响发信与认证。
+- 更换 Logo 时直接替换 `frontend/public/bimi/logo.svg` 重新发布即可，无需改 DNS（静态缓存 7 天）。
+
 ## SameSite 与部署拓扑（重要）
 
 门户会话 Cookie 的 `SameSite` 属性取决于前端与后端的域名关系：
