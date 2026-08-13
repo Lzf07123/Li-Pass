@@ -4,6 +4,7 @@ import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { auth2faApi, authApi } from "../api/client";
 import { AsyncButton } from "../components/AsyncButton";
 import { AuthShell } from "../components/AuthShell";
+import { PasswordInput } from "../components/PasswordInput";
 import { useAsyncAction } from "../hooks/useAsyncAction";
 import { useToast } from "../hooks/useToast";
 import { APP_NAME } from "../lib/brand";
@@ -221,8 +222,7 @@ export function LoginPage() {
         </label>
         <label className="block">
           <span className="label">密码</span>
-          <input
-            type="password"
+          <PasswordInput
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             className="input"

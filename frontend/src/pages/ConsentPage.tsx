@@ -5,6 +5,7 @@ import { consentApi } from "../api/client";
 import { AsyncButton } from "../components/AsyncButton";
 import { AuthShell } from "../components/AuthShell";
 import { Notice } from "../components/Notice";
+import { StatusIcon } from "../components/bits/StatusIcon";
 import { useAsyncAction } from "../hooks/useAsyncAction";
 import { useToast } from "../hooks/useToast";
 import type { ConsentInfo } from "../api/types";
@@ -81,8 +82,11 @@ export function ConsentPage() {
           </p>
           <ul className="space-y-1.5 rounded-xl border border-border bg-surface-2/60 p-4 text-sm">
             {info.scopes.map((scope) => (
-              <li key={scope} className="flex items-baseline gap-1.5 text-foreground">
-                <span className="text-primary">✓</span>
+              <li key={scope} className="flex items-center gap-1.5 text-foreground">
+                <StatusIcon
+                  type="success"
+                  className="h-4 w-4 shrink-0 text-primary"
+                />
                 <span>{SCOPE_LABELS[scope] ?? scope}</span>
                 <span className="text-xs text-muted">（{scope}）</span>
               </li>

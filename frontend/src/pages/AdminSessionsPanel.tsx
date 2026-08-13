@@ -169,7 +169,7 @@ export function AdminSessionsPanel() {
                     onClick={() => setRevokeTarget(session)}
                     disabled={session.current}
                     title={session.current ? "这是你当前的会话" : undefined}
-                    className="btn btn-danger px-2.5 py-1.5 text-xs"
+                    className="btn btn-danger min-h-9 px-3 py-1.5 text-xs"
                   >
                     强制下线
                   </button>
@@ -189,7 +189,9 @@ export function AdminSessionsPanel() {
         )}
       </div>
       {total === 0 && (
-        <p className="text-sm text-muted">暂无在线会话</p>
+        <p className="text-sm text-muted">
+          暂无在线会话，用户登录后会实时出现在这里。
+        </p>
       )}
 
       <ConfirmDialog

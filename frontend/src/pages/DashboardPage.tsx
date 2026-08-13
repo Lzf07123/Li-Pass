@@ -15,11 +15,13 @@ import { AppHeader } from "../components/AppHeader";
 import { AsyncButton } from "../components/AsyncButton";
 import { ConfirmDialog } from "../components/ConfirmDialog";
 import { Modal } from "../components/Modal";
+import { PasswordInput } from "../components/PasswordInput";
 import { SiteFooter } from "../components/SiteFooter";
 import { useAsyncAction } from "../hooks/useAsyncAction";
 import { useBreathOnChange } from "../hooks/useBreathOnChange";
 import { useToast } from "../hooks/useToast";
 import { FadeIn } from "../components/bits/FadeIn";
+import { LineIcon } from "../components/bits/LineIcon";
 
 // 绑定手机功能暂未完善：置为 true 即恢复显示（代码与接口保留）。
 const PHONE_BINDING_ENABLED = false;
@@ -35,6 +37,7 @@ export function DashboardPage() {
   const [phoneStep, setPhoneStep] = useState<"phone" | "code">("phone");
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
+  const [twofaPasswordError, setTwofaPasswordError] = useState<string | null>(null);
   const [twofa, setTwofa] = useState<TwoFaStatus | null>(null);
   const [twofaPassword, setTwofaPassword] = useState("");
   const [totpSetup, setTotpSetup] = useState<TotpSetup | null>(null);
@@ -234,6 +237,7 @@ export function DashboardPage() {
   async function toggleEmailTwofa() {
     if (twofaBusy !== null || twofa === null) return;
     if (!twofaPassword) {
+      setTwofaPasswordError("请输入当前密码");
       toast.error("请输入当前密码后重试");
       return;
     }
@@ -245,9 +249,12 @@ export function DashboardPage() {
         : await twofaApi.disableEmail(twofaPassword);
       setTwofa(await twofaApi.status());
       setTwofaPassword("");
+      setTwofaPasswordError(null);
       toast.success(result.message);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "操作失败");
+      const message = err instanceof Error ? err.message : "操作失败";
+      if (message.includes("当前密码")) setTwofaPasswordError(message);
+      toast.error(message);
     } finally {
       setTwofaBusy(null);
     }
@@ -269,6 +276,7 @@ export function DashboardPage() {
   async function enableTotp() {
     if (!totpSetup || twofaBusy !== null) return;
     if (!twofaPassword) {
+      setTwofaPasswordError("请输入当前密码");
       toast.error("请输入当前密码后重试");
       return;
     }
@@ -283,10 +291,13 @@ export function DashboardPage() {
       setTotpSetup(null);
       setTotpCode("");
       setTwofaPassword("");
+      setTwofaPasswordError(null);
       setTwofa(await twofaApi.status());
       toast.success(result.message);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "启用失败");
+      const message = err instanceof Error ? err.message : "启用失败";
+      if (message.includes("当前密码")) setTwofaPasswordError(message);
+      toast.error(message);
     } finally {
       setTwofaBusy(null);
     }
@@ -295,6 +306,7 @@ export function DashboardPage() {
   async function disableTotp() {
     if (twofaBusy !== null) return;
     if (!twofaPassword) {
+      setTwofaPasswordError("请输入当前密码");
       toast.error("请输入当前密码后重试");
       return;
     }
@@ -303,9 +315,12 @@ export function DashboardPage() {
       const result = await twofaApi.totpDisable(twofaPassword);
       setTwofa(await twofaApi.status());
       setTwofaPassword("");
+      setTwofaPasswordError(null);
       toast.success(result.message);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "关闭失败");
+      const message = err instanceof Error ? err.message : "关闭失败";
+      if (message.includes("当前密码")) setTwofaPasswordError(message);
+      toast.error(message);
     } finally {
       setTwofaBusy(null);
     }
@@ -381,7 +396,8 @@ export function DashboardPage() {
           <>
             <FadeIn delay={0}>
               <section className="card p-6">
-                <h2 className="mb-4 text-base font-semibold text-foreground">
+                <h2 className="mb-4 inline-flex items-center gap-2 text-base font-semibold text-foreground">
+                  <LineIcon name="user" className="h-4 w-4 text-primary" />
                   基本资料
                 </h2>
                 <p className="mb-4 text-sm text-muted">
@@ -445,19 +461,38 @@ export function DashboardPage() {
 
         <FadeIn delay={0.08}>
           <section className="card p-6">
-            <h2 className="mb-4 text-base font-semibold text-foreground">修改密码</h2>
+            <h2 className="mb-4 inline-flex items-center gap-2 text-base font-semibold text-foreground">
+              <LineIcon name="lock" className="h-4 w-4 text-primary" />
+              修改密码
+            </h2>
             <form onSubmit={changePassword} className="space-y-3">
-              <input
-                type="password"
-                placeholder="当前密码"
-                value={currentPassword}
-                onChange={(e) => setCurrentPassword(e.target.value)}
-                className="input"
-                autoComplete="current-password"
-                required
-              />
-              <input
-                type="password"
+              <div>
+                <PasswordInput
+                  id="change-current-password"
+                  placeholder="当前密码"
+                  value={currentPassword}
+                  onChange={(e) => setCurrentPassword(e.target.value)}
+                  className="input"
+                  autoComplete="current-password"
+                  required
+                  aria-invalid={changePasswordAction.error ? true : undefined}
+                  aria-describedby={
+                    changePasswordAction.error
+                      ? "change-password-error"
+                      : undefined
+                  }
+                />
+                {changePasswordAction.error && (
+                  <p
+                    id="change-password-error"
+                    role="alert"
+                    className="mt-1.5 text-xs text-destructive"
+                  >
+                    {changePasswordAction.error.message}
+                  </p>
+                )}
+              </div>
+              <PasswordInput
                 placeholder="新密码（至少 8 位）"
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
@@ -480,7 +515,10 @@ export function DashboardPage() {
         {PHONE_BINDING_ENABLED && (
           <FadeIn delay={0.16}>
             <section className="card p-6">
-              <h2 className="mb-4 text-base font-semibold text-foreground">绑定手机</h2>
+              <h2 className="mb-4 inline-flex items-center gap-2 text-base font-semibold text-foreground">
+                <LineIcon name="phone" className="h-4 w-4 text-primary" />
+                绑定手机
+              </h2>
               {phoneStep === "phone" ? (
                 <form
                   key="phone"
@@ -548,7 +586,10 @@ export function DashboardPage() {
 
         <FadeIn delay={0.24}>
           <section className="card p-6">
-            <h2 className="mb-4 text-base font-semibold text-foreground">安全设置</h2>
+            <h2 className="mb-4 inline-flex items-center gap-2 text-base font-semibold text-foreground">
+              <LineIcon name="shield" className="h-4 w-4 text-primary" />
+              安全设置
+            </h2>
             <div className="space-y-5">
             <div className="flex items-center justify-between gap-4">
               <div>
@@ -606,9 +647,9 @@ export function DashboardPage() {
                   用认证器扫描二维码或手动输入密钥：
                 </p>
                 {totpSetup.qr_data_url && (
-                  // eslint-disable-next-line jsx-a11y/alt-text
                   <img
                     src={totpSetup.qr_data_url}
+                    alt="TOTP 绑定二维码"
                     className="h-32 w-32 rounded-lg border border-border bg-white"
                   />
                 )}
@@ -632,22 +673,41 @@ export function DashboardPage() {
               </div>
             )}
 
-            <input
-              type="password"
-              value={twofaPassword}
-              onChange={(e) => setTwofaPassword(e.target.value)}
-              placeholder="当前密码（开启或关闭 2FA 时使用）"
-              className="input"
-              autoComplete="current-password"
-              disabled={twofaBusy !== null}
-            />
+            <div>
+              <PasswordInput
+                id="twofa-current-password"
+                value={twofaPassword}
+                onChange={(e) => {
+                  setTwofaPassword(e.target.value);
+                  setTwofaPasswordError(null);
+                }}
+                placeholder="当前密码（开启或关闭 2FA 时使用）"
+                className="input"
+                autoComplete="current-password"
+                disabled={twofaBusy !== null}
+                aria-invalid={twofaPasswordError ? true : undefined}
+                aria-describedby={
+                  twofaPasswordError ? "twofa-password-error" : undefined
+                }
+              />
+              {twofaPasswordError && (
+                <p
+                  id="twofa-password-error"
+                  role="alert"
+                  className="mt-1.5 text-xs text-destructive"
+                >
+                  {twofaPasswordError}
+                </p>
+              )}
+            </div>
             </div>
           </section>
         </FadeIn>
 
         <FadeIn delay={0.32}>
           <section className="card p-6">
-            <h2 className="mb-4 text-base font-semibold text-foreground">
+            <h2 className="mb-4 inline-flex items-center gap-2 text-base font-semibold text-foreground">
+              <LineIcon name="monitor" className="h-4 w-4 text-primary" />
               登录设备
               <span className="ml-2 text-sm font-normal text-muted">
                 共 <AnimatedNumber value={sessions.length} /> 个会话
@@ -687,20 +747,29 @@ export function DashboardPage() {
                   </AsyncButton>
                 </li>
               ))}
-              {sessions.length === 0 && <p className="text-sm text-muted">暂无会话</p>}
+              {sessions.length === 0 && (
+                <p className="text-sm text-muted">
+                  暂无会话，登录新设备后会出现在这里。
+                </p>
+              )}
             </ul>
           </section>
         </FadeIn>
 
         <FadeIn delay={0.4}>
           <section className="card p-6">
-            <h2 className="mb-4 text-base font-semibold text-foreground">
+            <h2 className="mb-4 inline-flex items-center gap-2 text-base font-semibold text-foreground">
+              <LineIcon name="grid" className="h-4 w-4 text-primary" />
               应用广场
               <span className="ml-2 text-sm font-normal text-muted">
                 共 <AnimatedNumber value={apps.length} /> 个网站
               </span>
             </h2>
-            {apps.length === 0 && <p className="text-sm text-muted">还没有已授权的网站</p>}
+            {apps.length === 0 && (
+              <p className="text-sm text-muted">
+                还没有已授权的网站，在接入网站完成一次授权登录后会自动出现在这里。
+              </p>
+            )}
             <div className={`grid gap-3 sm:grid-cols-2 ${appsBreathing ? "animate-breath" : ""}`}>
               {apps.map((app) => (
                 <div
@@ -743,7 +812,8 @@ export function DashboardPage() {
 
         <FadeIn delay={0.48}>
           <section className="card border-destructive/25 p-6">
-            <h2 className="mb-2 text-base font-semibold text-destructive">
+            <h2 className="mb-2 inline-flex items-center gap-2 text-base font-semibold text-destructive">
+              <LineIcon name="alert" className="h-4 w-4" />
               注销账号
             </h2>
             <p className="mb-4 text-sm text-muted">
@@ -843,15 +913,27 @@ export function DashboardPage() {
           </p>
           <label className="block">
             <span className="label">当前密码</span>
-            <input
-              type="password"
+            <PasswordInput
               value={deleteAccountPassword}
               onChange={(e) => setDeleteAccountPassword(e.target.value)}
               placeholder="输入当前密码确认注销"
               className="input"
               autoComplete="current-password"
               autoFocus
+              aria-invalid={deleteAccountAction.error ? true : undefined}
+              aria-describedby={
+                deleteAccountAction.error ? "delete-account-error" : undefined
+              }
             />
+            {deleteAccountAction.error && (
+              <p
+                id="delete-account-error"
+                role="alert"
+                className="mt-1.5 text-xs text-destructive"
+              >
+                {deleteAccountAction.error.message}
+              </p>
+            )}
           </label>
         </form>
       </Modal>

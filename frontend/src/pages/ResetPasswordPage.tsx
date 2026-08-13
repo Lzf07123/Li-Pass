@@ -4,6 +4,7 @@ import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { authApi } from "../api/client";
 import { AsyncButton } from "../components/AsyncButton";
 import { AuthShell } from "../components/AuthShell";
+import { PasswordInput } from "../components/PasswordInput";
 import { useAsyncAction } from "../hooks/useAsyncAction";
 import { useToast } from "../hooks/useToast";
 
@@ -104,8 +105,7 @@ export function ResetPasswordPage() {
         </label>
         <label className="block">
           <span className="label">新密码</span>
-          <input
-            type="password"
+          <PasswordInput
             value={newPassword}
             onChange={(e) => setNewPassword(e.target.value)}
             className="input"
@@ -117,8 +117,7 @@ export function ResetPasswordPage() {
         </label>
         <label className="block">
           <span className="label">确认新密码</span>
-          <input
-            type="password"
+          <PasswordInput
             value={confirmPassword}
             onChange={(e) => setConfirmPassword(e.target.value)}
             className="input"

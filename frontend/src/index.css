@@ -27,6 +27,7 @@
   --color-warning-soft: var(--portal-warning-soft);
   --color-destructive: var(--portal-destructive);
   --color-destructive-soft: var(--portal-destructive-soft);
+  --color-destructive-foreground: var(--portal-destructive-fg);
 
   --color-ring: var(--portal-ring);
 }
@@ -54,6 +55,7 @@
   --portal-warning-soft: #fffbeb;
   --portal-destructive: #dc2626;
   --portal-destructive-soft: #fef2f2;
+  --portal-destructive-fg: #ffffff;
 
   --portal-ring: #0369a1;
 
@@ -101,6 +103,7 @@
   --portal-warning-soft: rgba(251, 191, 36, 0.12);
   --portal-destructive: #f87171;
   --portal-destructive-soft: rgba(248, 113, 113, 0.12);
+  --portal-destructive-fg: #450a0a;
 
   --portal-ring: #38bdf8;
 
@@ -191,7 +194,7 @@
     @apply text-muted hover:bg-surface-2 hover:text-foreground;
   }
   .btn-danger {
-    @apply bg-destructive text-white shadow-sm hover:opacity-90;
+    @apply bg-destructive text-destructive-foreground shadow-sm hover:opacity-90;
   }
   .btn-link {
     @apply cursor-pointer px-0 py-0 text-primary hover:underline;
@@ -435,7 +438,7 @@
     @apply w-full border-collapse text-left text-sm;
   }
   .table-shell thead th {
-    @apply border-b border-border bg-surface-2 px-3 py-2.5 text-xs font-semibold tracking-wide text-muted;
+    @apply sticky top-0 z-10 border-b border-border bg-surface-2 px-3 py-2.5 text-xs font-semibold tracking-wide text-muted;
   }
   .table-shell tbody td {
     @apply border-b border-border/70 px-3 py-2.5 align-middle text-foreground last:border-b-0;

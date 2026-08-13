@@ -5,6 +5,7 @@ import { AnimatedNumber } from "../components/AnimatedNumber";
 import { AsyncButton } from "../components/AsyncButton";
 import { ConfirmDialog } from "../components/ConfirmDialog";
 import { Modal } from "../components/Modal";
+import { PasswordInput } from "../components/PasswordInput";
 import { useAsyncAction } from "../hooks/useAsyncAction";
 import { useBreathOnChange } from "../hooks/useBreathOnChange";
 import { useToast } from "../hooks/useToast";
@@ -570,7 +571,7 @@ export function AdminClientsPage() {
                   type="button"
                   status={blockAction.pending ? "pending" : "idle"}
                   onClick={() => void addBlock(client.id)}
-                  className="btn btn-danger px-3 py-1.5 text-xs"
+                  className="btn btn-danger min-h-9 px-3 py-1.5 text-xs"
                 >
                   封禁
                 </AsyncButton>
@@ -597,14 +598,26 @@ export function AdminClientsPage() {
       >
         <label className="mt-3 block">
           <span className="label">管理员当前密码</span>
-          <input
-            type="password"
+          <PasswordInput
             value={adminPassword}
             onChange={(e) => setAdminPassword(e.target.value)}
             className="input"
             autoComplete="current-password"
             autoFocus
+            aria-invalid={removeAction.error ? true : undefined}
+            aria-describedby={
+              removeAction.error ? "remove-password-error" : undefined
+            }
           />
+          {removeAction.error && (
+            <p
+              id="remove-password-error"
+              role="alert"
+              className="mt-1.5 text-xs text-destructive"
+            >
+              {removeAction.error.message}
+            </p>
+          )}
         </label>
       </ConfirmDialog>
 
@@ -626,14 +639,26 @@ export function AdminClientsPage() {
       >
         <label className="mt-3 block">
           <span className="label">管理员当前密码</span>
-          <input
-            type="password"
+          <PasswordInput
             value={adminPassword}
             onChange={(e) => setAdminPassword(e.target.value)}
             className="input"
             autoComplete="current-password"
             autoFocus
+            aria-invalid={resetSecretAction.error ? true : undefined}
+            aria-describedby={
+              resetSecretAction.error ? "reset-secret-password-error" : undefined
+            }
           />
+          {resetSecretAction.error && (
+            <p
+              id="reset-secret-password-error"
+              role="alert"
+              className="mt-1.5 text-xs text-destructive"
+            >
+              {resetSecretAction.error.message}
+            </p>
+          )}
         </label>
       </ConfirmDialog>
 
@@ -671,7 +696,7 @@ export function AdminClientsPage() {
                 onClick={() =>
                   void copyText(secretModal?.client_id ?? "", "client_id")
                 }
-                className="btn btn-secondary px-3 py-1.5 text-xs"
+                className="btn btn-secondary min-h-9 px-3 py-1.5 text-xs"
               >
                 复制
               </button>
@@ -689,7 +714,7 @@ export function AdminClientsPage() {
                   onClick={() =>
                     void copyText(secretModal?.secret ?? "", "client_secret")
                   }
-                  className="btn btn-secondary px-3 py-1.5 text-xs"
+                  className="btn btn-secondary min-h-9 px-3 py-1.5 text-xs"
                 >
                   复制
                 </button>

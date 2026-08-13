@@ -5,6 +5,7 @@ import { authApi } from "../api/client";
 import { AsyncButton } from "../components/AsyncButton";
 import { AuthShell } from "../components/AuthShell";
 import { Notice } from "../components/Notice";
+import { PasswordInput } from "../components/PasswordInput";
 import { useAsyncAction } from "../hooks/useAsyncAction";
 import { useToast } from "../hooks/useToast";
 
@@ -75,8 +76,7 @@ export function InviteRegisterPage() {
         </label>
         <label className="block">
           <span className="label">密码</span>
-          <input
-            type="password"
+          <PasswordInput
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             className="input"
@@ -88,8 +88,7 @@ export function InviteRegisterPage() {
         </label>
         <label className="block">
           <span className="label">确认密码</span>
-          <input
-            type="password"
+          <PasswordInput
             value={confirmPassword}
             onChange={(e) => setConfirmPassword(e.target.value)}
             className="input"

@@ -169,4 +169,64 @@ describe("DashboardPage", () => {
       expect(screen.getByRole("link", { name: "管理后台" })).toBeInTheDocument()
     );
   });
+
+  it("修改密码失败时在当前密码旁内联展示错误", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            id: "1",
+            email: "a@example.com",
+            nickname: "Alice",
+            email_verified: true,
+            phone: null,
+            role: "user",
+            status: "active",
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } }
+        )
+      )
+      .mockResolvedValueOnce(new Response(JSON.stringify([]), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify([]), { status: 200 }))
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            email_otp_enabled: false,
+            totp_enabled: false,
+            recovery_codes_remaining: 0,
+          }),
+          { status: 200 }
+        )
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ detail: "当前密码错误" }), {
+          status: 400,
+          headers: { "Content-Type": "application/json" },
+        })
+      );
+    vi.stubGlobal("fetch", fetchMock);
+    const { container } = renderWithProviders(<DashboardPage />);
+    await waitFor(() =>
+      expect(screen.getByPlaceholderText("当前密码")).toBeInTheDocument()
+    );
+
+    fireEvent.change(screen.getByPlaceholderText("当前密码"), {
+      target: { value: "wrongpass" },
+    });
+    fireEvent.change(screen.getByPlaceholderText("新密码（至少 8 位）"), {
+      target: { value: "newpassword123" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "修改密码" }));
+
+    await waitFor(() => {
+      const inlineError = container.querySelector("#change-password-error");
+      expect(inlineError).toBeTruthy();
+      expect(inlineError).toHaveTextContent("当前密码错误");
+    });
+    expect(screen.getByPlaceholderText("当前密码")).toHaveAttribute(
+      "aria-invalid",
+      "true"
+    );
+  });
 });

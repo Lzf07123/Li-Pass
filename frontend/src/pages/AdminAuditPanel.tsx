@@ -172,7 +172,11 @@ export function AdminAuditPanel() {
           </tbody>
         </table>
       </div>
-      {logs.length === 0 && <p className="text-sm text-muted">暂无审计记录</p>}
+      {logs.length === 0 && (
+        <p className="text-sm text-muted">
+          暂无审计记录，登录与管理操作会在此留痕。
+        </p>
+      )}
       {hasMore && logs.length > 0 && (
         <button
           type="button"

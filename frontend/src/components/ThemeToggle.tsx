@@ -8,7 +8,7 @@ export function ThemeToggle({ className = "" }: { className?: string }) {
     <button
       type="button"
       onClick={() => setTheme(isDark ? "light" : "dark")}
-      className={`btn btn-ghost group h-10 w-10 rounded-full p-0 ${className}`}
+      className={`btn btn-ghost group h-11 w-11 rounded-full p-0 ${className}`}
       aria-label={isDark ? "切换到浅色模式" : "切换到深色模式"}
       title={isDark ? "切换到浅色模式" : "切换到深色模式"}
     >

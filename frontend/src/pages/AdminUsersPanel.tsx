@@ -5,6 +5,7 @@ import { AnimatedNumber } from "../components/AnimatedNumber";
 import { AsyncButton } from "../components/AsyncButton";
 import { ConfirmDialog } from "../components/ConfirmDialog";
 import { Modal } from "../components/Modal";
+import { PasswordInput } from "../components/PasswordInput";
 import { useAsyncAction } from "../hooks/useAsyncAction";
 import { useBreathOnChange } from "../hooks/useBreathOnChange";
 import { useToast } from "../hooks/useToast";
@@ -469,7 +470,7 @@ export function AdminUsersPanel({ currentAdminId }: { currentAdminId: string }) 
             status={batchStatusAction.pending ? "pending" : "idle"}
             onClick={() => void runBatchStatus("active")}
             disabled={selected.size === 0}
-            className="btn btn-secondary px-2.5 py-1.5 text-xs"
+            className="btn btn-secondary min-h-9 px-3 py-1.5 text-xs"
           >
             批量启用
           </AsyncButton>
@@ -478,7 +479,7 @@ export function AdminUsersPanel({ currentAdminId }: { currentAdminId: string }) 
             status={batchStatusAction.pending ? "pending" : "idle"}
             onClick={() => void runBatchStatus("disabled")}
             disabled={selected.size === 0}
-            className="btn btn-secondary px-2.5 py-1.5 text-xs"
+            className="btn btn-secondary min-h-9 px-3 py-1.5 text-xs"
           >
             批量禁用
           </AsyncButton>
@@ -488,7 +489,7 @@ export function AdminUsersPanel({ currentAdminId }: { currentAdminId: string }) 
               setBatchDeleteOpen(true);
             }}
             disabled={batchStatusAction.pending || batchDeleteAction.pending}
-            className="btn btn-danger px-2.5 py-1.5 text-xs"
+            className="btn btn-danger min-h-9 px-3 py-1.5 text-xs"
           >
             批量删除
           </button>
@@ -583,7 +584,7 @@ export function AdminUsersPanel({ currentAdminId }: { currentAdminId: string }) 
                         <button
                           onClick={() => startCancelInvite(user)}
                           disabled={inviteBusyId !== null}
-                          className="btn btn-danger px-2.5 py-1.5 text-xs"
+                          className="btn btn-danger min-h-9 px-3 py-1.5 text-xs"
                         >
                           取消邀请
                         </button>
@@ -592,7 +593,7 @@ export function AdminUsersPanel({ currentAdminId }: { currentAdminId: string }) 
                         type="button"
                         status={inviteBusyId === user.id ? "pending" : "idle"}
                         disabled={inviteBusyId !== null}
-                        className="btn btn-secondary px-2.5 py-1.5 text-xs"
+                        className="btn btn-secondary min-h-9 px-3 py-1.5 text-xs"
                         onClick={() => void runResendInvite(user)}
                       >
                         重发邀请
@@ -600,7 +601,7 @@ export function AdminUsersPanel({ currentAdminId }: { currentAdminId: string }) 
                       <button
                         onClick={() => startRemoveInvite(user)}
                         disabled={inviteBusyId !== null}
-                        className="btn btn-danger px-2.5 py-1.5 text-xs"
+                        className="btn btn-danger min-h-9 px-3 py-1.5 text-xs"
                       >
                         删除
                       </button>
@@ -611,19 +612,19 @@ export function AdminUsersPanel({ currentAdminId }: { currentAdminId: string }) 
                         onClick={() => toggleStatus(user)}
                         disabled={user.id === currentAdminId}
                         title={user.id === currentAdminId ? "不能禁用自己" : undefined}
-                        className="btn btn-secondary px-2.5 py-1.5 text-xs"
+                        className="btn btn-secondary min-h-9 px-3 py-1.5 text-xs"
                       >
                         {user.status === "active" ? "禁用" : "启用"}
                       </button>
                       <button
                         onClick={() => startResetPassword(user)}
-                        className="btn btn-secondary px-2.5 py-1.5 text-xs"
+                        className="btn btn-secondary min-h-9 px-3 py-1.5 text-xs"
                       >
                         重置密码
                       </button>
                       <button
                         onClick={() => startReset2fa(user)}
-                        className="btn btn-secondary px-2.5 py-1.5 text-xs"
+                        className="btn btn-secondary min-h-9 px-3 py-1.5 text-xs"
                       >
                         重置 2FA
                       </button>
@@ -637,7 +638,7 @@ export function AdminUsersPanel({ currentAdminId }: { currentAdminId: string }) 
                               ? "管理员账号需先降级为普通用户"
                               : undefined
                         }
-                        className="btn btn-danger px-2.5 py-1.5 text-xs"
+                        className="btn btn-danger min-h-9 px-3 py-1.5 text-xs"
                       >
                         删除
                       </button>
@@ -711,14 +712,26 @@ export function AdminUsersPanel({ currentAdminId }: { currentAdminId: string }) 
         {confirmTarget?.action === "reset2fa" && (
           <label className="mt-3 block">
             <span className="label">管理员当前密码</span>
-            <input
-              type="password"
+            <PasswordInput
               value={adminPassword}
               onChange={(e) => setAdminPassword(e.target.value)}
               className="input"
               autoComplete="current-password"
               autoFocus
+              aria-invalid={confirmAction.error ? true : undefined}
+              aria-describedby={
+                confirmAction.error ? "confirm-password-error" : undefined
+              }
             />
+            {confirmAction.error && (
+              <p
+                id="confirm-password-error"
+                role="alert"
+                className="mt-1.5 text-xs text-destructive"
+              >
+                {confirmAction.error.message}
+              </p>
+            )}
           </label>
         )}
       </ConfirmDialog>
@@ -756,19 +769,32 @@ export function AdminUsersPanel({ currentAdminId }: { currentAdminId: string }) 
         >
           <label className="block">
             <span className="label">管理员当前密码</span>
-            <input
-              type="password"
+            <PasswordInput
               value={adminPassword}
               onChange={(e) => setAdminPassword(e.target.value)}
               className="input"
               autoComplete="current-password"
               autoFocus
+              aria-invalid={resetPasswordAction.error ? true : undefined}
+              aria-describedby={
+                resetPasswordAction.error
+                  ? "reset-password-error"
+                  : undefined
+              }
             />
+            {resetPasswordAction.error && (
+              <p
+                id="reset-password-error"
+                role="alert"
+                className="mt-1.5 text-xs text-destructive"
+              >
+                {resetPasswordAction.error.message}
+              </p>
+            )}
           </label>
           <label className="block">
             <span className="label">新密码</span>
-            <input
-              type="password"
+            <PasswordInput
               value={newPassword}
               onChange={(e) => setNewPassword(e.target.value)}
               placeholder="至少 8 位"
@@ -819,15 +845,27 @@ export function AdminUsersPanel({ currentAdminId }: { currentAdminId: string }) 
           </p>
           <label className="block">
             <span className="label">你的当前密码</span>
-            <input
-              type="password"
+            <PasswordInput
               value={deletePassword}
               onChange={(e) => setDeletePassword(e.target.value)}
               placeholder="输入管理员当前密码确认"
               className="input"
               autoComplete="current-password"
               autoFocus
+              aria-invalid={deleteAction.error ? true : undefined}
+              aria-describedby={
+                deleteAction.error ? "delete-password-error" : undefined
+              }
             />
+            {deleteAction.error && (
+              <p
+                id="delete-password-error"
+                role="alert"
+                className="mt-1.5 text-xs text-destructive"
+              >
+                {deleteAction.error.message}
+              </p>
+            )}
           </label>
         </form>
       </Modal>
@@ -889,8 +927,7 @@ export function AdminUsersPanel({ currentAdminId }: { currentAdminId: string }) 
           </label>
           <label className="block">
             <span className="label">初始密码</span>
-            <input
-              type="password"
+            <PasswordInput
               value={createPassword}
               onChange={(e) => setCreatePassword(e.target.value)}
               placeholder="至少 8 位"
@@ -1005,15 +1042,27 @@ export function AdminUsersPanel({ currentAdminId }: { currentAdminId: string }) 
           </p>
           <label className="block">
             <span className="label">你的当前密码</span>
-            <input
-              type="password"
+            <PasswordInput
               value={batchDeletePassword}
               onChange={(e) => setBatchDeletePassword(e.target.value)}
               placeholder="输入管理员当前密码确认"
               className="input"
               autoComplete="current-password"
               autoFocus
+              aria-invalid={batchDeleteAction.error ? true : undefined}
+              aria-describedby={
+                batchDeleteAction.error ? "batch-delete-error" : undefined
+              }
             />
+            {batchDeleteAction.error && (
+              <p
+                id="batch-delete-error"
+                role="alert"
+                className="mt-1.5 text-xs text-destructive"
+              >
+                {batchDeleteAction.error.message}
+              </p>
+            )}
           </label>
         </form>
       </Modal>
