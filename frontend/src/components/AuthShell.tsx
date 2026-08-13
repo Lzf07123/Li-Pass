@@ -1,3 +1,4 @@
+import { useState } from "react";
 import type { ReactNode } from "react";
 
 import { APP_NAME, APP_TAGLINE } from "../lib/brand";
@@ -5,21 +6,35 @@ import { AuroraBackground } from "./bits/AuroraBackground";
 import { BlurText } from "./bits/BlurText";
 import { ShinyText } from "./bits/ShinyText";
 import { Brand } from "./Brand";
+import { FloatingBackground } from "./FloatingBackground";
 import { SiteFooter } from "./SiteFooter";
 import { ThemeToggle } from "./ThemeToggle";
 
 export function AuthShell({
   title,
   subtitle,
+  ambientShapeCount = 10,
   children,
 }: {
   title: string;
   subtitle?: string;
+  /** 背景层漂浮形状数量：认证页默认 10（最丰富），授权确认等信任时刻应调低 */
+  ambientShapeCount?: number;
   children: ReactNode;
 }) {
+  // 表单聚焦时减速：让“环境呼吸”在用户输入时退为背景音，失焦后恢复
+  const [focusing, setFocusing] = useState(false);
+
   return (
     <main className="relative flex min-h-screen flex-col overflow-hidden bg-background px-4 py-10">
-      {/* ReactBits 风格极光背景 */}
+      {/* 环境呼吸层：几何形状无限循环飘动（透明画布，自动跟随明暗主题） */}
+      <FloatingBackground
+        theme="auto"
+        transparent
+        calm={focusing}
+        shapeCount={ambientShapeCount}
+      />
+      {/* ReactBits 风格极光背景（位于几何形状之上，作为第二层氛围） */}
       <AuroraBackground />
 
       <div className="relative flex flex-1 items-center justify-center">
@@ -38,7 +53,18 @@ export function AuthShell({
             </div>
           </div>
 
-          <div className="animate-fade-up-slow" style={{ animationDelay: "0.18s" }}>
+          <div
+            className="animate-fade-up-slow"
+            style={{ animationDelay: "0.18s" }}
+            onFocusCapture={() => setFocusing(true)}
+            onBlurCapture={(event) => {
+              // 焦点仍在卡片内部时不解除减速，避免逐字段聚焦来回切换速度
+              const next = event.relatedTarget;
+              if (!(next instanceof Node) || !event.currentTarget.contains(next)) {
+                setFocusing(false);
+              }
+            }}
+          >
             <div className="card p-6 sm:p-8">{children}</div>
           </div>
         </div>

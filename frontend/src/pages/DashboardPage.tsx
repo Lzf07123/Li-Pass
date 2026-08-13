@@ -14,6 +14,7 @@ import { AnimatedNumber } from "../components/AnimatedNumber";
 import { AppHeader } from "../components/AppHeader";
 import { AsyncButton } from "../components/AsyncButton";
 import { ConfirmDialog } from "../components/ConfirmDialog";
+import { FloatingBackground } from "../components/FloatingBackground";
 import { Modal } from "../components/Modal";
 import { PasswordInput } from "../components/PasswordInput";
 import { SiteFooter } from "../components/SiteFooter";
@@ -389,7 +390,9 @@ export function DashboardPage() {
   }, [user, toast, navigate]);
 
   return (
-    <div className="flex min-h-screen flex-col bg-background">
+    <div className="relative flex min-h-screen flex-col bg-background">
+      {/* 环境呼吸层：活跃但不打扰；开启滚动风速，静止慢呼吸、滚动如风吹 */}
+      <FloatingBackground theme="auto" transparent scrollWind shapeCount={10} />
       <AppHeader
         title="用户中心"
         actions={
@@ -406,7 +409,7 @@ export function DashboardPage() {
         }
       />
 
-      <main className="mx-auto w-full max-w-4xl flex-1 space-y-6 px-4 py-8 sm:px-6">
+      <main className="relative mx-auto w-full max-w-4xl flex-1 space-y-6 px-4 py-8 sm:px-6">
         {user && (
           <>
             <FadeIn delay={0}>

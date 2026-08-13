@@ -4,6 +4,7 @@ import { Link, Navigate, useLocation, useNavigate } from "react-router-dom";
 import { authApi } from "../api/client";
 import type { UserOut } from "../api/types";
 import { AppHeader } from "../components/AppHeader";
+import { FloatingBackground } from "../components/FloatingBackground";
 import { PageSkeleton } from "../components/PageSkeleton";
 import { SiteFooter } from "../components/SiteFooter";
 import { FadeIn } from "../components/bits/FadeIn";
@@ -63,7 +64,14 @@ export function AdminPage() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-background">
+    <div className="relative flex min-h-screen flex-col bg-background">
+      {/* 环境呼吸层：管理后台极致克制，仅作呼吸点缀 */}
+      <FloatingBackground
+        theme="auto"
+        transparent
+        shapeCount={4}
+        opacity={0.5}
+      />
       <AppHeader
         title="管理后台"
         actions={
@@ -73,7 +81,7 @@ export function AdminPage() {
         }
       />
 
-      <main className="mx-auto w-full max-w-5xl flex-1 space-y-6 px-4 py-8 sm:px-6">
+      <main className="relative mx-auto w-full max-w-5xl flex-1 space-y-6 px-4 py-8 sm:px-6">
         <div className="flex flex-wrap items-center gap-2">
           {TABS.map((item) => (
             <Link

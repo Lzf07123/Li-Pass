@@ -50,7 +50,11 @@ export function ConsentPage() {
   }
 
   return (
-    <AuthShell title="授权确认" subtitle="请确认你要授权的网站与权限范围">
+    <AuthShell
+      title="授权确认"
+      subtitle="请确认你要授权的网站与权限范围"
+      ambientShapeCount={4}
+    >
       {info ? (
         <div className="animate-fade-up space-y-4">
           <div className="flex items-center gap-3 rounded-xl border border-border bg-surface-2/60 p-4">
