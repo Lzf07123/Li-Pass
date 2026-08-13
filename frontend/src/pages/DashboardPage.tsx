@@ -462,16 +462,25 @@ export function DashboardPage() {
                     上传头像
                   </AsyncButton>
                 </form>
-                <form onSubmit={saveProfile} className="flex flex-wrap items-end gap-2">
-                  <label className="block min-w-0 flex-1">
-                    <span className="label">昵称</span>
-                    <input
-                      value={nickname}
-                      onChange={(e) => setNickname(e.target.value)}
-                      className="input"
-                      required
-                    />
-                  </label>
+                <form onSubmit={saveProfile} className="space-y-3">
+                  <div className="flex flex-wrap items-end gap-2">
+                    <label className="block min-w-0 flex-1">
+                      <span className="label">昵称</span>
+                      <input
+                        value={nickname}
+                        onChange={(e) => setNickname(e.target.value)}
+                        className="input"
+                        required
+                      />
+                    </label>
+                    <AsyncButton
+                      type="submit"
+                      status={saveProfileAction.status}
+                      className="btn btn-primary"
+                    >
+                      保存
+                    </AsyncButton>
+                  </div>
                   <label className="flex items-center gap-2 text-sm text-foreground">
                     <input
                       type="checkbox"
@@ -481,15 +490,8 @@ export function DashboardPage() {
                       }
                       aria-label="接收邮件通知"
                     />
-                    接收邮件通知（关闭后仍会收到站内信）
+                    <span>接收邮件通知（关闭后仍会收到站内信）</span>
                   </label>
-                  <AsyncButton
-                    type="submit"
-                    status={saveProfileAction.status}
-                    className="btn btn-primary"
-                  >
-                    保存
-                  </AsyncButton>
                 </form>
               </section>
             </FadeIn>
