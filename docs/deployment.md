@@ -91,6 +91,9 @@ docker compose -f docker-compose.yaml --env-file .env exec backend \
 | `SMTP_USERNAME` / `SMTP_PASSWORD` | SMTP 登录凭据（按需） |
 | `SMTP_FROM` / `SMTP_FROM_NAME` | 真实发件地址与发件人名称（生产必填 `SMTP_FROM`） |
 | `SMTP_USE_TLS` | 是否使用 STARTTLS（默认 `true`） |
+| `SMTP_TIMEOUT_SECONDS` | 单次 SMTP 操作超时（默认 `15`，建议保持 10–20） |
+| `SMTP_MAX_RETRIES` | 瞬时连接失败的自动重试次数（默认 `2`，范围 0–5） |
+| `SMTP_RETRY_DELAY_SECONDS` | 重试间隔秒数（默认 `1`） |
 | `REDIS_PASSWORD` | Redis AUTH 口令，生产必须设置长度 ≥12 的强口令 |
 | `REDIS_MAXMEMORY` | 编排内 Redis 内存上限（默认 `192mb`，只淘汰带 TTL 的键） |
 | `REDIS_APPENDONLY` | 编排内 Redis AOF 持久化开关（默认 `yes`） |
@@ -132,6 +135,9 @@ SMTP_PASSWORD=******
 SMTP_FROM=noreply@example.com
 SMTP_FROM_NAME=LinPass SSO
 SMTP_USE_TLS=true
+SMTP_TIMEOUT_SECONDS=15
+SMTP_MAX_RETRIES=2
+SMTP_RETRY_DELAY_SECONDS=1
 ```
 
 邮件分为两类：注册/登录/重置/绑手机等场景发送 6 位验证码（10 分钟有效，重发会作废旧码）；邀请注册发送一次性邀请链接（7 天有效）。各发送接口的限流口径不同：
@@ -289,6 +295,8 @@ Redis 已通过 `--appendonly yes` 显式开启 AOF（可用 `REDIS_APPENDONLY=n
 - [ ] `ALLOWED_HOSTS` 仅含真实域名
 - [ ] PostgreSQL / Redis 使用长度 ≥12 的独立强口令；Redis 已启用 AUTH
 - [ ] `EMAIL_BACKEND=smtp` 且 SMTP 可真实发信（未验证邮箱的用户无法完成 OIDC 授权）
+- [ ] `PUBLIC_BASE_URL` 为真实对外地址（不是 `localhost`），否则邀请邮件链接无法访问；启动日志中不应出现“FRONTEND_BASE_URL 指向本机”警告
+- [ ] 发信域名已配置 SPF，并尽量开启 DKIM/DMARC（阿里企业邮箱控制台开启；缺失时邮件易进垃圾箱或被拒收）
 - [ ] 已备份 `backend-keys` 与 `backend-uploads` 卷，并演练过恢复
 - [ ] 网关已配置 TLS、HSTS、HTTP→HTTPS 跳转
 - [ ] 网关已放行 `/readyz`（或仅内部可达），不要把 `/docs` 暴露（生产已自动关闭）

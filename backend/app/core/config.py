@@ -30,6 +30,9 @@ class Settings(BaseSettings):
     smtp_from: str = ""
     smtp_from_name: str = "LinPass SSO"
     smtp_use_tls: bool = True
+    smtp_timeout_seconds: int = 15
+    smtp_max_retries: int = 2
+    smtp_retry_delay_seconds: float = 1.0
     frontend_base_url: str = "http://localhost:5173"
     jwt_issuer: str = "http://localhost:8000"
     jwt_private_key_path: str = "jwt_private.pem"
@@ -91,6 +94,12 @@ class Settings(BaseSettings):
             raise ValueError("EMAIL_BACKEND 必须为 console 或 smtp")
         if not (1 <= self.smtp_port <= 65535):
             raise ValueError("SMTP_PORT 必须在 1–65535 之间")
+        if self.smtp_timeout_seconds < 1:
+            raise ValueError("SMTP_TIMEOUT_SECONDS 必须 ≥1")
+        if not (0 <= self.smtp_max_retries <= 5):
+            raise ValueError("SMTP_MAX_RETRIES 必须在 0–5 之间")
+        if self.smtp_retry_delay_seconds < 0:
+            raise ValueError("SMTP_RETRY_DELAY_SECONDS 必须 ≥0")
         if not self.allowed_hosts:
             raise ValueError("ALLOWED_HOSTS 不能为空")
         if self.db_pool_size < 1 or self.db_max_overflow < 0:

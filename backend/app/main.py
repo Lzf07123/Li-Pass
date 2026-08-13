@@ -26,6 +26,7 @@ from app.core.config import get_settings
 from app.core.db import get_db
 from app.core.redis import get_redis_client
 from app.services.avatar_cleanup import cleanup_orphan_avatars
+from app.services.email import warn_email_config
 from app.services.maintenance import cleanup_expired_ephemeral_rows
 
 logger = logging.getLogger(__name__)
@@ -75,6 +76,7 @@ async def _maintenance_loop(app: FastAPI) -> None:
 async def lifespan(app: FastAPI):
     # 启动时先清理一次历史遗留；周期任务可单独开关。
     await asyncio.to_thread(_run_maintenance, app)
+    warn_email_config(get_settings())
     if get_settings().avatar_cleanup_interval_seconds > 0:
         task = asyncio.create_task(_maintenance_loop(app))
         yield
