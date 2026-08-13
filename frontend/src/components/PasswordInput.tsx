@@ -19,6 +19,7 @@ export function PasswordInput({
       <button
         type="button"
         onClick={() => setVisible((value) => !value)}
+        disabled={props.disabled}
         aria-label={visible ? "隐藏密码" : "显示密码"}
         aria-pressed={visible}
         title={visible ? "隐藏密码" : "显示密码"}

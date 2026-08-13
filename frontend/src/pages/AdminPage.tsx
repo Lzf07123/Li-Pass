@@ -39,12 +39,12 @@ export function AdminPage() {
       .catch(() => navigate("/login"));
   }, [navigate]);
 
+  if (!segment || tab !== segment) {
+    // /admin → 规范化到 /admin/users；未知子路径同样回到默认标签。
+    return <Navigate to="/admin/users" replace />;
+  }
   if (!me) {
     return <PageSkeleton title="管理后台" />;
-  }
-  if (segment && tab !== segment) {
-    // /admin/未知路径 → 回到默认标签，避免停留在无内容的路由。
-    return <Navigate to="/admin/users" replace />;
   }
   if (me.role !== "admin") {
     return (

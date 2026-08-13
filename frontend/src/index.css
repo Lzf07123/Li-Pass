@@ -438,7 +438,7 @@
     @apply w-full border-collapse text-left text-sm;
   }
   .table-shell thead th {
-    @apply sticky top-0 z-10 border-b border-border bg-surface-2 px-3 py-2.5 text-xs font-semibold tracking-wide text-muted;
+    @apply border-b border-border bg-surface-2 px-3 py-2.5 text-xs font-semibold tracking-wide text-muted;
   }
   .table-shell tbody td {
     @apply border-b border-border/70 px-3 py-2.5 align-middle text-foreground last:border-b-0;

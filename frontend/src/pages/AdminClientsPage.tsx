@@ -33,6 +33,8 @@ export function AdminClientsPage() {
     secret: string;
   } | null>(null);
   const [adminPassword, setAdminPassword] = useState("");
+  const [removePasswordError, setRemovePasswordError] = useState<string | null>(null);
+  const [resetSecretPasswordError, setResetSecretPasswordError] = useState<string | null>(null);
   const toast = useToast();
   const clientsBreathing = useBreathOnChange(clients);
 
@@ -149,8 +151,11 @@ export function AdminClientsPage() {
       toast.success(`应用“${client.name}”已删除`);
     },
     {
-      onError: (err) =>
-        toast.error(err instanceof Error ? err.message : "删除失败"),
+      onError: (err) => {
+        const message = err instanceof Error ? err.message : "删除失败";
+        if (message.includes("当前密码")) setRemovePasswordError(message);
+        else toast.error(message);
+      },
     },
   );
 
@@ -241,8 +246,11 @@ export function AdminClientsPage() {
       });
     },
     {
-      onError: (err) =>
-        toast.error(err instanceof Error ? err.message : "重置密钥失败"),
+      onError: (err) => {
+        const message = err instanceof Error ? err.message : "重置密钥失败";
+        if (message.includes("当前密码")) setResetSecretPasswordError(message);
+        else toast.error(message);
+      },
     },
   );
 
@@ -266,6 +274,7 @@ export function AdminClientsPage() {
 
   function startResetSecret(client: ClientOut) {
     setAdminPassword("");
+    setResetSecretPasswordError(null);
     setResetTarget(client);
   }
 
@@ -397,7 +406,10 @@ export function AdminClientsPage() {
                   <span className="text-xs text-muted">已停用，无法发起授权</span>
                 )}
                 <button
-                  onClick={() => setRemoveTarget(client)}
+                  onClick={() => {
+                    setRemovePasswordError(null);
+                    setRemoveTarget(client);
+                  }}
                   className="btn btn-danger"
                 >
                   删除应用
@@ -600,22 +612,25 @@ export function AdminClientsPage() {
           <span className="label">管理员当前密码</span>
           <PasswordInput
             value={adminPassword}
-            onChange={(e) => setAdminPassword(e.target.value)}
+            onChange={(e) => {
+              setAdminPassword(e.target.value);
+              setRemovePasswordError(null);
+            }}
             className="input"
             autoComplete="current-password"
             autoFocus
-            aria-invalid={removeAction.error ? true : undefined}
+            aria-invalid={removePasswordError ? true : undefined}
             aria-describedby={
-              removeAction.error ? "remove-password-error" : undefined
+              removePasswordError ? "remove-password-error" : undefined
             }
           />
-          {removeAction.error && (
+          {removePasswordError && (
             <p
               id="remove-password-error"
               role="alert"
               className="mt-1.5 text-xs text-destructive"
             >
-              {removeAction.error.message}
+              {removePasswordError}
             </p>
           )}
         </label>
@@ -641,22 +656,27 @@ export function AdminClientsPage() {
           <span className="label">管理员当前密码</span>
           <PasswordInput
             value={adminPassword}
-            onChange={(e) => setAdminPassword(e.target.value)}
+            onChange={(e) => {
+              setAdminPassword(e.target.value);
+              setResetSecretPasswordError(null);
+            }}
             className="input"
             autoComplete="current-password"
             autoFocus
-            aria-invalid={resetSecretAction.error ? true : undefined}
+            aria-invalid={resetSecretPasswordError ? true : undefined}
             aria-describedby={
-              resetSecretAction.error ? "reset-secret-password-error" : undefined
+              resetSecretPasswordError
+                ? "reset-secret-password-error"
+                : undefined
             }
           />
-          {resetSecretAction.error && (
+          {resetSecretPasswordError && (
             <p
               id="reset-secret-password-error"
               role="alert"
               className="mt-1.5 text-xs text-destructive"
             >
-              {resetSecretAction.error.message}
+              {resetSecretPasswordError}
             </p>
           )}
         </label>

@@ -86,7 +86,8 @@ export function AppRoutes() {
           <Route path="/reset-password" element={<GuestOnly><ResetPasswordPage /></GuestOnly>} />
           <Route path="/verify-email" element={<VerifyEmailPage />} />
           <Route path="/consent" element={<ConsentPage />} />
-          <Route path="/admin/:tab?" element={<AdminPage />} />
+          <Route path="/admin" element={<Navigate to="/admin/users" replace />} />
+          <Route path="/admin/:tab" element={<AdminPage />} />
           <Route path="/" element={<DashboardPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

@@ -86,7 +86,7 @@ describe("AdminPage", () => {
         )
       )
     );
-    renderWithProviders(<AdminPage />);
+    renderWithProviders(<AdminPage />, ["/admin/users"]);
     await waitFor(() => expect(screen.getByText("无权访问管理后台")).toBeInTheDocument());
   });
 
@@ -131,7 +131,7 @@ describe("AdminPage", () => {
         )
       );
     vi.stubGlobal("fetch", fetchMock);
-    renderWithProviders(<AdminPage />);
+    renderWithProviders(<AdminPage />, ["/admin/users"]);
     await waitFor(() => expect(screen.getByText("bob@example.com")).toBeInTheDocument());
     fireEvent.click(screen.getByRole("button", { name: "重置密码" }));
     fireEvent.change(screen.getByLabelText("管理员当前密码"), {
@@ -198,7 +198,7 @@ describe("AdminPage", () => {
         )
       );
     vi.stubGlobal("fetch", fetchMock);
-    renderWithProviders(<AdminPage />);
+    renderWithProviders(<AdminPage />, ["/admin/users"]);
     await waitFor(() => expect(screen.getByText("admin@example.com")).toBeInTheDocument());
     const adminRow = screen.getByText("admin@example.com").closest("tr");
     expect(adminRow).not.toBeNull();

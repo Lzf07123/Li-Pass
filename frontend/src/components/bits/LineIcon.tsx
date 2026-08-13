@@ -7,7 +7,8 @@ export type LineIconName =
   | "shield"
   | "monitor"
   | "grid"
-  | "alert";
+  | "alert"
+  | "check";
 
 const ICON_PATHS: Record<LineIconName, ReactNode> = {
   user: (
@@ -55,6 +56,7 @@ const ICON_PATHS: Record<LineIconName, ReactNode> = {
       <path d="M12 17h.01" />
     </>
   ),
+  check: <path d="M20 6 9 17l-5-5" />,
 };
 
 export function LineIcon({

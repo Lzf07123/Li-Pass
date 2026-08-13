@@ -37,7 +37,9 @@ export function DashboardPage() {
   const [phoneStep, setPhoneStep] = useState<"phone" | "code">("phone");
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
+  const [changePasswordError, setChangePasswordError] = useState<string | null>(null);
   const [twofaPasswordError, setTwofaPasswordError] = useState<string | null>(null);
+  const [deleteAccountError, setDeleteAccountError] = useState<string | null>(null);
   const [twofa, setTwofa] = useState<TwoFaStatus | null>(null);
   const [twofaPassword, setTwofaPassword] = useState("");
   const [totpSetup, setTotpSetup] = useState<TotpSetup | null>(null);
@@ -128,7 +130,11 @@ export function DashboardPage() {
       setNewPassword("");
     },
     {
-      onError: (err) => showError(err, "修改失败"),
+      onError: (err) => {
+        const message = err instanceof Error ? err.message : "修改失败";
+        if (message.includes("当前密码")) setChangePasswordError(message);
+        else toast.error(message);
+      },
     },
   );
 
@@ -238,7 +244,6 @@ export function DashboardPage() {
     if (twofaBusy !== null || twofa === null) return;
     if (!twofaPassword) {
       setTwofaPasswordError("请输入当前密码");
-      toast.error("请输入当前密码后重试");
       return;
     }
     const enabling = !twofa.email_otp_enabled;
@@ -253,8 +258,11 @@ export function DashboardPage() {
       toast.success(result.message);
     } catch (err) {
       const message = err instanceof Error ? err.message : "操作失败";
-      if (message.includes("当前密码")) setTwofaPasswordError(message);
-      toast.error(message);
+      if (message.includes("当前密码")) {
+        setTwofaPasswordError(message);
+      } else {
+        toast.error(message);
+      }
     } finally {
       setTwofaBusy(null);
     }
@@ -277,7 +285,6 @@ export function DashboardPage() {
     if (!totpSetup || twofaBusy !== null) return;
     if (!twofaPassword) {
       setTwofaPasswordError("请输入当前密码");
-      toast.error("请输入当前密码后重试");
       return;
     }
     if (!totpCode.trim()) {
@@ -296,8 +303,11 @@ export function DashboardPage() {
       toast.success(result.message);
     } catch (err) {
       const message = err instanceof Error ? err.message : "启用失败";
-      if (message.includes("当前密码")) setTwofaPasswordError(message);
-      toast.error(message);
+      if (message.includes("当前密码")) {
+        setTwofaPasswordError(message);
+      } else {
+        toast.error(message);
+      }
     } finally {
       setTwofaBusy(null);
     }
@@ -307,7 +317,6 @@ export function DashboardPage() {
     if (twofaBusy !== null) return;
     if (!twofaPassword) {
       setTwofaPasswordError("请输入当前密码");
-      toast.error("请输入当前密码后重试");
       return;
     }
     setTwofaBusy("totp-disable");
@@ -319,8 +328,11 @@ export function DashboardPage() {
       toast.success(result.message);
     } catch (err) {
       const message = err instanceof Error ? err.message : "关闭失败";
-      if (message.includes("当前密码")) setTwofaPasswordError(message);
-      toast.error(message);
+      if (message.includes("当前密码")) {
+        setTwofaPasswordError(message);
+      } else {
+        toast.error(message);
+      }
     } finally {
       setTwofaBusy(null);
     }
@@ -335,15 +347,18 @@ export function DashboardPage() {
       navigate("/login");
     },
     {
-      onError: (err) =>
-        toast.error(err instanceof Error ? err.message : "注销失败"),
+      onError: (err) => {
+        const message = err instanceof Error ? err.message : "注销失败";
+        if (message.includes("当前密码")) setDeleteAccountError(message);
+        else toast.error(message);
+      },
     },
   );
 
   async function submitDeleteAccount(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!deleteAccountPassword) {
-      toast.error("请输入当前密码以确认注销账号");
+      setDeleteAccountError("请输入当前密码以确认注销账号");
       return;
     }
     await deleteAccountAction.run(deleteAccountPassword);
@@ -471,24 +486,27 @@ export function DashboardPage() {
                   id="change-current-password"
                   placeholder="当前密码"
                   value={currentPassword}
-                  onChange={(e) => setCurrentPassword(e.target.value)}
+                  onChange={(e) => {
+                    setCurrentPassword(e.target.value);
+                    setChangePasswordError(null);
+                  }}
                   className="input"
                   autoComplete="current-password"
                   required
-                  aria-invalid={changePasswordAction.error ? true : undefined}
+                  aria-invalid={changePasswordError ? true : undefined}
                   aria-describedby={
-                    changePasswordAction.error
+                    changePasswordError
                       ? "change-password-error"
                       : undefined
                   }
                 />
-                {changePasswordAction.error && (
+                {changePasswordError && (
                   <p
                     id="change-password-error"
                     role="alert"
                     className="mt-1.5 text-xs text-destructive"
                   >
-                    {changePasswordAction.error.message}
+                    {changePasswordError}
                   </p>
                 )}
               </div>
@@ -915,23 +933,26 @@ export function DashboardPage() {
             <span className="label">当前密码</span>
             <PasswordInput
               value={deleteAccountPassword}
-              onChange={(e) => setDeleteAccountPassword(e.target.value)}
+              onChange={(e) => {
+                setDeleteAccountPassword(e.target.value);
+                setDeleteAccountError(null);
+              }}
               placeholder="输入当前密码确认注销"
               className="input"
               autoComplete="current-password"
               autoFocus
-              aria-invalid={deleteAccountAction.error ? true : undefined}
+              aria-invalid={deleteAccountError ? true : undefined}
               aria-describedby={
-                deleteAccountAction.error ? "delete-account-error" : undefined
+                deleteAccountError ? "delete-account-error" : undefined
               }
             />
-            {deleteAccountAction.error && (
+            {deleteAccountError && (
               <p
                 id="delete-account-error"
                 role="alert"
                 className="mt-1.5 text-xs text-destructive"
               >
-                {deleteAccountAction.error.message}
+                {deleteAccountError}
               </p>
             )}
           </label>

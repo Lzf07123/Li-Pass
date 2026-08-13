@@ -34,6 +34,10 @@ export function AdminUsersPanel({ currentAdminId }: { currentAdminId: string }) 
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [batchDeleteOpen, setBatchDeleteOpen] = useState(false);
   const [batchDeletePassword, setBatchDeletePassword] = useState("");
+  const [confirmPasswordError, setConfirmPasswordError] = useState<string | null>(null);
+  const [resetPasswordError, setResetPasswordError] = useState<string | null>(null);
+  const [deletePasswordError, setDeletePasswordError] = useState<string | null>(null);
+  const [batchDeleteError, setBatchDeleteError] = useState<string | null>(null);
   const [batchInviteOpen, setBatchInviteOpen] = useState(false);
   const [batchInviteText, setBatchInviteText] = useState("");
   const [inviteBusyId, setInviteBusyId] = useState<string | null>(null);
@@ -87,6 +91,7 @@ export function AdminUsersPanel({ currentAdminId }: { currentAdminId: string }) 
     setPasswordTarget(user);
     setNewPassword("");
     setAdminPassword("");
+    setResetPasswordError(null);
   }
 
   const resetPasswordAction = useAsyncAction(
@@ -102,8 +107,11 @@ export function AdminUsersPanel({ currentAdminId }: { currentAdminId: string }) 
       setAdminPassword("");
     },
     {
-      onError: (err) =>
-        toast.error(err instanceof Error ? err.message : "重置失败"),
+      onError: (err) => {
+        const message = err instanceof Error ? err.message : "重置失败";
+        if (message.includes("当前密码")) setResetPasswordError(message);
+        else toast.error(message);
+      },
     },
   );
 
@@ -122,6 +130,7 @@ export function AdminUsersPanel({ currentAdminId }: { currentAdminId: string }) 
 
   function startReset2fa(user: AdminUserOut) {
     setAdminPassword("");
+    setConfirmPasswordError(null);
     setConfirmTarget({ user, action: "reset2fa" });
   }
 
@@ -168,8 +177,17 @@ export function AdminUsersPanel({ currentAdminId }: { currentAdminId: string }) 
       setConfirmTarget(null);
     },
     {
-      onError: (err) =>
-        toast.error(err instanceof Error ? err.message : "操作失败"),
+      onError: (err) => {
+        const message = err instanceof Error ? err.message : "操作失败";
+        if (
+          confirmTarget?.action === "reset2fa" &&
+          message.includes("当前密码")
+        ) {
+          setConfirmPasswordError(message);
+        } else {
+          toast.error(message);
+        }
+      },
     },
   );
 
@@ -199,6 +217,7 @@ export function AdminUsersPanel({ currentAdminId }: { currentAdminId: string }) 
   function startDelete(user: AdminUserOut) {
     setDeleteTarget(user);
     setDeletePassword("");
+    setDeletePasswordError(null);
   }
 
   const deleteAction = useAsyncAction(
@@ -210,8 +229,11 @@ export function AdminUsersPanel({ currentAdminId }: { currentAdminId: string }) 
       toast.success(result.message);
     },
     {
-      onError: (err) =>
-        toast.error(err instanceof Error ? err.message : "删除失败"),
+      onError: (err) => {
+        const message = err instanceof Error ? err.message : "删除失败";
+        if (message.includes("当前密码")) setDeletePasswordError(message);
+        else toast.error(message);
+      },
     },
   );
 
@@ -219,7 +241,7 @@ export function AdminUsersPanel({ currentAdminId }: { currentAdminId: string }) 
     event.preventDefault();
     if (!deleteTarget) return;
     if (!deletePassword) {
-      toast.error("请输入你的当前密码以确认删除");
+      setDeletePasswordError("请输入你的当前密码以确认删除");
       return;
     }
     await deleteAction.run(deleteTarget.id, deletePassword);
@@ -336,8 +358,11 @@ export function AdminUsersPanel({ currentAdminId }: { currentAdminId: string }) 
       toast.success(result.message);
     },
     {
-      onError: (err) =>
-        toast.error(err instanceof Error ? err.message : "批量删除失败"),
+      onError: (err) => {
+        const message = err instanceof Error ? err.message : "批量删除失败";
+        if (message.includes("当前密码")) setBatchDeleteError(message);
+        else toast.error(message);
+      },
     },
   );
 
@@ -346,7 +371,7 @@ export function AdminUsersPanel({ currentAdminId }: { currentAdminId: string }) 
     const ids = Array.from(selected);
     if (ids.length === 0) return;
     if (!batchDeletePassword) {
-      toast.error("请输入你的当前密码以确认批量删除");
+      setBatchDeleteError("请输入你的当前密码以确认批量删除");
       return;
     }
     await batchDeleteAction.run(ids, batchDeletePassword);
@@ -486,6 +511,7 @@ export function AdminUsersPanel({ currentAdminId }: { currentAdminId: string }) 
           <button
             onClick={() => {
               setBatchDeletePassword("");
+              setBatchDeleteError(null);
               setBatchDeleteOpen(true);
             }}
             disabled={batchStatusAction.pending || batchDeleteAction.pending}
@@ -714,22 +740,25 @@ export function AdminUsersPanel({ currentAdminId }: { currentAdminId: string }) 
             <span className="label">管理员当前密码</span>
             <PasswordInput
               value={adminPassword}
-              onChange={(e) => setAdminPassword(e.target.value)}
+              onChange={(e) => {
+                setAdminPassword(e.target.value);
+                setConfirmPasswordError(null);
+              }}
               className="input"
               autoComplete="current-password"
               autoFocus
-              aria-invalid={confirmAction.error ? true : undefined}
+              aria-invalid={confirmPasswordError ? true : undefined}
               aria-describedby={
-                confirmAction.error ? "confirm-password-error" : undefined
+                confirmPasswordError ? "confirm-password-error" : undefined
               }
             />
-            {confirmAction.error && (
+            {confirmPasswordError && (
               <p
                 id="confirm-password-error"
                 role="alert"
                 className="mt-1.5 text-xs text-destructive"
               >
-                {confirmAction.error.message}
+                {confirmPasswordError}
               </p>
             )}
           </label>
@@ -771,24 +800,25 @@ export function AdminUsersPanel({ currentAdminId }: { currentAdminId: string }) 
             <span className="label">管理员当前密码</span>
             <PasswordInput
               value={adminPassword}
-              onChange={(e) => setAdminPassword(e.target.value)}
+              onChange={(e) => {
+                setAdminPassword(e.target.value);
+                setResetPasswordError(null);
+              }}
               className="input"
               autoComplete="current-password"
               autoFocus
-              aria-invalid={resetPasswordAction.error ? true : undefined}
+              aria-invalid={resetPasswordError ? true : undefined}
               aria-describedby={
-                resetPasswordAction.error
-                  ? "reset-password-error"
-                  : undefined
+                resetPasswordError ? "reset-password-error" : undefined
               }
             />
-            {resetPasswordAction.error && (
+            {resetPasswordError && (
               <p
                 id="reset-password-error"
                 role="alert"
                 className="mt-1.5 text-xs text-destructive"
               >
-                {resetPasswordAction.error.message}
+                {resetPasswordError}
               </p>
             )}
           </label>
@@ -847,23 +877,26 @@ export function AdminUsersPanel({ currentAdminId }: { currentAdminId: string }) 
             <span className="label">你的当前密码</span>
             <PasswordInput
               value={deletePassword}
-              onChange={(e) => setDeletePassword(e.target.value)}
+              onChange={(e) => {
+                setDeletePassword(e.target.value);
+                setDeletePasswordError(null);
+              }}
               placeholder="输入管理员当前密码确认"
               className="input"
               autoComplete="current-password"
               autoFocus
-              aria-invalid={deleteAction.error ? true : undefined}
+              aria-invalid={deletePasswordError ? true : undefined}
               aria-describedby={
-                deleteAction.error ? "delete-password-error" : undefined
+                deletePasswordError ? "delete-password-error" : undefined
               }
             />
-            {deleteAction.error && (
+            {deletePasswordError && (
               <p
                 id="delete-password-error"
                 role="alert"
                 className="mt-1.5 text-xs text-destructive"
               >
-                {deleteAction.error.message}
+                {deletePasswordError}
               </p>
             )}
           </label>
@@ -1044,23 +1077,26 @@ export function AdminUsersPanel({ currentAdminId }: { currentAdminId: string }) 
             <span className="label">你的当前密码</span>
             <PasswordInput
               value={batchDeletePassword}
-              onChange={(e) => setBatchDeletePassword(e.target.value)}
+              onChange={(e) => {
+                setBatchDeletePassword(e.target.value);
+                setBatchDeleteError(null);
+              }}
               placeholder="输入管理员当前密码确认"
               className="input"
               autoComplete="current-password"
               autoFocus
-              aria-invalid={batchDeleteAction.error ? true : undefined}
+              aria-invalid={batchDeleteError ? true : undefined}
               aria-describedby={
-                batchDeleteAction.error ? "batch-delete-error" : undefined
+                batchDeleteError ? "batch-delete-error" : undefined
               }
             />
-            {batchDeleteAction.error && (
+            {batchDeleteError && (
               <p
                 id="batch-delete-error"
                 role="alert"
                 className="mt-1.5 text-xs text-destructive"
               >
-                {batchDeleteAction.error.message}
+                {batchDeleteError}
               </p>
             )}
           </label>
