@@ -92,6 +92,9 @@ class CapturingEmailService:
     def send_account_deleted(self, to: str, nickname: str | None) -> None:
         self.messages.append(("account_deleted", to, nickname or ""))
 
+    def send_custom_notification(self, to: str, subject: str, body: str) -> None:
+        self.messages.append(("custom_notification", to, f"{subject}\n{body}"))
+
     def send_invite_batch(
         self, items: list[tuple[str, str]]
     ) -> list[Exception | None]:
@@ -99,6 +102,18 @@ class CapturingEmailService:
         for to, link in items:
             try:
                 self.send_invite(to, link)
+                results.append(None)
+            except Exception as exc:
+                results.append(exc)
+        return results
+
+    def send_custom_notification_batch(
+        self, items: list[tuple[str, str, str]]
+    ) -> list[Exception | None]:
+        results: list[Exception | None] = []
+        for to, subject, body in items:
+            try:
+                self.send_custom_notification(to, subject, body)
                 results.append(None)
             except Exception as exc:
                 results.append(exc)

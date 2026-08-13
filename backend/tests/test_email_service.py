@@ -91,6 +91,79 @@ def test_smtp_from_requires_email_address() -> None:
         )
 
 
+def test_smtp_custom_notification_sends_rendered_body(monkeypatch) -> None:
+    sent = []
+
+    class FakeSMTP:
+        def __init__(self, host, port, timeout=None):
+            pass
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            return False
+
+        def login(self, username, password):
+            pass
+
+        def send_message(self, message):
+            sent.append(
+                ("message", message["Subject"], message.get_content().strip())
+            )
+
+    monkeypatch.setattr("app.services.email.smtplib.SMTP", FakeSMTP)
+    service = SMTPEmailService(
+        host="smtp.example.com",
+        port=587,
+        username="user",
+        password="pass",
+        from_addr="noreply@example.com",
+        from_name="Portal",
+        use_tls=False,
+    )
+    service.send_custom_notification(
+        "bob@example.com", "维护通知", "您好，Bob：今晚维护"
+    )
+    assert ("message", "维护通知", "您好，Bob：今晚维护") in sent
+
+
+def test_smtp_custom_notification_batch_reuses_connection(monkeypatch) -> None:
+    connects = {"n": 0}
+
+    class FakeSMTP:
+        def __init__(self, host, port, timeout=None):
+            connects["n"] += 1
+
+        def login(self, username, password):
+            pass
+
+        def send_message(self, message):
+            pass
+
+        def close(self):
+            pass
+
+        def quit(self):
+            pass
+
+    monkeypatch.setattr("app.services.email.smtplib.SMTP", FakeSMTP)
+    service = SMTPEmailService(
+        host="smtp.example.com",
+        port=587,
+        username="user",
+        password="pass",
+        from_addr="noreply@example.com",
+        from_name="Portal",
+        use_tls=False,
+    )
+    results = service.send_custom_notification_batch(
+        [("a@example.com", "s", "b"), ("b@example.com", "s", "b")]
+    )
+    assert results == [None, None]
+    assert connects["n"] == 1
+
+
 def test_smtp_port_465_uses_implicit_ssl(monkeypatch) -> None:
     calls: list[tuple] = []
 

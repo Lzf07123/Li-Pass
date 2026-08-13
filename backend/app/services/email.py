@@ -33,6 +33,11 @@ class EmailService(ABC):
     @abstractmethod
     def send_account_deleted(self, to: str, nickname: str | None) -> None: ...
 
+    @abstractmethod
+    def send_custom_notification(
+        self, to: str, subject: str, body: str
+    ) -> None: ...
+
     def send_invite_batch(
         self, items: list[tuple[str, str]]
     ) -> list[Exception | None]:
@@ -41,6 +46,19 @@ class EmailService(ABC):
         for to, link in items:
             try:
                 self.send_invite(to, link)
+                results.append(None)
+            except Exception as exc:
+                results.append(exc)
+        return results
+
+    def send_custom_notification_batch(
+        self, items: list[tuple[str, str, str]]
+    ) -> list[Exception | None]:
+        """默认实现：逐封发送；SMTP 子类复用单条连接。"""
+        results: list[Exception | None] = []
+        for to, subject, body in items:
+            try:
+                self.send_custom_notification(to, subject, body)
                 results.append(None)
             except Exception as exc:
                 results.append(exc)
@@ -62,6 +80,12 @@ class ConsoleEmailService(EmailService):
 
     def send_account_deleted(self, to: str, nickname: str | None) -> None:
         print(f"[email:{get_settings().email_backend}] account deleted -> {to}")
+
+    def send_custom_notification(self, to: str, subject: str, body: str) -> None:
+        print(
+            f"[email:{get_settings().email_backend}] custom notification -> "
+            f"{to}: {subject}\n{body}"
+        )
 
 
 class SMTPEmailService(EmailService):
@@ -248,6 +272,51 @@ class SMTPEmailService(EmailService):
             f"您的 {get_settings().app_name} 账号已删除",
             body,
         )
+
+    def send_custom_notification(self, to: str, subject: str, body: str) -> None:
+        self._send_with_retry(to, subject, body)
+
+    def send_custom_notification_batch(
+        self, items: list[tuple[str, str, str]]
+    ) -> list[Exception | None]:
+        """复用一条 SMTP 连接发送整批自定义通知。"""
+        if not items:
+            return []
+        results: list[Exception | None] = []
+        try:
+            server = self._connect()
+        except Exception as exc:
+            return [exc for _ in items]
+        try:
+            if self.username:
+                server.login(self.username, self.password)
+            for to, subject, body in items:
+                try:
+                    server.send_message(self._build_message(to, subject, body))
+                    results.append(None)
+                except TRANSIENT_SMTP_ERRORS:
+                    try:
+                        server.close()
+                    except Exception:
+                        pass
+                    try:
+                        server = self._connect()
+                        if self.username:
+                            server.login(self.username, self.password)
+                        server.send_message(self._build_message(to, subject, body))
+                        results.append(None)
+                    except Exception as exc:
+                        results.append(exc)
+                except Exception as exc:
+                    results.append(exc)
+        except Exception as exc:
+            return [exc for _ in items]
+        finally:
+            try:
+                server.quit()
+            except Exception:
+                pass
+        return results
 
 
 def get_email_service() -> EmailService:
