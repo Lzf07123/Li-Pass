@@ -190,3 +190,40 @@ def send_notification(
         "email_sent": email_sent,
         "email_failed": email_failed,
     }
+
+
+@router.get("/notifications", response_model=dict)
+def list_notifications(
+    limit: int = Query(100, ge=1, le=500),
+    offset: int = Query(0, ge=0),
+    db: Session = Depends(get_db),
+) -> dict:
+    base = select(Notification, User).join(
+        User, Notification.sender_id == User.id, isouter=True
+    )
+    total = (
+        db.scalar(select(func.count()).select_from(Notification)) or 0
+    )
+    rows = db.execute(
+        base.order_by(Notification.created_at.desc())
+        .offset(offset)
+        .limit(limit)
+    ).all()
+    return {
+        "items": [
+            {
+                "id": str(notification.id),
+                "title": notification.title,
+                "in_site": notification.in_site,
+                "email": notification.email,
+                "recipient_count": notification.recipient_count,
+                "email_sent": notification.email_sent,
+                "email_failed": notification.email_failed,
+                "created_at": notification.created_at,
+                "sender_email": sender.email if sender else None,
+                "sender_nickname": sender.nickname if sender else None,
+            }
+            for notification, sender in rows
+        ],
+        "total": total,
+    }

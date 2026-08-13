@@ -120,6 +120,29 @@ def test_send_notification_requires_a_channel(client, db_session) -> None:
     assert response.status_code == 400
 
 
+def test_list_notifications_history(client, db_session) -> None:
+    login_admin(client, db_session)
+    client.post(
+        "/api/v1/admin/notifications",
+        json={"title": "第一条", "body": "b", "in_site": True, "email": False},
+    )
+    client.post(
+        "/api/v1/admin/notifications",
+        json={"title": "第二条", "body": "b", "in_site": True, "email": False},
+    )
+
+    response = client.get("/api/v1/admin/notifications")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["total"] == 2
+    assert {item["title"] for item in data["items"]} == {"第一条", "第二条"}
+    item = data["items"][0]
+    assert item["in_site"] is True
+    assert item["email"] is False
+    assert item["sender_email"] == "admin@example.com"
+    assert item["recipient_count"] >= 1
+
+
 def test_send_notification_hits_rate_limit(client, db_session) -> None:
     login_admin(client, db_session)
     from app.services.rate_limit import get_rate_limiter
