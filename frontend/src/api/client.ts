@@ -1,5 +1,6 @@
 import type {
   AdminSessionListOut,
+  AdminNotificationListOut,
   AdminUserOut,
   AppOut,
   AuditLogOut,
@@ -11,6 +12,9 @@ import type {
   ClientSecretOut,
   ClientUpdate,
   ConsentInfo,
+  MessageListOut,
+  RevokeSessionsResult,
+  SendNotificationResult,
   SessionOut,
   SiteSettings,
   TotpSetup,
@@ -353,6 +357,50 @@ export const adminSessionsApi = {
   },
   revoke: (id: string) =>
     api<void>(`/api/v1/admin/sessions/${id}`, { method: "DELETE" }),
+  revokeMany: (ids: string[]) =>
+    api<RevokeSessionsResult>("/api/v1/admin/sessions/batch-revoke", {
+      method: "POST",
+      body: JSON.stringify({ session_ids: ids }),
+    }),
+  revokeAll: () =>
+    api<RevokeSessionsResult>("/api/v1/admin/sessions/revoke-all", {
+      method: "POST",
+    }),
+};
+
+export const adminNotificationsApi = {
+  create: (data: {
+    title: string;
+    body: string;
+    in_site: boolean;
+    email: boolean;
+    emails?: string[];
+  }) =>
+    api<SendNotificationResult>("/api/v1/admin/notifications", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+  list: (offset = 0, limit = 100) =>
+    api<AdminNotificationListOut>(
+      `/api/v1/admin/notifications?offset=${offset}&limit=${limit}`
+    ),
+};
+
+export const userMessagesApi = {
+  list: (offset = 0, limit = 100) =>
+    api<MessageListOut>(
+      `/api/v1/me/messages?offset=${offset}&limit=${limit}`
+    ),
+  unreadCount: () =>
+    api<{ unread: number }>("/api/v1/me/messages/unread-count"),
+  markRead: (id: string) =>
+    api<void>(`/api/v1/me/messages/${id}/read`, { method: "POST" }),
+  markAllRead: () =>
+    api<{ updated: number }>("/api/v1/me/messages/read-all", {
+      method: "POST",
+    }),
+  remove: (id: string) =>
+    api<void>(`/api/v1/me/messages/${id}`, { method: "DELETE" }),
 };
 
 export const adminAuditApi = {

@@ -5,6 +5,7 @@ export interface UserOut {
   email_verified: boolean;
   avatar_url: string | null;
   phone: string | null;
+  email_notifications: boolean;
   role: string;
   status: string;
 }
@@ -95,6 +96,50 @@ export interface AdminSessionOut {
 export interface AdminSessionListOut {
   items: AdminSessionOut[];
   total: number;
+}
+
+export interface AdminNotificationOut {
+  id: string;
+  title: string;
+  in_site: boolean;
+  email: boolean;
+  recipient_count: number;
+  email_sent: number;
+  email_failed: number;
+  created_at: string;
+  sender_email: string | null;
+  sender_nickname: string | null;
+}
+
+export interface AdminNotificationListOut {
+  items: AdminNotificationOut[];
+  total: number;
+}
+
+export interface SendNotificationResult {
+  id: string;
+  recipient_count: number;
+  email_sent: number;
+  email_failed: number;
+}
+
+export interface MessageOut {
+  id: string;
+  title: string;
+  body: string;
+  sent_at: string;
+  read: boolean;
+}
+
+export interface MessageListOut {
+  items: MessageOut[];
+  total: number;
+  unread: number;
+}
+
+export interface RevokeSessionsResult {
+  revoked: number;
+  skipped?: number;
 }
 
 export interface AppOut {
