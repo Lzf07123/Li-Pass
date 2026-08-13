@@ -11,6 +11,7 @@ AUDIT_CATEGORIES = frozenset(
         "admin_client",
         "admin_block",
         "admin_settings",
+        "admin_notification",
         "security",
         "other",
     }

@@ -13,6 +13,7 @@ from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from app.api.routes import admin_clients as admin_clients_routes
+from app.api.routes import admin_notifications as admin_notifications_routes
 from app.api.routes import admin_sessions as admin_sessions_routes
 from app.api.routes import admin_settings as admin_settings_routes
 from app.api.routes import admin_users as admin_users_routes
@@ -204,6 +205,7 @@ def create_app() -> FastAPI:
     app.include_router(admin_settings_routes.router)
     app.include_router(admin_users_routes.router)
     app.include_router(admin_sessions_routes.router)
+    app.include_router(admin_notifications_routes.router)
     app.include_router(consent_routes.router)
     app.include_router(client_blocks_routes.router)
     app.include_router(oidc_routes.router)

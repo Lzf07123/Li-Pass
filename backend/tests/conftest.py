@@ -128,4 +128,8 @@ def captured_email(monkeypatch):
     monkeypatch.setattr(
         "app.api.routes.admin_users.get_email_service", lambda: service
     )
+    monkeypatch.setattr(
+        "app.api.routes.admin_notifications.get_email_service",
+        lambda: service,
+    )
     return service
