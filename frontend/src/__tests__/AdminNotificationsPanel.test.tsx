@@ -210,4 +210,25 @@ describe("AdminNotificationsPanel", () => {
       )
     ).toBe(false);
   });
+
+  it("标题或正文含未知占位符时提示并阻止发送", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(historyResponse());
+    vi.stubGlobal("fetch", fetchMock);
+    renderWithProviders(<AdminNotificationsPanel />);
+    fireEvent.change(screen.getByLabelText("标题"), {
+      target: { value: "你好 {name}" },
+    });
+    fireEvent.change(screen.getByLabelText("正文"), {
+      target: { value: "正文 {email}" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "发送通知" }));
+    await waitFor(() =>
+      expect(screen.getByText(/不支持的占位符：\{name\}/)).toBeInTheDocument()
+    );
+    expect(
+      fetchMock.mock.calls.some(
+        ([, init]) => (init as RequestInit | undefined)?.method === "POST"
+      )
+    ).toBe(false);
+  });
 });

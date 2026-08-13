@@ -1,4 +1,5 @@
 import logging
+import re
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
@@ -24,6 +25,9 @@ router = APIRouter(
     dependencies=[Depends(get_current_admin)],
 )
 
+_PLACEHOLDER_RE = re.compile(r"\{([^{}]+)\}")
+_ALLOWED_PLACEHOLDERS = frozenset({"nickname", "email"})
+
 
 class AdminNotificationCreate(BaseModel):
     title: str = Field(min_length=1, max_length=120)
@@ -33,6 +37,13 @@ class AdminNotificationCreate(BaseModel):
     user_ids: list[uuid.UUID] | None = Field(
         default=None, min_length=1, max_length=500
     )
+
+
+def _unknown_placeholders(*texts: str) -> list[str]:
+    tokens: set[str] = set()
+    for text in texts:
+        tokens.update(_PLACEHOLDER_RE.findall(text))
+    return sorted(tokens - _ALLOWED_PLACEHOLDERS)
 
 
 def _render(template: str, user: User) -> str:
@@ -51,6 +62,14 @@ def send_notification(
 ) -> dict:
     if not payload.in_site and not payload.email:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "至少选择一种发送渠道")
+    invalid = _unknown_placeholders(payload.title, payload.body)
+    if invalid:
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST,
+            "不支持的占位符："
+            + ", ".join(f"{{{token}}}" for token in invalid)
+            + "，仅支持 {nickname}、{email}",
+        )
 
     settings = get_settings()
     ip = request.client.host if request.client else ""

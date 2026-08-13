@@ -151,6 +151,38 @@ def test_send_notification_requires_a_channel(client, db_session) -> None:
     assert response.status_code == 400
 
 
+def test_send_notification_rejects_unknown_placeholders(
+    client, db_session
+) -> None:
+    login_admin(client, db_session)
+    response = client.post(
+        "/api/v1/admin/notifications",
+        json={
+            "title": "你好 {name}",
+            "body": "正文 {nickname}",
+            "in_site": True,
+            "email": False,
+        },
+    )
+    assert response.status_code == 400
+    assert "{name}" in response.json()["detail"]
+    assert "仅支持 {nickname}、{email}" in response.json()["detail"]
+
+
+def test_send_notification_allows_literal_braces(client, db_session) -> None:
+    login_admin(client, db_session)
+    response = client.post(
+        "/api/v1/admin/notifications",
+        json={
+            "title": "公告",
+            "body": "价格为 100 { 元（示例）",
+            "in_site": True,
+            "email": False,
+        },
+    )
+    assert response.status_code == 200
+
+
 def test_list_notifications_history(client, db_session) -> None:
     login_admin(client, db_session)
     client.post(

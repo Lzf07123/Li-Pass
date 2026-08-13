@@ -135,6 +135,20 @@ export function AdminNotificationsPanel() {
       setFormError("标题和正文不能为空");
       return;
     }
+    const invalidTokens = [
+      ...title.matchAll(/\{([^{}]+)\}/g),
+      ...body.matchAll(/\{([^{}]+)\}/g),
+    ]
+      .map((match) => match[1])
+      .filter((token) => token !== "nickname" && token !== "email");
+    if (invalidTokens.length > 0) {
+      setFormError(
+        `不支持的占位符：${[...new Set(invalidTokens)]
+          .map((token) => `{${token}}`)
+          .join("、")}，仅支持 {nickname}、{email}`
+      );
+      return;
+    }
     if (scope === "specific") {
       if (selectedUserIds.size === 0) {
         setFormError("请选择收件人");
