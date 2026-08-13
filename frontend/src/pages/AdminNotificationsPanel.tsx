@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from "react";
 import { adminNotificationsApi, adminUsersApi } from "../api/client";
 import type { AdminNotificationOut, AdminUserOut } from "../api/types";
 import { AsyncButton } from "../components/AsyncButton";
+import { ConfirmDialog } from "../components/ConfirmDialog";
 import { useAsyncAction } from "../hooks/useAsyncAction";
 import { useToast } from "../hooks/useToast";
 
@@ -32,6 +33,9 @@ export function AdminNotificationsPanel() {
   const [formError, setFormError] = useState<string | null>(null);
   const [history, setHistory] = useState<AdminNotificationOut[]>([]);
   const [total, setTotal] = useState(0);
+  const [recallTarget, setRecallTarget] = useState<AdminNotificationOut | null>(
+    null
+  );
   const toast = useToast();
 
   const load = useCallback(
@@ -96,6 +100,20 @@ export function AdminNotificationsPanel() {
       return next;
     });
   }
+
+  const recallAction = useAsyncAction(
+    async () => {
+      if (!recallTarget) return;
+      await adminNotificationsApi.recall(recallTarget.id);
+      setRecallTarget(null);
+      await load();
+      toast.success("已撤回该站内信");
+    },
+    {
+      onError: (err) =>
+        toast.error(err instanceof Error ? err.message : "撤回失败"),
+    }
+  );
 
   const sendAction = useAsyncAction(
     async () => {
@@ -295,6 +313,7 @@ export function AdminNotificationsPanel() {
               <th className="whitespace-nowrap">收件人</th>
               <th className="whitespace-nowrap">邮件</th>
               <th className="whitespace-nowrap">发送人</th>
+              <th className="whitespace-nowrap text-right">操作</th>
             </tr>
           </thead>
           <tbody>
@@ -319,6 +338,22 @@ export function AdminNotificationsPanel() {
                     : "—"}
                 </td>
                 <td className="truncate">{item.sender_email || "—"}</td>
+                <td className="text-right">
+                  {item.recalled_at ? (
+                    <span className="badge badge-muted">已撤回</span>
+                  ) : item.in_site ? (
+                    <button
+                      type="button"
+                      onClick={() => setRecallTarget(item)}
+                      disabled={recallAction.pending}
+                      className="btn btn-secondary min-h-9 px-3 py-1.5 text-xs"
+                    >
+                      撤回
+                    </button>
+                  ) : (
+                    "—"
+                  )}
+                </td>
               </tr>
             ))}
           </tbody>
@@ -336,6 +371,25 @@ export function AdminNotificationsPanel() {
       {total === 0 && (
         <p className="text-sm text-muted">还没有发送记录。</p>
       )}
+
+      <ConfirmDialog
+        open={recallTarget !== null}
+        title="撤回站内信"
+        intent="danger"
+        confirmLabel="确认撤回"
+        status={recallAction.status}
+        onConfirm={() => void recallAction.run()}
+        onCancel={() => {
+          if (!recallAction.pending) setRecallTarget(null);
+        }}
+      >
+        {recallTarget && (
+          <span>
+            撤回后，收件人的收件箱将不再显示「{recallTarget.title}」，
+            已发送的邮件不受影响。
+          </span>
+        )}
+      </ConfirmDialog>
     </section>
   );
 }

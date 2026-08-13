@@ -388,6 +388,11 @@ export const adminNotificationsApi = {
     api<AdminNotificationListOut>(
       `/api/v1/admin/notifications?offset=${offset}&limit=${limit}`
     ),
+  recall: (id: string) =>
+    api<{ recalled: number }>(
+      `/api/v1/admin/notifications/${id}/recall`,
+      { method: "POST" }
+    ),
 };
 
 export const userMessagesApi = {

@@ -106,6 +106,7 @@ export interface AdminNotificationOut {
   recipient_count: number;
   email_sent: number;
   email_failed: number;
+  recalled_at: string | null;
   created_at: string;
   sender_email: string | null;
   sender_nickname: string | null;

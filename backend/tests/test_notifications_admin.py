@@ -206,6 +206,109 @@ def test_list_notifications_history(client, db_session) -> None:
     assert item["recipient_count"] >= 1
 
 
+def test_recall_in_site_notification_removes_from_inbox(
+    client, db_session
+) -> None:
+    login_admin(client, db_session)
+    alice = make_user(db_session, "alice@example.com", "Alice")
+    response = client.post(
+        "/api/v1/admin/notifications",
+        json={
+            "title": "公告",
+            "body": "你好 {nickname}",
+            "in_site": True,
+            "email": False,
+            "user_ids": [str(alice.id)],
+        },
+    )
+    notification_id = response.json()["id"]
+
+    client.post(
+        "/api/v1/auth/login",
+        json={"email": "alice@example.com", "password": "password123"},
+    )
+    assert client.get("/api/v1/me/messages").json()["total"] == 1
+
+    client.post(
+        "/api/v1/auth/login",
+        json={"email": "admin@example.com", "password": "password123"},
+    )
+    recall = client.post(
+        f"/api/v1/admin/notifications/{notification_id}/recall"
+    )
+    assert recall.status_code == 200
+    assert recall.json()["recalled"] == 1
+
+    client.post(
+        "/api/v1/auth/login",
+        json={"email": "alice@example.com", "password": "password123"},
+    )
+    assert client.get("/api/v1/me/messages").json()["total"] == 0
+    assert client.get("/api/v1/me/messages/unread-count").json() == {
+        "unread": 0
+    }
+
+    audit = db_session.scalar(
+        select(AuditLog).where(
+            AuditLog.action == "admin_recall_notification"
+        )
+    )
+    assert audit is not None
+
+
+def test_recall_is_idempotent_and_rejects_email_only(
+    client, db_session
+) -> None:
+    login_admin(client, db_session)
+    alice = make_user(db_session, "alice@example.com", "Alice")
+    in_site = client.post(
+        "/api/v1/admin/notifications",
+        json={
+            "title": "公告",
+            "body": "b",
+            "in_site": True,
+            "email": False,
+            "user_ids": [str(alice.id)],
+        },
+    ).json()
+    assert (
+        client.post(
+            f"/api/v1/admin/notifications/{in_site['id']}/recall"
+        ).status_code
+        == 200
+    )
+    # 重复撤回幂等
+    assert (
+        client.post(
+            f"/api/v1/admin/notifications/{in_site['id']}/recall"
+        ).status_code
+        == 200
+    )
+
+    email_only = client.post(
+        "/api/v1/admin/notifications",
+        json={
+            "title": "邮件",
+            "body": "b",
+            "in_site": False,
+            "email": True,
+            "user_ids": [str(alice.id)],
+        },
+    ).json()
+    assert (
+        client.post(
+            f"/api/v1/admin/notifications/{email_only['id']}/recall"
+        ).status_code
+        == 400
+    )
+
+    history = client.get("/api/v1/admin/notifications").json()["items"]
+    recalled = next(item for item in history if item["id"] == in_site["id"])
+    assert recalled["recalled_at"] is not None
+    not_recalled = next(item for item in history if item["id"] == email_only["id"])
+    assert not_recalled["recalled_at"] is None
+
+
 def test_send_notification_hits_rate_limit(client, db_session) -> None:
     login_admin(client, db_session)
     from app.services.rate_limit import get_rate_limiter
@@ -230,3 +333,9 @@ def test_non_admin_cannot_send_notification(
         json={"title": "t", "body": "b", "in_site": True, "email": False},
     )
     assert response.status_code == 403
+    assert (
+        client.post(
+            f"/api/v1/admin/notifications/{uuid.uuid4()}/recall"
+        ).status_code
+        == 403
+    )

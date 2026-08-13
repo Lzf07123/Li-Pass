@@ -40,13 +40,23 @@ def list_messages(
             Notification,
             NotificationRecipient.notification_id == Notification.id,
         )
-        .where(NotificationRecipient.user_id == user.id)
+        .where(
+            NotificationRecipient.user_id == user.id,
+            Notification.recalled_at.is_(None),
+        )
     )
     total = (
         db.scalar(
             select(func.count())
             .select_from(NotificationRecipient)
-            .where(NotificationRecipient.user_id == user.id)
+            .join(
+                Notification,
+                NotificationRecipient.notification_id == Notification.id,
+            )
+            .where(
+                NotificationRecipient.user_id == user.id,
+                Notification.recalled_at.is_(None),
+            )
         )
         or 0
     )
@@ -54,9 +64,14 @@ def list_messages(
         db.scalar(
             select(func.count())
             .select_from(NotificationRecipient)
+            .join(
+                Notification,
+                NotificationRecipient.notification_id == Notification.id,
+            )
             .where(
                 NotificationRecipient.user_id == user.id,
                 NotificationRecipient.read_at.is_(None),
+                Notification.recalled_at.is_(None),
             )
         )
         or 0
@@ -85,9 +100,14 @@ def unread_count(
         db.scalar(
             select(func.count())
             .select_from(NotificationRecipient)
+            .join(
+                Notification,
+                NotificationRecipient.notification_id == Notification.id,
+            )
             .where(
                 NotificationRecipient.user_id == user.id,
                 NotificationRecipient.read_at.is_(None),
+                Notification.recalled_at.is_(None),
             )
         )
         or 0

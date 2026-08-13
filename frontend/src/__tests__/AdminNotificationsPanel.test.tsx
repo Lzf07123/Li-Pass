@@ -1,4 +1,4 @@
-import { fireEvent, screen, waitFor } from "@testing-library/react";
+import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { AdminNotificationsPanel } from "../pages/AdminNotificationsPanel";
@@ -230,5 +230,55 @@ describe("AdminNotificationsPanel", () => {
         ([, init]) => (init as RequestInit | undefined)?.method === "POST"
       )
     ).toBe(false);
+  });
+
+  it("撤回站内信并刷新历史", async () => {
+    const item = {
+      id: "n1",
+      title: "维护通知",
+      in_site: true,
+      email: false,
+      recipient_count: 2,
+      email_sent: 0,
+      email_failed: 0,
+      recalled_at: null,
+      created_at: "2026-08-14T10:00:00Z",
+      sender_email: "admin@example.com",
+      sender_nickname: "Admin",
+    };
+    const fetchMock = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (init?.method === "POST" && url.includes("/recall")) {
+        return Promise.resolve(
+          new Response(JSON.stringify({ recalled: 2 }), {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          })
+        );
+      }
+      return Promise.resolve(historyResponse([item]));
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    renderWithProviders(<AdminNotificationsPanel />);
+    await waitFor(() =>
+      expect(screen.getByText("维护通知")).toBeInTheDocument()
+    );
+    fireEvent.click(screen.getByRole("button", { name: "撤回" }));
+    const dialog = await screen.findByRole("dialog");
+    fireEvent.click(
+      within(dialog).getByRole("button", { name: "确认撤回" })
+    );
+    await waitFor(() =>
+      expect(
+        fetchMock.mock.calls.some(
+          ([input, init]) =>
+            String(input).includes("/admin/notifications/n1/recall") &&
+            init?.method === "POST"
+        )
+      ).toBe(true)
+    );
+    await waitFor(() =>
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument()
+    );
   });
 });

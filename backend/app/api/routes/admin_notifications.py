@@ -1,6 +1,7 @@
 import logging
 import re
 import uuid
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from pydantic import BaseModel, Field
@@ -234,6 +235,7 @@ def list_notifications(
                 "recipient_count": notification.recipient_count,
                 "email_sent": notification.email_sent,
                 "email_failed": notification.email_failed,
+                "recalled_at": notification.recalled_at,
                 "created_at": notification.created_at,
                 "sender_email": sender.email if sender else None,
                 "sender_nickname": sender.nickname if sender else None,
@@ -242,3 +244,39 @@ def list_notifications(
         ],
         "total": total,
     }
+
+
+@router.post("/notifications/{notification_id}/recall", response_model=dict)
+def recall_notification(
+    notification_id: uuid.UUID,
+    request: Request,
+    actor: User = Depends(get_current_admin),
+    db: Session = Depends(get_db),
+) -> dict:
+    """撤回已发送的站内信：收件人收件箱不再展示（已发邮件无法撤回）。"""
+    notification = db.get(Notification, notification_id)
+    if notification is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "通知不存在")
+    if not notification.in_site:
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST, "该通知未发送站内信，无需撤回"
+        )
+    if notification.recalled_at is None:
+        notification.recalled_at = datetime.now(timezone.utc)
+        db.commit()
+        log_audit(
+            db,
+            "admin",
+            str(actor.id),
+            "admin_recall_notification",
+            category="admin_notification",
+            target_type="notification",
+            target_id=str(notification.id),
+            ip=request.client.host if request.client else None,
+            user_agent=request.headers.get("user-agent"),
+            detail={
+                "title": notification.title,
+                "recipient_count": notification.recipient_count,
+            },
+        )
+    return {"recalled": notification.recipient_count}
