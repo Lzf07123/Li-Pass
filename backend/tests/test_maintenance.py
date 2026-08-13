@@ -5,11 +5,45 @@ from sqlalchemy import select
 from app.models.account_invite import AccountInvite
 from app.models.audit_log import AuditLog
 from app.models.authorization_code import AuthorizationCode
+from app.models.notification import Notification
+from app.models.notification_recipient import NotificationRecipient
 from app.models.oauth_client import OAuthClient
 from app.models.otp import Otp, OtpPurpose
 from app.models.session import Session as SessionModel
 from app.models.user import User
 from app.services.maintenance import cleanup_expired_ephemeral_rows
+
+
+def test_cleanup_read_notifications_after_retention(db_session) -> None:
+    user = User(
+        email="a@example.com", password_hash="x", nickname="Alice"
+    )
+    db_session.add(user)
+    db_session.commit()
+    db_session.refresh(user)
+    first = Notification(
+        title="旧", body="b", in_site=True, email=False, sender_id=user.id
+    )
+    second = Notification(
+        title="新", body="b", in_site=True, email=False, sender_id=user.id
+    )
+    db_session.add_all([first, second])
+    db_session.commit()
+    old = NotificationRecipient(
+        notification_id=first.id,
+        user_id=user.id,
+        read_at=datetime.now(timezone.utc) - timedelta(days=400),
+    )
+    unread = NotificationRecipient(
+        notification_id=second.id, user_id=user.id
+    )
+    db_session.add_all([old, unread])
+    db_session.commit()
+
+    counts = cleanup_expired_ephemeral_rows(db_session)
+    assert counts["notification_recipients"] == 1
+    remaining = db_session.scalars(select(NotificationRecipient)).all()
+    assert [row.id for row in remaining] == [unread.id]
 
 
 def test_cleanup_removes_only_expired_rows_beyond_retention(db_session) -> None:

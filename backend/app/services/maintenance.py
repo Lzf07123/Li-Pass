@@ -7,6 +7,7 @@ from app.core.config import get_settings
 from app.models.account_invite import AccountInvite
 from app.models.audit_log import AuditLog
 from app.models.authorization_code import AuthorizationCode
+from app.models.notification_recipient import NotificationRecipient
 from app.models.otp import Otp
 from app.models.session import Session
 
@@ -48,6 +49,15 @@ def cleanup_expired_ephemeral_rows(db: Session) -> dict[str, int]:
             )
         )
     )
+    notification_cutoff = datetime.now(timezone.utc) - timedelta(
+        days=get_settings().notification_retention_days
+    )
+    notification_result = db.execute(
+        delete(NotificationRecipient).where(
+            NotificationRecipient.read_at.is_not(None),
+            NotificationRecipient.read_at < notification_cutoff,
+        )
+    )
     db.commit()
     return {
         "otps": otp_result.rowcount or 0,
@@ -55,4 +65,5 @@ def cleanup_expired_ephemeral_rows(db: Session) -> dict[str, int]:
         "account_invites": invite_result.rowcount or 0,
         "audit_logs": audit_result.rowcount or 0,
         "sessions": session_result.rowcount or 0,
+        "notification_recipients": notification_result.rowcount or 0,
     }
