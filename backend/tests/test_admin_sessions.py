@@ -1,0 +1,156 @@
+import uuid
+from datetime import datetime, timedelta, timezone
+
+from sqlalchemy import select
+
+from app.core.config import get_settings
+from app.models.audit_log import AuditLog
+from app.models.session import Session as SessionModel
+from app.models.user import User, UserRole
+from app.security.passwords import hash_password
+from app.security.tokens import generate_token, hash_token
+from tests.helpers import register_and_login
+
+
+def login_admin(client, db_session) -> None:
+    db_session.add(
+        User(
+            email="admin@example.com",
+            password_hash=hash_password("password123"),
+            nickname="Admin",
+            role=UserRole.admin,
+        )
+    )
+    db_session.commit()
+    client.post(
+        "/api/v1/auth/login",
+        json={"email": "admin@example.com", "password": "password123"},
+    )
+
+
+def create_session(db_session, user, token=None, **overrides) -> tuple[SessionModel, str]:
+    token = token or generate_token()
+    now = datetime.now(timezone.utc)
+    values = {
+        "user_id": user.id,
+        "token_hash": hash_token(token),
+        "auth_method": "password",
+        "device_name": "Chrome on macOS",
+        "ip": "203.0.113.7",
+        "user_agent": "Mozilla/5.0 test-agent",
+        "expires_at": now + timedelta(days=1),
+        "last_used_at": now,
+    }
+    values.update(overrides)
+    session = SessionModel(**values)
+    db_session.add(session)
+    db_session.commit()
+    return session, token
+
+
+def test_admin_list_sessions_with_search(client, db_session) -> None:
+    login_admin(client, db_session)
+    bob = User(
+        email="bob@example.com",
+        password_hash=hash_password("password123"),
+        nickname="Bob",
+    )
+    db_session.add(bob)
+    db_session.commit()
+    db_session.refresh(bob)
+    bob_session, _ = create_session(db_session, bob, device_name="Safari on iPhone")
+
+    sessions = client.get("/api/v1/admin/sessions").json()
+    assert len(sessions) >= 2
+    bob_item = next(s for s in sessions if s["id"] == str(bob_session.id))
+    assert bob_item["user"]["email"] == "bob@example.com"
+    assert bob_item["device_name"] == "Safari on iPhone"
+    assert bob_item["auth_method"] == "password"
+    assert any(s["current"] is True for s in sessions)
+
+    result = client.get("/api/v1/admin/sessions", params={"q": "bob"}).json()
+    assert [s["id"] for s in result] == [str(bob_session.id)]
+
+    result = client.get(
+        "/api/v1/admin/sessions", params={"q": "203.0.113"}
+    ).json()
+    assert any(s["id"] == str(bob_session.id) for s in result)
+
+
+def test_admin_list_excludes_expired_sessions(client, db_session) -> None:
+    login_admin(client, db_session)
+    bob = User(
+        email="bob@example.com",
+        password_hash=hash_password("password123"),
+        nickname="Bob",
+    )
+    db_session.add(bob)
+    db_session.commit()
+    db_session.refresh(bob)
+    now = datetime.now(timezone.utc)
+    expired, _ = create_session(
+        db_session, bob, expires_at=now - timedelta(days=1)
+    )
+
+    sessions = client.get("/api/v1/admin/sessions").json()
+    assert all(s["id"] != str(expired.id) for s in sessions)
+    db_session.refresh(expired)
+    assert expired.revoked_at is not None
+
+
+def test_admin_revoke_session(client, db_session) -> None:
+    login_admin(client, db_session)
+    bob = User(
+        email="bob@example.com",
+        password_hash=hash_password("password123"),
+        nickname="Bob",
+    )
+    db_session.add(bob)
+    db_session.commit()
+    db_session.refresh(bob)
+    token = generate_token()
+    session, _ = create_session(db_session, bob, token=token)
+
+    response = client.delete(f"/api/v1/admin/sessions/{session.id}")
+    assert response.status_code == 204
+    db_session.refresh(session)
+    assert session.revoked_at is not None
+
+    audit = db_session.scalar(
+        select(AuditLog).where(AuditLog.action == "admin_revoke_session")
+    )
+    assert audit is not None
+    assert audit.actor_type == "admin"
+    assert audit.target_id == str(session.id)
+    assert audit.detail["email"] == "bob@example.com"
+
+    # 被踢出的会话令牌应立即失效，不能再访问任何接口。
+    settings = get_settings()
+    client.cookies.set(settings.session_cookie_name, token)
+    assert client.get("/api/v1/me").status_code == 401
+
+
+def test_admin_cannot_revoke_current_session(client, db_session) -> None:
+    login_admin(client, db_session)
+    sessions = client.get("/api/v1/admin/sessions").json()
+    current = next(s for s in sessions if s["current"] is True)
+    response = client.delete(f"/api/v1/admin/sessions/{current['id']}")
+    assert response.status_code == 400
+    assert response.json()["detail"] == "不能下线当前会话"
+
+
+def test_admin_revoke_missing_session_returns_404(client, db_session) -> None:
+    login_admin(client, db_session)
+    response = client.delete(f"/api/v1/admin/sessions/{uuid.uuid4()}")
+    assert response.status_code == 404
+
+
+def test_non_admin_cannot_access_session_monitoring(
+    client, captured_email, db_session
+) -> None:
+    register_and_login(client, captured_email)
+    assert client.get("/api/v1/admin/sessions").status_code == 403
+    assert (
+        client.delete(f"/api/v1/admin/sessions/{uuid.uuid4()}").status_code
+        == 403
+    )

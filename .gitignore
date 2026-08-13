@@ -71,8 +71,3 @@ uploads/
 *.sqlite3
 .oxlintcache/
 .vitest/
-
-# 测试目录（仅本地保留，不进入版本控制）
-backend/tests/
-frontend/src/__tests__/
-frontend/src/test/
