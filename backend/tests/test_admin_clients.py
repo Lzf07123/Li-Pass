@@ -59,7 +59,10 @@ def test_admin_create_and_reset_secret(client, db_session) -> None:
     assert stored is not None
     assert stored.client_secret_hash == hash_token(secret)
 
-    response = client.post(f"/api/v1/admin/clients/{body['client']['id']}/reset-secret")
+    response = client.post(
+        f"/api/v1/admin/clients/{body['client']['id']}/reset-secret",
+        json={"current_password": "password123"},
+    )
     assert response.status_code == 200
     new_secret = response.json()["client_secret"]
     assert new_secret != secret
@@ -109,7 +112,11 @@ def test_admin_delete_client(client, db_session) -> None:
         json={"name": "ToDelete", "redirect_uris": ["http://x/cb"]},
     ).json()["client"]
 
-    response = client.delete(f"/api/v1/admin/clients/{created['id']}")
+    response = client.request(
+        "DELETE",
+        f"/api/v1/admin/clients/{created['id']}",
+        json={"current_password": "password123"},
+    )
     assert response.status_code == 204
     remaining = client.get("/api/v1/admin/clients").json()
     assert all(item["client_id"] != created["client_id"] for item in remaining)
@@ -196,8 +203,15 @@ def test_client_lifecycle_audited(client, db_session) -> None:
         f"/api/v1/admin/clients/{created['id']}",
         json={"name": "Audited2"},
     )
-    client.post(f"/api/v1/admin/clients/{created['id']}/reset-secret")
-    client.delete(f"/api/v1/admin/clients/{created['id']}")
+    client.post(
+        f"/api/v1/admin/clients/{created['id']}/reset-secret",
+        json={"current_password": "password123"},
+    )
+    client.request(
+        "DELETE",
+        f"/api/v1/admin/clients/{created['id']}",
+        json={"current_password": "password123"},
+    )
 
     logs = client.get("/api/v1/admin/audit-logs").json()
     actions = {log["action"] for log in logs}

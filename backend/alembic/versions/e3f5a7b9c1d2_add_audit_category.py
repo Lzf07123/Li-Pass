@@ -1,7 +1,7 @@
 """add audit category
 
 Revision ID: e3f5a7b9c1d2
-Revises: 9f3e2a1c4b5d
+Revises: c2a3d4e5f6a7
 Create Date: 2026-08-13 00:00:00.000000
 """
 from typing import Sequence, Union

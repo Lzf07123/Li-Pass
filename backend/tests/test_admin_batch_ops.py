@@ -51,6 +51,7 @@ def test_batch_update_status_and_role(client, db_session) -> None:
             "user_ids": [str(bob.id), str(carol.id)],
             "status": "disabled",
             "role": "admin",
+            "current_password": "password123",
         },
     )
     assert response.status_code == 200

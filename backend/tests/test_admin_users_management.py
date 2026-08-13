@@ -109,7 +109,10 @@ def test_admin_disable_and_reset_password(client, db_session) -> None:
 
     response = client.post(
         f"/api/v1/admin/users/{bob.id}/reset-password",
-        json={"new_password": "newpassword456"},
+        json={
+            "new_password": "newpassword456",
+            "current_password": "password123",
+        },
     )
     assert response.status_code == 200
     client.patch(f"/api/v1/admin/users/{bob.id}", json={"status": "active"})
@@ -158,9 +161,15 @@ def test_admin_reset_actions_logged_with_actor(client, db_session) -> None:
 
     client.post(
         f"/api/v1/admin/users/{bob.id}/reset-password",
-        json={"new_password": "newpassword456"},
+        json={
+            "new_password": "newpassword456",
+            "current_password": "password123",
+        },
     )
-    client.post(f"/api/v1/admin/users/{bob.id}/reset-2fa")
+    client.post(
+        f"/api/v1/admin/users/{bob.id}/reset-2fa",
+        json={"current_password": "password123"},
+    )
 
     logs = client.get("/api/v1/admin/audit-logs").json()
     for action, target_id in (

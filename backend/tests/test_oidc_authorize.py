@@ -62,3 +62,30 @@ def test_authorize_requires_pkce(client, db_session, captured_email) -> None:
     )
     assert response.status_code == 302
     assert "error=invalid_request" in response.headers["location"]
+
+
+def test_authorize_requires_verified_email_for_email_scope(
+    client, db_session, captured_email
+) -> None:
+    create_client(db_session)
+    client.post(
+        "/api/v1/auth/register",
+        json={
+            "email": "unverified@example.com",
+            "password": "password123",
+            "nickname": "Unverified",
+        },
+    )
+    client.post(
+        "/api/v1/auth/login",
+        json={"email": "unverified@example.com", "password": "password123"},
+    )
+    response = client.get(
+        "/oauth2/authorize",
+        params=authorize_params({"scope": "openid email"}),
+    )
+    assert response.status_code == 302
+    assert (
+        "/verify-email?email=unverified%40example.com"
+        in response.headers["location"]
+    )

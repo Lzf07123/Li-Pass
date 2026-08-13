@@ -9,6 +9,10 @@ def test_password_hash_roundtrip() -> None:
     assert verify_password("wrong", password_hash) is False
 
 
+def test_verify_password_invalid_hash_returns_false() -> None:
+    assert verify_password("password123", "not-a-valid-argon2-hash") is False
+
+
 def test_token_and_otp_hashing() -> None:
     token = generate_token()
     assert len(token) >= 32

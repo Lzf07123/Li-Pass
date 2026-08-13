@@ -1,6 +1,6 @@
 # 审计日志扩展与分类筛选 Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** 为 LinPass SSO 补全审计事件，并增加按分类/动作/操作者/时间筛选的后端接口与前端面板。
 
@@ -10,9 +10,9 @@
 
 ## Global Constraints
 
-- 后端测试本地运行：`backend/.venv/bin/python -m pytest -q`；测试文件在 `backend/tests/`，按仓库约定不入库。
-- 前端测试本地运行：`npm test`；`frontend/src/__tests__/` 不入库。
-- 提交时不要 `git add` 任何测试文件；只暂存 `backend/app/`、`backend/alembic/`、`frontend/src/`（非测试）、`docs/`、`.env.example`、`docker-compose.yaml`。
+- 后端测试本地运行：`backend/.venv/bin/python -m pytest -q`；测试文件在 `backend/tests/`，已纳入版本库并接入 CI。
+- 前端测试本地运行：`npm test`；`frontend/src/__tests__/` 已纳入版本库并接入 CI。
+- 提交时测试与实现代码一并暂存（CI 依赖仓库内的测试做持续回归）。
 - 新增审计动作全部使用小写 snake_case；分类必须是 `AUDIT_CATEGORIES` 中定义的值。
 - 不记录 OIDC token 换取（高频噪音，spec 非目标）。
 - 不引入新依赖。
@@ -25,7 +25,7 @@
 - Modify: `backend/app/models/audit_log.py`
 - Modify: `backend/app/services/audit.py`
 - Create: `backend/alembic/versions/e3f5a7b9c1d2_add_audit_category.py`
-- Test: `backend/tests/test_audit_log.py`（本地，不入库）
+- Test: `backend/tests/test_audit_log.py`
 
 **Interfaces:**
 - Consumes: 无
@@ -34,7 +34,7 @@
   - `AUDIT_CATEGORIES: frozenset[str]`
   - `log_audit(db, actor_type, actor_id, action, category="other", ...)`：未知分类回退 `other`
 
-- [ ] **Step 1: 写失败测试**
+- [x] **Step 1: 写失败测试**
 
 ```python
 import uuid
@@ -72,12 +72,12 @@ def test_log_audit_falls_back_to_other_for_unknown_category(db_session) -> None:
     assert row.category == "other"
 ```
 
-- [ ] **Step 2: 运行测试确认失败**
+- [x] **Step 2: 运行测试确认失败**
 
 Run: `backend/.venv/bin/python -m pytest backend/tests/test_audit_log.py -q`
 Expected: FAIL（`AuditLog` 无 `category` 属性 / `log_audit` 不接受 `category`）
 
-- [ ] **Step 3: 修改模型**
+- [x] **Step 3: 修改模型**
 
 `backend/app/models/audit_log.py` 增加：
 
@@ -85,7 +85,7 @@ Expected: FAIL（`AuditLog` 无 `category` 属性 / `log_audit` 不接受 `categ
     category: Mapped[str | None] = mapped_column(String(30), index=True)
 ```
 
-- [ ] **Step 4: 修改 log_audit**
+- [x] **Step 4: 修改 log_audit**
 
 `backend/app/services/audit.py` 增加：
 
@@ -141,7 +141,7 @@ def log_audit(
     db.commit()
 ```
 
-- [ ] **Step 5: 创建迁移**
+- [x] **Step 5: 创建迁移**
 
 `backend/alembic/versions/e3f5a7b9c1d2_add_audit_category.py`：
 
@@ -230,17 +230,17 @@ def downgrade() -> None:
     op.drop_column("audit_logs", "category")
 ```
 
-- [ ] **Step 6: 运行测试确认通过**
+- [x] **Step 6: 运行测试确认通过**
 
 Run: `backend/.venv/bin/python -m pytest backend/tests/test_audit_log.py -q`
 Expected: PASS
 
-- [ ] **Step 7: 本地验证迁移**
+- [x] **Step 7: 本地验证迁移**
 
 Run: `cd backend && .venv/bin/alembic upgrade head`
 Expected: 迁移成功，历史 `audit_logs.category` 已回填
 
-- [ ] **Step 8: 提交**
+- [x] **Step 8: 提交**
 
 ```bash
 git add backend/app/models/audit_log.py backend/app/services/audit.py backend/alembic/versions/e3f5a7b9c1d2_add_audit_category.py
@@ -264,7 +264,7 @@ git commit -m "feat: 审计日志增加 category 字段与迁移回填"
 - Consumes: `log_audit(..., category=...)`（Task 1）
 - Produces: 全部现有审计记录带正确分类
 
-- [ ] **Step 1: 按映射表补充 category 参数**
+- [x] **Step 1: 按映射表补充 category 参数**
 
 每个 `log_audit` 调用在 `action` 参数后加 `category="..."`：
 
@@ -300,12 +300,12 @@ git commit -m "feat: 审计日志增加 category 字段与迁移回填"
     )
 ```
 
-- [ ] **Step 2: 运行全量后端测试确认无回归**
+- [x] **Step 2: 运行全量后端测试确认无回归**
 
 Run: `backend/.venv/bin/python -m pytest -q`
 Expected: 全部通过（现有 166 个测试 + 新增测试）
 
-- [ ] **Step 3: 提交**
+- [x] **Step 3: 提交**
 
 ```bash
 git add backend/app/api/routes/auth.py backend/app/api/routes/users.py backend/app/api/routes/twofa.py backend/app/api/routes/admin_users.py backend/app/api/routes/admin_clients.py backend/app/api/routes/client_blocks.py backend/app/api/routes/admin_settings.py
@@ -321,13 +321,13 @@ git commit -m "feat: 现有审计事件补充分类"
 - Modify: `backend/app/api/routes/users.py`
 - Modify: `backend/app/api/routes/consent.py`
 - Modify: `backend/app/api/routes/oidc.py`
-- Test: `backend/tests/test_audit_events.py`（本地，不入库）
+- Test: `backend/tests/test_audit_events.py`
 
 **Interfaces:**
 - Consumes: `log_audit(..., category=...)`
 - Produces: 新事件落库，分类正确
 
-- [ ] **Step 1: 写失败测试**
+- [x] **Step 1: 写失败测试**
 
 ```python
 from sqlalchemy import select
@@ -393,12 +393,12 @@ def test_profile_update_logs_audit(client, db_session) -> None:
     assert row.category == "user"
 ```
 
-- [ ] **Step 2: 运行测试确认失败**
+- [x] **Step 2: 运行测试确认失败**
 
 Run: `backend/.venv/bin/python -m pytest backend/tests/test_audit_events.py -q`
 Expected: FAIL（`user_register` / `logout` / `profile_update` 记录不存在）
 
-- [ ] **Step 3: auth.py 新增事件**
+- [x] **Step 3: auth.py 新增事件**
 
 普通注册成功后（`auth.py` 的 `register`，`db.commit()` 之后）：
 
@@ -497,7 +497,7 @@ Expected: FAIL（`user_register` / `logout` / `profile_update` 记录不存在�
 
 `login` 的前置 IP 限流在 `request` 可用时按同样模式记录；`actor_id` 取 `str(user.id) if user else None`。
 
-- [ ] **Step 4: users.py 新增事件**
+- [x] **Step 4: users.py 新增事件**
 
 `update_profile` 在 `db.commit()` 之后：
 
@@ -549,7 +549,7 @@ Expected: FAIL（`user_register` / `logout` / `profile_update` 记录不存在�
     log_audit(db, "user", str(user.id), "phone_bind", category="user")
 ```
 
-- [ ] **Step 5: consent.py / oidc.py 新增事件**
+- [x] **Step 5: consent.py / oidc.py 新增事件**
 
 `consent.py` 的 `approve` 在 `store.delete(request_id)` 之前：
 
@@ -589,12 +589,12 @@ Expected: FAIL（`user_register` / `logout` / `profile_update` 记录不存在�
 
 注意 `oidc.py` 的 `authorize` 已有 `request: Request` 参数；两处 `create_authorization_code` 调用前各插一次。
 
-- [ ] **Step 6: 运行测试确认通过**
+- [x] **Step 6: 运行测试确认通过**
 
 Run: `backend/.venv/bin/python -m pytest backend/tests/test_audit_events.py backend/tests/test_auth_register.py backend/tests/test_oidc_authorize.py backend/tests/test_oidc_token.py backend/tests/test_admin_batch_ops.py -q`
 Expected: PASS
 
-- [ ] **Step 7: 提交**
+- [x] **Step 7: 提交**
 
 ```bash
 git add backend/app/api/routes/auth.py backend/app/api/routes/users.py backend/app/api/routes/consent.py backend/app/api/routes/oidc.py
@@ -607,7 +607,7 @@ git commit -m "feat: 审计补充注册/验证/退出/资料/授权/OIDC/限流�
 
 **Files:**
 - Modify: `backend/app/api/routes/admin_users.py`
-- Test: `backend/tests/test_audit_filters.py`（本地，不入库）
+- Test: `backend/tests/test_audit_filters.py`
 
 **Interfaces:**
 - Consumes: `AuditLog.category`（Task 1）
@@ -615,7 +615,7 @@ git commit -m "feat: 审计补充注册/验证/退出/资料/授权/OIDC/限流�
   - `GET /api/v1/admin/audit-logs?category=&action=&actor_id=&start=&end=&limit=&offset=`
   - 响应元素新增 `category` 字段
 
-- [ ] **Step 1: 写失败测试**
+- [x] **Step 1: 写失败测试**
 
 ```python
 from datetime import datetime, timedelta, timezone
@@ -671,12 +671,12 @@ def test_audit_list_filters_by_actor_and_time(client, db_session) -> None:
     assert all(item["actor_id"] == "u1" for item in items)
 ```
 
-- [ ] **Step 2: 运行测试确认失败**
+- [x] **Step 2: 运行测试确认失败**
 
 Run: `backend/.venv/bin/python -m pytest backend/tests/test_audit_filters.py -q`
 Expected: FAIL（`category` 参数未实现 / 响应无 `category` 字段）
 
-- [ ] **Step 3: 实现筛选**
+- [x] **Step 3: 实现筛选**
 
 `backend/app/api/routes/admin_users.py` 的 `list_audit_logs` 改为：
 
@@ -727,12 +727,12 @@ def list_audit_logs(
 
 `datetime` 从 `datetime` 模块导入（文件已 `from datetime import datetime, timedelta, timezone`，无需重复）。
 
-- [ ] **Step 4: 运行测试确认通过**
+- [x] **Step 4: 运行测试确认通过**
 
 Run: `backend/.venv/bin/python -m pytest backend/tests/test_audit_filters.py -q`
 Expected: PASS
 
-- [ ] **Step 5: 提交**
+- [x] **Step 5: 提交**
 
 ```bash
 git add backend/app/api/routes/admin_users.py
@@ -747,7 +747,7 @@ git commit -m "feat: 审计日志列表支持分类/动作/操作者/时间筛�
 - Modify: `frontend/src/api/types.ts`
 - Modify: `frontend/src/api/client.ts`
 - Modify: `frontend/src/pages/AdminAuditPanel.tsx`
-- Test: `frontend/src/__tests__/AdminAuditPanel.test.tsx`（本地，不入库）
+- Test: `frontend/src/__tests__/AdminAuditPanel.test.tsx`
 
 **Interfaces:**
 - Consumes: 筛选 API（Task 4）
@@ -755,7 +755,7 @@ git commit -m "feat: 审计日志列表支持分类/动作/操作者/时间筛�
   - `AuditLogOut.category: string | null`
   - `adminAuditApi.list(params: AuditQuery)`（`limit`/`offset` 默认 100/0）
 
-- [ ] **Step 1: 写失败测试**
+- [x] **Step 1: 写失败测试**
 
 ```tsx
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
@@ -816,12 +816,12 @@ describe("AdminAuditPanel", () => {
 });
 ```
 
-- [ ] **Step 2: 运行测试确认失败**
+- [x] **Step 2: 运行测试确认失败**
 
 Run: `npm test -- AdminAuditPanel.test.tsx`
 Expected: FAIL（`审计分类` label 不存在 / 分类徽章不存在）
 
-- [ ] **Step 3: 更新类型与客户端**
+- [x] **Step 3: 更新类型与客户端**
 
 `frontend/src/api/types.ts`：
 
@@ -868,7 +868,7 @@ export const adminAuditApi = {
 };
 ```
 
-- [ ] **Step 4: 更新 AdminAuditPanel**
+- [x] **Step 4: 更新 AdminAuditPanel**
 
 ```tsx
 const CATEGORY_LABELS: Record<string, string> = {
@@ -1006,12 +1006,12 @@ const refreshAction = useAsyncAction(
 
 `useEffect` 改为 `useEffect(() => { load(0, false); }, [load]);`。筛选变化时 `load` 引用随之变化，由 effect 自动重新加载，`onChange` 只更新状态，避免双请求。
 
-- [ ] **Step 5: 运行测试确认通过**
+- [x] **Step 5: 运行测试确认通过**
 
 Run: `npm test -- AdminAuditPanel.test.tsx`
 Expected: PASS
 
-- [ ] **Step 6: 提交**
+- [x] **Step 6: 提交**
 
 ```bash
 git add frontend/src/api/types.ts frontend/src/api/client.ts frontend/src/pages/AdminAuditPanel.tsx
@@ -1025,21 +1025,21 @@ git commit -m "feat: 审计面板支持分类筛选与加载更多"
 **Files:**
 - Modify: `docs/superpowers/specs/2026-08-13-audit-events-filters-design.md`（状态改为已实施完成）
 
-- [ ] **Step 1: 后端全量测试**
+- [x] **Step 1: 后端全量测试**
 
 Run: `backend/.venv/bin/python -m pytest -q`
 Expected: 全部通过
 
-- [ ] **Step 2: 前端全量验证**
+- [x] **Step 2: 前端全量验证**
 
 Run: `cd frontend && npx tsc -b && npm run lint && npm test && npm run build`
 Expected: 全部通过
 
-- [ ] **Step 3: 更新 spec 状态**
+- [x] **Step 3: 更新 spec 状态**
 
 把 `- 状态：待用户评审` 改为 `- 状态：已实施完成（2026-08-13）`。
 
-- [ ] **Step 4: 提交**
+- [x] **Step 4: 提交**
 
 ```bash
 git add docs/superpowers/specs/2026-08-13-audit-events-filters-design.md

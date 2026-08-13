@@ -134,6 +134,9 @@ describe("AdminPage", () => {
     renderWithProviders(<AdminPage />);
     await waitFor(() => expect(screen.getByText("bob@example.com")).toBeInTheDocument());
     fireEvent.click(screen.getByRole("button", { name: "重置密码" }));
+    fireEvent.change(screen.getByLabelText("管理员当前密码"), {
+      target: { value: "adminpass" },
+    });
     const input = await screen.findByPlaceholderText("至少 8 位");
     fireEvent.change(input, { target: { value: "newpassword456" } });
     fireEvent.click(screen.getByRole("button", { name: "确认重置" }));
@@ -146,6 +149,7 @@ describe("AdminPage", () => {
     expect(String(resetCall?.[0])).toContain("/api/v1/admin/users/2/reset-password");
     expect(JSON.parse(String((resetCall?.[1] as RequestInit | undefined)?.body))).toEqual({
       new_password: "newpassword456",
+      current_password: "adminpass",
     });
   });
 

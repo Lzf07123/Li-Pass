@@ -45,7 +45,10 @@ def test_admin_reset_twofa(client, db_session, captured_email) -> None:
     user = db_session.scalar(select(User).where(User.email == "a@example.com"))
     user.role = UserRole.admin
     db_session.commit()
-    response = client.post(f"/api/v1/admin/users/{user.id}/reset-2fa")
+    response = client.post(
+        f"/api/v1/admin/users/{user.id}/reset-2fa",
+        json={"current_password": "password123"},
+    )
     assert response.status_code == 200
     # 2FA 重置会撤销全部会话，需要重新登录后再查状态。
     client.post(

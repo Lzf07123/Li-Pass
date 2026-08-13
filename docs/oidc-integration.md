@@ -61,6 +61,14 @@ https://your-site.example/callback?error=access_denied&state=RANDOM_STATE
 
 被网站封禁时额外带 `error_description=account_blocked`。
 
+邮箱验证约束：当请求的 `scope` 包含 `email` 且用户尚未验证邮箱时，门户不会停留在授权页，而是直接 302 跳转到验证邮箱页：
+
+```text
+https://auth.example.com/verify-email?email=user%40example.com
+```
+
+用户完成验证后需重新发起授权（原 `state`/授权码不会在本次跳转中保留）。未验证邮箱的用户仍可登录门户本身，只是不能完成含 `email` scope 的授权；不请求 `email` scope 的授权不受此限制。接入方应把该跳转视为「用户信息暂不可用」，提示用户先完成邮箱验证。
+
 ### 2.3 换令牌
 
 公开客户端：
