@@ -378,7 +378,7 @@ export const adminNotificationsApi = {
     body: string;
     in_site: boolean;
     email: boolean;
-    emails?: string[];
+    user_ids?: string[];
   }) =>
     api<SendNotificationResult>("/api/v1/admin/notifications", {
       method: "POST",

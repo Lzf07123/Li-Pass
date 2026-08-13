@@ -21,7 +21,7 @@ describe("通知相关 API", () => {
       body: "b",
       in_site: true,
       email: true,
-      emails: ["a@example.com"],
+      user_ids: ["u1"],
     });
     expect(result.recipient_count).toBe(2);
     const [, init] = fetchMock.mock.calls[0] as [unknown, RequestInit];
@@ -30,7 +30,7 @@ describe("通知相关 API", () => {
       body: "b",
       in_site: true,
       email: true,
-      emails: ["a@example.com"],
+      user_ids: ["u1"],
     });
   });
 

@@ -1,7 +1,8 @@
 import logging
+import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, Field
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
@@ -29,7 +30,9 @@ class AdminNotificationCreate(BaseModel):
     body: str = Field(min_length=1, max_length=5000)
     in_site: bool = True
     email: bool = False
-    emails: list[EmailStr] | None = Field(default=None, max_length=500)
+    user_ids: list[uuid.UUID] | None = Field(
+        default=None, min_length=1, max_length=500
+    )
 
 
 def _render(template: str, user: User) -> str:
@@ -71,29 +74,26 @@ def send_notification(
             status.HTTP_429_TOO_MANY_REQUESTS, "发送通知过于频繁，请稍后再试"
         )
 
-    if payload.emails is not None:
-        emails = list(
-            dict.fromkeys(email.lower() for email in payload.emails)
-        )
-        if len(emails) > settings.notification_max_recipients:
+    skipped = 0
+    if payload.user_ids is not None:
+        ids = list(dict.fromkeys(payload.user_ids))
+        if len(ids) > settings.notification_max_recipients:
             raise HTTPException(
                 status.HTTP_400_BAD_REQUEST,
                 f"单次最多发送给 {settings.notification_max_recipients} 个用户",
             )
         users = db.scalars(
             select(User).where(
-                User.email.in_(emails),
+                User.id.in_(ids),
                 User.status == UserStatus.active,
             )
         ).all()
-        found = {user.email: user for user in users}
-        missing = [email for email in emails if email not in found]
-        if missing:
-            raise HTTPException(
-                status.HTTP_404_NOT_FOUND,
-                f"部分邮箱不存在或未启用：{','.join(missing[:5])}",
-            )
         recipients = users
+        skipped = len(ids) - len(recipients)
+        if not recipients:
+            raise HTTPException(
+                status.HTTP_400_BAD_REQUEST, "没有可接收通知的用户"
+            )
     else:
         recipient_count = (
             db.scalar(
@@ -111,7 +111,7 @@ def send_notification(
             raise HTTPException(
                 status.HTTP_400_BAD_REQUEST,
                 f"用户总数超过单次上限（{settings.notification_max_recipients}），"
-                "请指定邮箱分批发送",
+                "请指定用户分批发送",
             )
         recipients = db.scalars(
             select(User).where(User.status == UserStatus.active)
@@ -179,6 +179,7 @@ def send_notification(
             "in_site": payload.in_site,
             "email": payload.email,
             "recipient_count": len(recipients),
+            "skipped": skipped,
             "email_sent": email_sent,
             "email_failed": email_failed,
             "failed_emails": failed_emails[:20],
@@ -187,6 +188,7 @@ def send_notification(
     return {
         "id": str(notification.id),
         "recipient_count": len(recipients),
+        "skipped": skipped,
         "email_sent": email_sent,
         "email_failed": email_failed,
     }

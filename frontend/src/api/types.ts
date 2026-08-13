@@ -119,6 +119,7 @@ export interface AdminNotificationListOut {
 export interface SendNotificationResult {
   id: string;
   recipient_count: number;
+  skipped?: number;
   email_sent: number;
   email_failed: number;
 }

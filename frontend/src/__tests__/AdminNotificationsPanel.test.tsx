@@ -11,6 +11,13 @@ function historyResponse(items: unknown[] = []) {
   });
 }
 
+function usersResponse(items: unknown[]) {
+  return new Response(JSON.stringify(items), {
+    status: 200,
+    headers: { "Content-Type": "application/json" },
+  });
+}
+
 describe("AdminNotificationsPanel", () => {
   beforeEach(() => {
     vi.unstubAllGlobals();
@@ -71,7 +78,35 @@ describe("AdminNotificationsPanel", () => {
   });
 
   it("发送通知提交正确请求体", async () => {
-    const fetchMock = vi.fn((_input: RequestInfo | URL, init?: RequestInit) => {
+    const users = [
+      {
+        id: "u1",
+        kind: "user",
+        email: "a@example.com",
+        nickname: "Alice",
+        phone: null,
+        email_verified: true,
+        role: "user",
+        status: "active",
+        created_at: "2026-08-12T00:00:00Z",
+      },
+      {
+        id: "u2",
+        kind: "user",
+        email: "b@example.com",
+        nickname: "Bob",
+        phone: null,
+        email_verified: true,
+        role: "user",
+        status: "active",
+        created_at: "2026-08-12T00:00:00Z",
+      },
+    ];
+    const fetchMock = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url.includes("/api/v1/admin/users")) {
+        return Promise.resolve(usersResponse(users));
+      }
       if (init?.method === "POST") {
         return Promise.resolve(
           new Response(
@@ -97,9 +132,18 @@ describe("AdminNotificationsPanel", () => {
     });
     fireEvent.click(screen.getByRole("checkbox", { name: /邮件/ }));
     fireEvent.click(screen.getByRole("radio", { name: "指定用户" }));
-    fireEvent.change(screen.getByLabelText("收件人邮箱（每行一个）"), {
-      target: { value: "a@example.com\nb@example.com" },
-    });
+    await waitFor(() =>
+      expect(
+        screen.getByRole("checkbox", { name: "选择 a@example.com" })
+      ).toBeInTheDocument()
+    );
+    fireEvent.click(
+      screen.getByRole("checkbox", { name: "选择 a@example.com" })
+    );
+    fireEvent.click(
+      screen.getByRole("checkbox", { name: "选择 b@example.com" })
+    );
+    expect(screen.getByText("已选 2 人")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "发送通知" }));
     await waitFor(() => {
       const post = fetchMock.mock.calls.find(
@@ -111,9 +155,59 @@ describe("AdminNotificationsPanel", () => {
       const body = JSON.parse(
         String((post as [unknown, RequestInit])[1].body)
       );
-      expect(body.emails).toEqual(["a@example.com", "b@example.com"]);
+      expect(body.user_ids).toEqual(["u1", "u2"]);
+      expect(body.emails).toBeUndefined();
       expect(body.in_site).toBe(true);
       expect(body.email).toBe(true);
     });
+  });
+
+  it("指定用户未勾选时提示并阻止发送", async () => {
+    const fetchMock = vi.fn(
+      (input: RequestInfo | URL, _init?: RequestInit) => {
+        const url = String(input);
+        if (url.includes("/api/v1/admin/users")) {
+          return Promise.resolve(
+            usersResponse([
+              {
+                id: "u1",
+                kind: "user",
+                email: "a@example.com",
+                nickname: "Alice",
+                phone: null,
+                email_verified: true,
+                role: "user",
+                status: "active",
+                created_at: "2026-08-12T00:00:00Z",
+              },
+            ])
+          );
+        }
+        return Promise.resolve(historyResponse());
+      }
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    renderWithProviders(<AdminNotificationsPanel />);
+    fireEvent.change(screen.getByLabelText("标题"), {
+      target: { value: "t" },
+    });
+    fireEvent.change(screen.getByLabelText("正文"), {
+      target: { value: "b" },
+    });
+    fireEvent.click(screen.getByRole("radio", { name: "指定用户" }));
+    await waitFor(() =>
+      expect(
+        screen.getByRole("checkbox", { name: "选择 a@example.com" })
+      ).toBeInTheDocument()
+    );
+    fireEvent.click(screen.getByRole("button", { name: "发送通知" }));
+    await waitFor(() =>
+      expect(screen.getByText("请选择收件人")).toBeInTheDocument()
+    );
+    expect(
+      fetchMock.mock.calls.some(
+        ([, init]) => (init as RequestInit | undefined)?.method === "POST"
+      )
+    ).toBe(false);
   });
 });

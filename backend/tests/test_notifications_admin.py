@@ -5,7 +5,7 @@ from sqlalchemy import select
 from app.models.audit_log import AuditLog
 from app.models.notification import Notification
 from app.models.notification_recipient import NotificationRecipient
-from app.models.user import User
+from app.models.user import User, UserStatus
 from app.security.passwords import hash_password
 from tests.test_admin_sessions import login_admin
 
@@ -65,8 +65,10 @@ def test_send_email_to_specific_users_renders_placeholders(
     client, db_session, captured_email
 ) -> None:
     login_admin(client, db_session)
-    make_user(db_session, "alice@example.com", "Alice")
-    make_user(db_session, "bob@example.com", "Bob", email_notifications=False)
+    alice = make_user(db_session, "alice@example.com", "Alice")
+    bob = make_user(
+        db_session, "bob@example.com", "Bob", email_notifications=False
+    )
 
     response = client.post(
         "/api/v1/admin/notifications",
@@ -75,12 +77,13 @@ def test_send_email_to_specific_users_renders_placeholders(
             "body": "邮箱：{email}",
             "in_site": False,
             "email": True,
-            "emails": ["ALICE@example.com", "bob@example.com"],
+            "user_ids": [str(alice.id), str(bob.id)],
         },
     )
     assert response.status_code == 200
     data = response.json()
     assert data["recipient_count"] == 2
+    assert data["skipped"] == 0
     assert data["email_sent"] == 1  # bob 关闭邮件通知，被跳过
     assert data["email_failed"] == 0
 
@@ -95,7 +98,36 @@ def test_send_email_to_specific_users_renders_placeholders(
     assert recipients == []
 
 
-def test_send_notification_rejects_missing_emails(client, db_session) -> None:
+def test_send_notification_skips_missing_and_disabled_users(
+    client, db_session
+) -> None:
+    login_admin(client, db_session)
+    alice = make_user(db_session, "alice@example.com", "Alice")
+    disabled = make_user(
+        db_session,
+        "disabled@example.com",
+        "Disabled",
+        status=UserStatus.disabled,
+    )
+    response = client.post(
+        "/api/v1/admin/notifications",
+        json={
+            "title": "t",
+            "body": "b",
+            "in_site": True,
+            "email": False,
+            "user_ids": [str(alice.id), str(disabled.id), str(uuid.uuid4())],
+        },
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["recipient_count"] == 1
+    assert data["skipped"] == 2
+
+
+def test_send_notification_rejects_when_no_valid_recipients(
+    client, db_session
+) -> None:
     login_admin(client, db_session)
     response = client.post(
         "/api/v1/admin/notifications",
@@ -104,11 +136,10 @@ def test_send_notification_rejects_missing_emails(client, db_session) -> None:
             "body": "b",
             "in_site": True,
             "email": False,
-            "emails": ["nobody@example.com"],
+            "user_ids": [str(uuid.uuid4())],
         },
     )
-    assert response.status_code == 404
-    assert "nobody@example.com" in response.json()["detail"]
+    assert response.status_code == 400
 
 
 def test_send_notification_requires_a_channel(client, db_session) -> None:

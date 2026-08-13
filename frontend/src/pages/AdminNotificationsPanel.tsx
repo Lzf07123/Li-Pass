@@ -1,12 +1,10 @@
 import { useCallback, useEffect, useState } from "react";
 
-import { adminNotificationsApi } from "../api/client";
-import type { AdminNotificationOut } from "../api/types";
+import { adminNotificationsApi, adminUsersApi } from "../api/client";
+import type { AdminNotificationOut, AdminUserOut } from "../api/types";
 import { AsyncButton } from "../components/AsyncButton";
 import { useAsyncAction } from "../hooks/useAsyncAction";
 import { useToast } from "../hooks/useToast";
-
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 function formatTime(iso: string) {
   return new Date(iso).toLocaleString("zh-CN", {
@@ -25,7 +23,12 @@ export function AdminNotificationsPanel() {
   const [inSite, setInSite] = useState(true);
   const [email, setEmail] = useState(false);
   const [scope, setScope] = useState<"all" | "specific">("all");
-  const [emailsText, setEmailsText] = useState("");
+  const [userQuery, setUserQuery] = useState("");
+  const [availableUsers, setAvailableUsers] = useState<AdminUserOut[]>([]);
+  const [selectedUserIds, setSelectedUserIds] = useState<Set<string>>(
+    new Set()
+  );
+  const [usersLoading, setUsersLoading] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [history, setHistory] = useState<AdminNotificationOut[]>([]);
   const [total, setTotal] = useState(0);
@@ -49,28 +52,71 @@ export function AdminNotificationsPanel() {
     void load();
   }, [load]);
 
+  useEffect(() => {
+    if (scope !== "specific") return;
+    let cancelled = false;
+    setUsersLoading(true);
+    adminUsersApi
+      .list("", "active", "")
+      .then((items) => {
+        if (!cancelled) {
+          setAvailableUsers(
+            items.filter((user) => user.kind === "user")
+          );
+        }
+      })
+      .catch((err) =>
+        toast.error(err instanceof Error ? err.message : "加载用户失败")
+      )
+      .finally(() => {
+        if (!cancelled) setUsersLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [scope, toast]);
+
+  const filteredUsers = availableUsers.filter((user) => {
+    const query = userQuery.trim().toLowerCase();
+    if (!query) return true;
+    return (
+      user.email.toLowerCase().includes(query) ||
+      (user.nickname ?? "").toLowerCase().includes(query)
+    );
+  });
+
+  function toggleUser(id: string) {
+    setSelectedUserIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  }
+
   const sendAction = useAsyncAction(
     async () => {
-      const emails =
-        scope === "specific"
-          ? emailsText
-              .split(/[\n,，;；\s]+/)
-              .map((item) => item.trim())
-              .filter(Boolean)
-          : undefined;
+      const userIds =
+        scope === "specific" ? Array.from(selectedUserIds) : undefined;
       const result = await adminNotificationsApi.create({
         title: title.trim(),
         body: body.trim(),
         in_site: inSite,
         email,
-        ...(emails ? { emails } : {}),
+        ...(userIds ? { user_ids: userIds } : {}),
       });
       setTitle("");
       setBody("");
-      setEmailsText("");
+      setSelectedUserIds(new Set());
+      setUserQuery("");
       await load();
       toast.success(
-        `已发送给 ${result.recipient_count} 人，邮件成功 ${result.email_sent} 封`
+        `已发送给 ${result.recipient_count} 人${
+          result.skipped ? `，跳过 ${result.skipped} 人` : ""
+        }，邮件成功 ${result.email_sent} 封`
       );
     },
     {
@@ -90,17 +136,8 @@ export function AdminNotificationsPanel() {
       return;
     }
     if (scope === "specific") {
-      const emails = emailsText
-        .split(/[\n,，;；\s]+/)
-        .map((item) => item.trim())
-        .filter(Boolean);
-      if (emails.length === 0) {
-        setFormError("请填写收件人邮箱");
-        return;
-      }
-      const bad = emails.find((item) => !EMAIL_RE.test(item));
-      if (bad) {
-        setFormError(`邮箱格式不正确：${bad}`);
+      if (selectedUserIds.size === 0) {
+        setFormError("请选择收件人");
         return;
       }
     }
@@ -152,13 +189,49 @@ export function AdminNotificationsPanel() {
             指定用户
           </label>
           {scope === "specific" && (
-            <textarea
-              aria-label="收件人邮箱（每行一个）"
-              value={emailsText}
-              onChange={(event) => setEmailsText(event.target.value)}
-              placeholder={"每行一个邮箱，例如：\na@example.com\nb@example.com"}
-              className="input min-h-24 w-full"
-            />
+            <div className="space-y-2 rounded-lg border border-border p-3">
+              <input
+                aria-label="搜索用户"
+                value={userQuery}
+                onChange={(event) => setUserQuery(event.target.value)}
+                placeholder="按邮箱或昵称搜索"
+                className="input-sm w-full"
+              />
+              <div className="max-h-48 overflow-y-auto rounded-lg border border-border">
+                {usersLoading ? (
+                  <p className="p-3 text-sm text-muted">加载中…</p>
+                ) : filteredUsers.length === 0 ? (
+                  <p className="p-3 text-sm text-muted">
+                    没有可选择的已注册用户
+                  </p>
+                ) : (
+                  filteredUsers.map((user) => (
+                    <label
+                      key={user.id}
+                      className="flex items-center gap-2 border-b border-border/50 px-3 py-2 text-sm text-foreground last:border-b-0"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={selectedUserIds.has(user.id)}
+                        onChange={() => toggleUser(user.id)}
+                        aria-label={`选择 ${user.email}`}
+                      />
+                      <span className="min-w-0 flex-1 truncate">
+                        {user.email}
+                      </span>
+                      {user.nickname && (
+                        <span className="truncate text-xs text-muted">
+                          {user.nickname}
+                        </span>
+                      )}
+                    </label>
+                  ))
+                )}
+              </div>
+              <p className="text-xs text-muted">
+                已选 {selectedUserIds.size} 人
+              </p>
+            </div>
           )}
         </div>
         <div className="space-y-2">
