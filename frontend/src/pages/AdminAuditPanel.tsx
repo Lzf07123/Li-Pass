@@ -18,6 +18,7 @@ const CATEGORY_LABELS: Record<string, string> = {
   admin_client: "应用管理",
   admin_block: "黑名单",
   admin_settings: "站点设置",
+  admin_notification: "通知管理",
   security: "安全",
   other: "其他",
 };

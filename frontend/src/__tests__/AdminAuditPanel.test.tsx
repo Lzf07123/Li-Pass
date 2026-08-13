@@ -59,4 +59,23 @@ describe("AdminAuditPanel", () => {
       within(screen.getByRole("table")).getByText("安全")
     ).toBeInTheDocument();
   });
+
+  it("筛选分类包含通知管理", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        new Response("[]", {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        })
+      )
+    );
+    renderWithProviders(<AdminAuditPanel />);
+    fireEvent.change(screen.getByLabelText("审计分类"), {
+      target: { value: "admin_notification" },
+    });
+    expect(
+      (screen.getByLabelText("审计分类") as HTMLSelectElement).value
+    ).toBe("admin_notification");
+  });
 });
