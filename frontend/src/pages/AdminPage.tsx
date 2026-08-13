@@ -10,6 +10,7 @@ import { SiteFooter } from "../components/SiteFooter";
 import { FadeIn } from "../components/bits/FadeIn";
 import { AdminAuditPanel } from "./AdminAuditPanel";
 import { AdminClientsPage } from "./AdminClientsPage";
+import { AdminNotificationsPanel } from "./AdminNotificationsPanel";
 import { AdminSessionsPanel } from "./AdminSessionsPanel";
 import { AdminSettingsPanel } from "./AdminSettingsPanel";
 import { AdminUsersPanel } from "./AdminUsersPanel";
@@ -17,6 +18,7 @@ import { AdminUsersPanel } from "./AdminUsersPanel";
 const TABS = [
   { key: "users", label: "用户管理" },
   { key: "sessions", label: "会话监控" },
+  { key: "notifications", label: "通知管理" },
   { key: "clients", label: "应用管理" },
   { key: "settings", label: "站点设置" },
   { key: "audit", label: "审计日志" },
@@ -97,6 +99,7 @@ export function AdminPage() {
         <FadeIn key={tab} inView={false} delay={0.04}>
           {tab === "users" && <AdminUsersPanel currentAdminId={me.id} />}
           {tab === "sessions" && <AdminSessionsPanel />}
+          {tab === "notifications" && <AdminNotificationsPanel />}
           {tab === "clients" && <AdminClientsPage />}
           {tab === "settings" && <AdminSettingsPanel />}
           {tab === "audit" && <AdminAuditPanel />}
