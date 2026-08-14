@@ -213,10 +213,27 @@ export interface Ip2regionStatus {
   update_interval_hours: number;
 }
 
-export interface Ip2regionUpdateResult {
-  version: string;
-  data_updated_at: string;
-  changed: boolean;
+export interface Ip2regionUpdateStatus {
+  state: "idle" | "running" | "success" | "error";
+  stage:
+    | "idle"
+    | "checking"
+    | "downloading_v4"
+    | "downloading_v6"
+    | "installing";
+  downloaded_bytes: number;
+  total_bytes: number;
+  percent: number;
+  version: string | null;
+  changed: boolean | null;
+  message: string | null;
+  started_at: string | null;
+  finished_at: string | null;
+}
+
+export interface Ip2regionUpdateStartResult {
+  started: boolean;
+  status: Ip2regionUpdateStatus;
 }
 
 export interface AuditLogOut {

@@ -14,7 +14,8 @@ import type {
   ClientSecretOut,
   ClientUpdate,
   ConsentInfo,
-  Ip2regionUpdateResult,
+  Ip2regionUpdateStartResult,
+  Ip2regionUpdateStatus,
   MessageListOut,
   RevokeSessionsResult,
   SendNotificationResult,
@@ -166,9 +167,19 @@ export const adminSettingsApi = {
       body: JSON.stringify(data),
     }),
   ip2regionUpdate: () =>
-    api<Ip2regionUpdateResult>("/api/v1/admin/settings/ip2region/update", {
-      method: "POST",
-    }),
+    api<Ip2regionUpdateStartResult>(
+      "/api/v1/admin/settings/ip2region/update",
+      {
+        method: "POST",
+      },
+    ),
+  ip2regionUpdateStatus: () =>
+    api<Ip2regionUpdateStatus>(
+      "/api/v1/admin/settings/ip2region/update/status",
+      {
+        method: "GET",
+      },
+    ),
 };
 
 export const adminSystemApi = {

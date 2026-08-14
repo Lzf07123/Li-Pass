@@ -1,3 +1,6 @@
+import threading
+import time
+
 from sqlalchemy import select
 
 from app.core.config import get_settings
@@ -152,64 +155,136 @@ def test_put_ip2region_auto_update_settings(
     assert logs[0].detail["ip2region_update_interval_hours"] == 48
 
 
-def test_ip2region_manual_update_endpoint(
+def _wait_ip2region_status(client, predicate, timeout: float = 5.0) -> dict:
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        response = client.get("/api/v1/admin/settings/ip2region/update/status")
+        assert response.status_code == 200
+        body = response.json()
+        if predicate(body):
+            return body
+        time.sleep(0.02)
+    raise AssertionError("等待 IP 库更新状态超时")
+
+
+def test_ip2region_update_runs_in_background_and_completes(
     client, db_session, captured_email, tmp_path, monkeypatch
 ) -> None:
-    from app.api.routes import admin_settings as routes
+    from app.services import ip2region_update
 
     _isolate_ip2region(tmp_path, monkeypatch)
-    monkeypatch.setattr(
-        routes,
-        "update_ip2region",
-        lambda db, actor=None, request=None: {
+    calls = []
+
+    def fake_update(db, actor=None, request=None, on_progress=None):
+        calls.append(1)
+        if on_progress:
+            on_progress("downloading_v4", 100, 200)
+            on_progress("downloading_v6", 200, 200)
+        return {
             "version": "v9.9.9",
             "data_updated_at": "2026-08-14T00:00:00+00:00",
             "changed": True,
-        },
+        }
+
+    monkeypatch.setattr(ip2region_update, "update_ip2region", fake_update)
+    _login_admin(client, db_session)
+
+    response = client.post("/api/v1/admin/settings/ip2region/update")
+    assert response.status_code == 202
+    assert response.json()["started"] is True
+
+    body = _wait_ip2region_status(client, lambda s: s["state"] == "success")
+    assert body["version"] == "v9.9.9"
+    assert body["changed"] is True
+    assert calls == [1]
+
+
+def test_ip2region_update_reports_download_progress(
+    client, db_session, captured_email, tmp_path, monkeypatch
+) -> None:
+    from app.services import ip2region_update
+
+    _isolate_ip2region(tmp_path, monkeypatch)
+    event = threading.Event()
+
+    def fake_update(db, actor=None, request=None, on_progress=None):
+        on_progress("downloading_v4", 100, 200)
+        event.wait(5)
+        return {
+            "version": "v9.9.9",
+            "data_updated_at": "2026-08-14T00:00:00+00:00",
+            "changed": True,
+        }
+
+    monkeypatch.setattr(ip2region_update, "update_ip2region", fake_update)
+    _login_admin(client, db_session)
+
+    assert (
+        client.post("/api/v1/admin/settings/ip2region/update").status_code
+        == 202
     )
-    _login_admin(client, db_session)
+    body = _wait_ip2region_status(
+        client,
+        lambda s: s["stage"] == "downloading_v4" and s["percent"] == 50.0,
+    )
+    assert body["downloaded_bytes"] == 100
+    assert body["total_bytes"] == 200
 
-    response = client.post("/api/v1/admin/settings/ip2region/update")
-    assert response.status_code == 200
-    assert response.json()["version"] == "v9.9.9"
-    assert response.json()["changed"] is True
+    event.set()
+    _wait_ip2region_status(client, lambda s: s["state"] == "success")
 
 
-def test_ip2region_manual_update_conflict_returns_409(
+def test_ip2region_update_conflict_returns_409(
     client, db_session, captured_email, tmp_path, monkeypatch
 ) -> None:
-    from app.api.routes import admin_settings as routes
-    from app.services.ip2region_update import UpdateInProgress
+    from app.services import ip2region_update
+
+    _isolate_ip2region(tmp_path, monkeypatch)
+    event = threading.Event()
+
+    def slow_update(db, actor=None, request=None, on_progress=None):
+        event.wait(5)
+        return {
+            "version": "v9.9.9",
+            "data_updated_at": "2026-08-14T00:00:00+00:00",
+            "changed": True,
+        }
+
+    monkeypatch.setattr(ip2region_update, "update_ip2region", slow_update)
+    _login_admin(client, db_session)
+
+    assert (
+        client.post("/api/v1/admin/settings/ip2region/update").status_code
+        == 202
+    )
+    assert (
+        client.post("/api/v1/admin/settings/ip2region/update").status_code
+        == 409
+    )
+
+    event.set()
+    _wait_ip2region_status(client, lambda s: s["state"] == "success")
+
+
+def test_ip2region_update_failure_surfaces_status(
+    client, db_session, captured_email, tmp_path, monkeypatch
+) -> None:
+    from app.services import ip2region_update
 
     _isolate_ip2region(tmp_path, monkeypatch)
 
-    def conflict(db, actor=None, request=None):
-        raise UpdateInProgress()
+    def fail_update(db, actor=None, request=None, on_progress=None):
+        raise RuntimeError("版本 v9.9.9 未列入信任清单")
 
-    monkeypatch.setattr(routes, "update_ip2region", conflict)
+    monkeypatch.setattr(ip2region_update, "update_ip2region", fail_update)
     _login_admin(client, db_session)
 
-    response = client.post("/api/v1/admin/settings/ip2region/update")
-    assert response.status_code == 409
-
-
-def test_ip2region_manual_update_failure_does_not_leak_internals(
-    client, db_session, captured_email, tmp_path, monkeypatch
-) -> None:
-    from app.api.routes import admin_settings as routes
-
-    _isolate_ip2region(tmp_path, monkeypatch)
-    secret = "https://internal.example.com/secret-path"
-
-    def fail(db, actor=None, request=None):
-        raise RuntimeError(secret)
-
-    monkeypatch.setattr(routes, "update_ip2region", fail)
-    _login_admin(client, db_session)
-
-    response = client.post("/api/v1/admin/settings/ip2region/update")
-    assert response.status_code == 502
-    assert secret not in response.text
+    assert (
+        client.post("/api/v1/admin/settings/ip2region/update").status_code
+        == 202
+    )
+    body = _wait_ip2region_status(client, lambda s: s["state"] == "error")
+    assert "未列入信任清单" in body["message"]
 
 
 def test_ip2region_manual_update_requires_admin(
@@ -217,7 +292,19 @@ def test_ip2region_manual_update_requires_admin(
 ) -> None:
     _isolate_ip2region(tmp_path, monkeypatch)
     assert client.post("/api/v1/admin/settings/ip2region/update").status_code == 401
+    assert (
+        client.get(
+            "/api/v1/admin/settings/ip2region/update/status"
+        ).status_code
+        == 401
+    )
     register_and_login(client, captured_email)
     assert (
         client.post("/api/v1/admin/settings/ip2region/update").status_code == 403
+    )
+    assert (
+        client.get(
+            "/api/v1/admin/settings/ip2region/update/status"
+        ).status_code
+        == 403
     )

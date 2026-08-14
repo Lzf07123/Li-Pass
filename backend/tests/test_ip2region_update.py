@@ -299,7 +299,9 @@ def test_update_logs_audit_when_changed(db_session, tmp_path, monkeypatch):
     monkeypatch.setattr(
         update,
         "_download_to",
-        lambda url, destination, timeout: destination.write_bytes(b"x"),
+        lambda url, destination, timeout, on_progress=None: destination.write_bytes(
+            b"x"
+        ),
     )
     monkeypatch.setattr(
         update,

@@ -20,6 +20,8 @@
 
 ### 行为变更
 
+- 应用广场改为单列行布局：每个网站占一整行，左侧 logo/名称/描述（横置单行截断），「进入」「取消授权」按钮贴最右；窄屏自动换行仍右对齐。全局 `.btn`/`.btn-link` 禁止文字换行，避免按钮文案异常折行。
+- 站点设置「IP 归属地库」的「立即检查更新」改为后台任务 + 实时进度：`POST /settings/ip2region/update` 立即返回 202，下载在服务端后台继续（独立 DB 会话），新增 `GET /settings/ip2region/update/status` 上报阶段（检查/下载 IPv4/下载 IPv6/安装）与字节级百分比；前端每秒轮询并显示进度条，离开页面不中断、回来可恢复，完成/失败均有提示。设计见 [IP 库后台更新与实时进度设计](docs/superpowers/specs/2026-08-14-admin-ip2region-update-progress-design.md)。
 - ip2region 数据与 Python 绑定源码改为随仓库跟踪入库（`backend/data/ip2region/` 与 `backend/ip2region/`，v3.17.0，SHA256 与信任清单一致），镜像构建直接 COPY、不再联网下载，解决远端拉取过慢问题；移除 `IP2REGION_DOWNLOAD_BASE_URL` 构建参数（运行期更新仍使用该环境变量）。更新数据/绑定时先运行 `python scripts/download_ip2region.py --data-dir data/ip2region --binding-dir ip2region` 再提交。
 - 桌面端留白优化：已登录页面统一放宽内容区宽度——管理后台、用户中心、收件箱由 `max-w-5xl/4xl/3xl` 统一为 `max-w-7xl`（1280px），顶栏/骨架屏/页脚同步，并新增 `lg:px-8` 大屏内边距；登录/注册/授权确认等表单页保持窄版（`max-w-md`）不变。
 - 管理后台「用户管理」新增「刷新」按钮：按当前搜索词与筛选条件重新拉取用户列表，加载中禁用、成功/失败均有提示，与会话监控等其他管理面板保持一致。设计见 [用户管理刷新按钮设计](docs/superpowers/specs/2026-08-14-admin-users-refresh-button-design.md)。

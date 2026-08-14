@@ -169,7 +169,7 @@
 
   /* 按钮 */
   .btn {
-    @apply relative inline-flex cursor-pointer select-none items-center justify-center gap-2 overflow-hidden rounded-lg px-4 py-3 text-sm font-medium leading-none disabled:pointer-events-none disabled:opacity-50;
+    @apply relative inline-flex cursor-pointer select-none items-center justify-center gap-2 overflow-hidden whitespace-nowrap rounded-lg px-4 py-3 text-sm font-medium leading-none disabled:pointer-events-none disabled:opacity-50;
     transition:
       color var(--motion-fast) var(--ease-out),
       background-color var(--motion-fast) var(--ease-out),
@@ -197,7 +197,7 @@
     @apply bg-destructive text-destructive-foreground shadow-sm hover:opacity-90;
   }
   .btn-link {
-    @apply cursor-pointer px-0 py-0 text-primary hover:underline;
+    @apply cursor-pointer whitespace-nowrap px-0 py-0 text-primary hover:underline;
   }
 
   /* 表单 */

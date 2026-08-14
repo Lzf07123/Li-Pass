@@ -29,6 +29,7 @@ def _clear_memory_state():
     """内存限流器/挑战存储/待授权存储/统计缓存是进程级单例，测试间共享，
     必须在每个用例前清空，避免配额耗尽或跨测试数据串扰。"""
     from app.services.admin_stats import _CACHE as _stats_cache
+    from app.services.ip2region_progress import reset_progress_store
     from app.services.pending_requests import _memory_store as _pending_store
     from app.services.rate_limit import _memory_limiter
     from app.services.twofa import _memory_store as _twofa_store
@@ -37,6 +38,7 @@ def _clear_memory_state():
     _pending_store._items.clear()
     _twofa_store._items.clear()
     _stats_cache.clear()
+    reset_progress_store()
     yield
 
 

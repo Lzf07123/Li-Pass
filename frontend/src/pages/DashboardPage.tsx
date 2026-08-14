@@ -812,30 +812,41 @@ export function DashboardPage() {
                 还没有已授权的网站，在接入网站完成一次授权登录后会自动出现在这里。
               </p>
             )}
-            <div className={`grid gap-3 sm:grid-cols-2 ${appsBreathing ? "animate-breath" : ""}`}>
+            <div className={`flex flex-col gap-3 ${appsBreathing ? "animate-breath" : ""}`}>
               {apps.map((app) => (
                 <div
                   key={app.client_id}
-                  className="card-interactive flex flex-col gap-3 rounded-xl border border-border bg-surface p-4"
+                  className="card-interactive flex flex-wrap items-center gap-x-4 gap-y-3 rounded-xl border border-border bg-surface px-4 py-3"
                 >
-                  <div className="flex items-center gap-2">
+                  <div className="flex min-w-0 flex-1 items-center gap-3">
                     {app.logo_url ? (
                       <img
                         src={app.logo_url}
                         alt={`${app.name} 图标`}
-                        className="h-8 w-8 rounded object-contain"
+                        className="h-8 w-8 shrink-0 rounded object-contain"
                       />
                     ) : (
                       <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded bg-primary-soft text-sm font-bold text-primary">
                         {app.name.slice(0, 1).toUpperCase()}
                       </span>
                     )}
-                    <p className="truncate font-semibold text-foreground">{app.name}</p>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate font-semibold text-foreground">
+                        {app.name}
+                      </p>
+                      {app.description && (
+                        <p className="truncate text-sm text-muted">
+                          {app.description}
+                        </p>
+                      )}
+                    </div>
                   </div>
-                  <p className="line-clamp-2 text-sm text-muted">{app.description}</p>
-                  <div className="mt-auto flex gap-2">
+                  <div className="ml-auto flex shrink-0 items-center gap-2">
                     {app.home_url && (
-                      <a href={app.home_url} className="btn btn-primary flex-1">
+                      <a
+                        href={app.home_url}
+                        className="btn btn-primary"
+                      >
                         进入
                       </a>
                     )}

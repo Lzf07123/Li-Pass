@@ -10,6 +10,7 @@ import os
 import shutil
 from datetime import datetime, timezone
 from pathlib import Path
+from types import SimpleNamespace
 from urllib.request import Request, urlopen
 
 from sqlalchemy.orm import Session
@@ -81,12 +82,26 @@ def fetch_latest_version() -> str:
     return str(tag)
 
 
-def _download_to(url: str, destination: Path, timeout: float) -> None:
+def _download_to(
+    url: str,
+    destination: Path,
+    timeout: float,
+    on_progress=None,
+) -> None:
     request = Request(url, headers={"User-Agent": HTTP_USER_AGENT})
     with urlopen(request, timeout=timeout) as response, open(
         destination, "wb"
     ) as out:
-        shutil.copyfileobj(response, out)
+        total = int(response.headers.get("Content-Length") or 0)
+        downloaded = 0
+        while True:
+            chunk = response.read(65536)
+            if not chunk:
+                break
+            out.write(chunk)
+            downloaded += len(chunk)
+            if on_progress is not None:
+                on_progress(downloaded, total)
 
 
 def read_meta(data_dir: Path) -> dict:
@@ -195,11 +210,19 @@ def install(data_dir: Path, v4_src: Path, v6_src: Path, version: str) -> dict:
     return {"version": version, "data_updated_at": timestamp}
 
 
-def update_ip2region(db: Session, actor=None, request=None) -> dict:
-    """检查最新版本，仅在落后时下载安装；返回 changed 标记。"""
+def update_ip2region(
+    db: Session, actor=None, request=None, on_progress=None
+) -> dict:
+    """检查最新版本，仅在落后时下载安装；返回 changed 标记。
+
+    on_progress(stage, downloaded_bytes, total_bytes) 会在每个阶段被回调，
+    供后台任务实时上报进度（stage ∈ checking/downloading_v4/downloading_v6/installing）。
+    """
+    emit = on_progress or (lambda *args: None)
     settings = get_settings()
     data_dir = Path(settings.ip2region_data_dir)
     with _file_update_lock(data_dir):
+        emit("checking", 0, 0)
         latest = fetch_latest_version()
         meta = read_meta(data_dir)
         both_ready = (data_dir / V4_FILENAME).is_file() and (
@@ -224,12 +247,15 @@ def update_ip2region(db: Session, actor=None, request=None) -> dict:
                 f"{base}/{latest}/data/{V4_FILENAME}",
                 v4_temp,
                 settings.ip2region_http_timeout_seconds,
+                on_progress=lambda d, t: emit("downloading_v4", d, t),
             )
             _download_to(
                 f"{base}/{latest}/data/{V6_FILENAME}",
                 v6_temp,
                 settings.ip2region_http_timeout_seconds,
+                on_progress=lambda d, t: emit("downloading_v6", d, t),
             )
+            emit("installing", 0, 0)
             result = install(data_dir, v4_temp, v6_temp, latest)
         finally:
             shutil.rmtree(temp_dir, ignore_errors=True)
@@ -256,6 +282,72 @@ def update_ip2region(db: Session, actor=None, request=None) -> dict:
                 detail={"version": latest},
             )
         return result
+
+
+def run_update_task(
+    db_factory,
+    actor_id: str | None = None,
+    ip: str | None = None,
+    user_agent: str | None = None,
+    started_at: str | None = None,
+) -> None:
+    """在后台线程执行更新并维护进度状态；异常只写入状态，不外抛。"""
+    from app.services.ip2region_progress import UpdateProgress, get_progress_store
+
+    store = get_progress_store()
+    started_at = started_at or datetime.now(timezone.utc).isoformat()
+    last_stage = "checking"
+
+    def on_progress(stage: str, downloaded: int, total: int) -> None:
+        nonlocal last_stage
+        last_stage = stage
+        percent = round(downloaded / total * 100, 1) if total else 0.0
+        store.set(
+            UpdateProgress(
+                state="running",
+                stage=stage,
+                downloaded_bytes=downloaded,
+                total_bytes=total,
+                percent=percent,
+                started_at=started_at,
+            )
+        )
+
+    try:
+        db = next(db_factory())
+        try:
+            actor = SimpleNamespace(id=actor_id) if actor_id else None
+            request = SimpleNamespace(
+                client=SimpleNamespace(host=ip) if ip else None,
+                headers={"user-agent": user_agent} if user_agent else {},
+            )
+            result = update_ip2region(
+                db, actor=actor, request=request, on_progress=on_progress
+            )
+        finally:
+            db.close()
+    except Exception as exc:
+        store.set(
+            UpdateProgress(
+                state="error",
+                stage=last_stage,
+                message=str(exc) or exc.__class__.__name__,
+                started_at=started_at,
+                finished_at=datetime.now(timezone.utc).isoformat(),
+            )
+        )
+        return
+    store.set(
+        UpdateProgress(
+            state="success",
+            stage="installing",
+            percent=100.0,
+            version=result.get("version"),
+            changed=result.get("changed"),
+            started_at=started_at,
+            finished_at=datetime.now(timezone.utc).isoformat(),
+        )
+    )
 
 
 def ip2region_status(db: Session) -> dict:

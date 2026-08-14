@@ -1,4 +1,5 @@
-import logging
+import asyncio
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel, Field
@@ -9,11 +10,11 @@ from app.core.config import get_settings
 from app.core.db import get_db
 from app.models.user import User
 from app.services.audit import log_audit, log_rate_limit_rejected_once
-from app.services.ip2region_update import (
-    UpdateInProgress,
-    ip2region_status,
-    update_ip2region,
+from app.services.ip2region_progress import (
+    UpdateProgress,
+    get_progress_store,
 )
+from app.services.ip2region_update import ip2region_status, run_update_task
 from app.services.rate_limit import get_rate_limiter
 from app.services.site_settings import (
     PUBLIC_REGISTRATION_ENABLED_KEY,
@@ -21,8 +22,6 @@ from app.services.site_settings import (
     set_site_setting_bool,
     set_site_setting_int,
 )
-
-logger = logging.getLogger(__name__)
 
 router = APIRouter(
     prefix="/api/v1/admin",
@@ -112,13 +111,17 @@ def update_site_settings(
     }
 
 
-@router.post("/settings/ip2region/update", response_model=dict)
-def update_ip2region_db(
+@router.post(
+    "/settings/ip2region/update",
+    response_model=dict,
+    status_code=status.HTTP_202_ACCEPTED,
+)
+async def update_ip2region_db(
     request: Request,
     actor: User = Depends(get_current_admin),
     db: Session = Depends(get_db),
 ) -> dict:
-    """立即检查并更新 ip2region 离线库；已是最新时 changed=false。"""
+    """后台检查并更新 ip2region 离线库，立即返回；进度经 status 接口轮询。"""
     settings = get_settings()
     count = get_rate_limiter().hit(
         "admin_ip2region_update",
@@ -138,15 +141,33 @@ def update_ip2region_db(
         raise HTTPException(
             status.HTTP_429_TOO_MANY_REQUESTS, "操作过于频繁，请稍后再试"
         )
-    try:
-        return update_ip2region(db, actor=actor, request=request)
-    except UpdateInProgress:
+    store = get_progress_store()
+    if store.get()["state"] == "running":
         raise HTTPException(
-            status.HTTP_409_CONFLICT, "已有更新任务进行中，请稍后再试"
+            status.HTTP_409_CONFLICT,
+            "已有更新任务进行中，请稍后再试（可在状态接口查看进度）",
         )
-    except Exception as exc:
-        logger.exception("IP 库更新失败")
-        raise HTTPException(
-            status.HTTP_502_BAD_GATEWAY,
-            "检查或下载最新 IP 库失败，请稍后重试或联系管理员",
-        ) from exc
+    started_at = datetime.now(timezone.utc).isoformat()
+    store.set(
+        UpdateProgress(state="running", stage="checking", started_at=started_at)
+    )
+    # 后台任务使用独立 DB 会话：请求结束（会话关闭）后下载仍继续。
+    # dependency_overrides 让测试环境注入内存 SQLite 会话工厂。
+    db_factory = request.app.dependency_overrides.get(get_db, get_db)
+    asyncio.create_task(
+        asyncio.to_thread(
+            run_update_task,
+            db_factory,
+            str(actor.id),
+            request.client.host if request.client else None,
+            request.headers.get("user-agent"),
+            started_at,
+        )
+    )
+    return {"started": True, "status": store.get()}
+
+
+@router.get("/settings/ip2region/update/status", response_model=dict)
+def get_ip2region_update_status() -> dict:
+    """返回后台更新任务的进度快照；从未启动时为 idle。"""
+    return get_progress_store().get()
