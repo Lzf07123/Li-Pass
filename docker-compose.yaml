@@ -69,7 +69,6 @@ services:
       context: ./backend
       args:
         IMAGE_REGISTRY: ${IMAGE_REGISTRY:-}
-        IP2REGION_DOWNLOAD_BASE_URL: ${IP2REGION_DOWNLOAD_BASE_URL:-https://raw.githubusercontent.com/lionsoul2014/ip2region}
         PIP_INDEX_URL: ${PIP_INDEX_URL:-https://mirrors.ustc.edu.cn/pypi/simple}
     restart: unless-stopped
     init: true

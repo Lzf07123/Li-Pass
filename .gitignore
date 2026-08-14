@@ -71,6 +71,3 @@ uploads/
 *.sqlite3
 .oxlintcache/
 .vitest/
-
-# ip2region 离线数据（构建/脚本下载，不入库）
-backend/data/

@@ -20,6 +20,7 @@
 
 ### 行为变更
 
+- ip2region 数据与 Python 绑定源码改为随仓库跟踪入库（`backend/data/ip2region/` 与 `backend/ip2region/`，v3.17.0，SHA256 与信任清单一致），镜像构建直接 COPY、不再联网下载，解决远端拉取过慢问题；移除 `IP2REGION_DOWNLOAD_BASE_URL` 构建参数（运行期更新仍使用该环境变量）。更新数据/绑定时先运行 `python scripts/download_ip2region.py --data-dir data/ip2region --binding-dir ip2region` 再提交。
 - 桌面端留白优化：已登录页面统一放宽内容区宽度——管理后台、用户中心、收件箱由 `max-w-5xl/4xl/3xl` 统一为 `max-w-7xl`（1280px），顶栏/骨架屏/页脚同步，并新增 `lg:px-8` 大屏内边距；登录/注册/授权确认等表单页保持窄版（`max-w-md`）不变。
 - 管理后台「用户管理」新增「刷新」按钮：按当前搜索词与筛选条件重新拉取用户列表，加载中禁用、成功/失败均有提示，与会话监控等其他管理面板保持一致。设计见 [用户管理刷新按钮设计](docs/superpowers/specs/2026-08-14-admin-users-refresh-button-design.md)。
 - pip 源切换为中科大镜像 `https://mirrors.ustc.edu.cn/pypi/simple`：后端与演示站镜像构建通过 `PIP_INDEX_URL` 构建参数使用（海外构建可改回官方源），本地开发步骤同步更新；CI 保持官方 PyPI（GitHub 托管 runner 在海外走镜像更慢）。

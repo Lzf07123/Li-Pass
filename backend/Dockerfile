@@ -1,9 +1,7 @@
 ARG IMAGE_REGISTRY=
-ARG IP2REGION_DOWNLOAD_BASE_URL=https://raw.githubusercontent.com/lionsoul2014/ip2region
 ARG PIP_INDEX_URL=https://mirrors.ustc.edu.cn/pypi/simple
 FROM ${IMAGE_REGISTRY}python:3.12-slim
 # FROM 之前声明的 ARG 仅在 FROM 中可用，构建阶段需重新声明才能引用。
-ARG IP2REGION_DOWNLOAD_BASE_URL=https://raw.githubusercontent.com/lionsoul2014/ip2region
 ARG PIP_INDEX_URL=https://mirrors.ustc.edu.cn/pypi/simple
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
@@ -31,14 +29,10 @@ COPY app ./app
 COPY alembic.ini .
 COPY alembic ./alembic
 COPY scripts ./scripts
-# ip2region 离线数据与 Python 绑定均在构建期从固定 tag 拉取（SHA256 信任清单校验；
-# 数据在运行时可在站点设置中手动/自动更新）。绑定源码不随镜像 COPY，
-# 避免遗漏 COPY 导致容器启动 ModuleNotFoundError。
-RUN mkdir -p /app/data/ip2region \
-    && python scripts/download_ip2region.py \
-        --base-url "${IP2REGION_DOWNLOAD_BASE_URL}" \
-        --data-dir /app/data/ip2region \
-        --binding-dir /app/ip2region
+# ip2region Python 绑定与 xdb 数据均随仓库入库（v3.17.0，SHA256 已固定），
+# 构建期直接 COPY、不再联网下载；运行时仍可在站点设置中手动/自动更新。
+COPY ip2region ./ip2region
+COPY data/ip2region ./data/ip2region
 # 构建期冒烟检查：镜像内必须能完整导入应用（含全部路由与 vendored 依赖），
 # 把“遗漏 COPY 模块”这类问题前移到镜像构建阶段暴露。
 RUN python -c "import app.main"

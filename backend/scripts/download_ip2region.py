@@ -85,7 +85,7 @@ def main() -> int:
     parser.add_argument(
         "--binding-dir",
         default=None,
-        help="同时拉取 Python 绑定源码到该目录（镜像构建必需，本地开发可用 vendored 目录）",
+        help="同时拉取 Python 绑定源码到该目录（用于更新仓库入库的 vendored 目录）",
     )
     args = parser.parse_args()
     data_dir = Path(args.data_dir)
