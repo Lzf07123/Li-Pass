@@ -20,10 +20,12 @@
 
 ### 行为变更
 
+- pip 源切换为中科大镜像 `https://mirrors.ustc.edu.cn/pypi/simple`：后端与演示站镜像构建通过 `PIP_INDEX_URL` 构建参数使用（海外构建可改回官方源），本地开发步骤同步更新；CI 保持官方 PyPI（GitHub 托管 runner 在海外走镜像更慢）。
 - 前端镜像构建优化：构建基础镜像 `node:20-alpine → node:22-alpine`（消除 jsdom 依赖链的引擎不匹配警告，与 CI 对齐），`npm ci` 启用 BuildKit 缓存挂载并跳过 audit/fund 网络往返，重建提速；`package.json` 显式声明 `engines.node >=22.14.0`。
 - 前端 npm 源切换为国内镜像 `registry.npmmirror.com`（项目级 `.npmrc`，Docker 构建与本地安装均生效；USTC 的 npm 镜像已停服并重定向至该源）。
 - 登录防爆破阈值收紧（默认值变更）：每邮箱+IP 失败次数 `LOGIN_RATE_LIMIT` 10→5（第 6 次密码错误返回 429）、全局限邮箱 `LOGIN_EMAIL_RATE_LIMIT` 20→10、每 IP `LOGIN_IP_RATE_LIMIT` 30→20。注意邮箱级限流的短时账号锁定权衡：攻击者可用错误密码暂时锁住目标账号，见 [部署与运维 §环境变量](docs/deployment.md)。
-- HSTS：后端在生产（`SESSION_COOKIE_SECURE=true`）自动签发 `Strict-Transport-Security: max-age=63072000; includeSubDomains`；网关可另设 `HSTS_MAX_AGE`（秒）在全部响应上追加签发（默认留空不签发）。
+- HSTS：由部署环境的外层网关统一配置（`Strict-Transport-Security: max-age=63072000; includeSubDomains`）；编排内网关不签发，后端在生产（`SESSION_COOKIE_SECURE=true`）以相同值兜底签发 API 响应。
+- 修复：移除编排内网关的 HSTS `if` 块（nginx 不允许在 server 级 `if` 内使用 `add_header`，曾导致 gateway 容器 `[emerg]` 启动失败）。
 - CORS 收紧：`allow_methods` / `allow_headers` 由通配改为显式白名单，带凭据的跨域请求不再反射任意请求头。
 - CSP 收紧：后端生产环境 `style-src` 移除 `'unsafe-inline'`；前端 CSP 改为 `style-src 'self'; style-src-attr 'unsafe-inline'`（阻断 `<style>` 元素注入，动态进度条/动画依赖的 style 属性不受影响）。
 - 部署文档补充：外部 nginx 终止 TLS 的参考配置（`ssl_ecdh_curve X25519:prime256v1:secp384r1` 优先 X25519、TLS 1.2/1.3、OCSP 装订）与 Let's Encrypt 90 天证书的自动续期、到期监控说明。

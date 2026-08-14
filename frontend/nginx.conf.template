@@ -29,8 +29,8 @@ server {
         font/woff2;
 
     # 安全头必须逐 location 重复：nginx 的 add_header 在当前块有声明时不会继承父级
-    # 注意：HTTPS 由部署环境的网关终结；HSTS 由后端在生产自动签发，
-    # 并可在网关侧用 HSTS_MAX_AGE 追加（见 docs/deployment.md）。
+    # 注意：HTTPS 由部署环境的外层网关终结；HSTS 由外层网关统一配置
+    # （后端在生产同值兜底签发，见 docs/deployment.md）。
     add_header X-Content-Type-Options "nosniff" always;
     add_header X-Frame-Options "DENY" always;
     add_header Referrer-Policy "no-referrer" always;

@@ -70,6 +70,7 @@ services:
       args:
         IMAGE_REGISTRY: ${IMAGE_REGISTRY:-}
         IP2REGION_DOWNLOAD_BASE_URL: ${IP2REGION_DOWNLOAD_BASE_URL:-https://raw.githubusercontent.com/lionsoul2014/ip2region}
+        PIP_INDEX_URL: ${PIP_INDEX_URL:-https://mirrors.ustc.edu.cn/pypi/simple}
     restart: unless-stopped
     init: true
     security_opt:
@@ -200,8 +201,6 @@ services:
       - no-new-privileges:true
     environment:
       TZ: ${TZ:-Asia/Shanghai}
-      # HSTS max-age（秒）；留空 = 网关不签发（后端在生产会自动签发）
-      HSTS_MAX_AGE: ${HSTS_MAX_AGE:-}
     # 固定容器 IP：后端 FORWARDED_ALLOW_IPS 只信任这一台网关。
     # 避开编排内其他动态分配的 .2/.3 等地址，固定使用高位地址。
     networks:
@@ -234,6 +233,7 @@ services:
       context: ./examples/demo-site
       args:
         IMAGE_REGISTRY: ${IMAGE_REGISTRY:-}
+        PIP_INDEX_URL: ${PIP_INDEX_URL:-https://mirrors.ustc.edu.cn/pypi/simple}
     restart: unless-stopped
     init: true
     security_opt:

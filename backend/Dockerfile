@@ -1,8 +1,10 @@
 ARG IMAGE_REGISTRY=
 ARG IP2REGION_DOWNLOAD_BASE_URL=https://raw.githubusercontent.com/lionsoul2014/ip2region
+ARG PIP_INDEX_URL=https://mirrors.ustc.edu.cn/pypi/simple
 FROM ${IMAGE_REGISTRY}python:3.12-slim
 # FROM 之前声明的 ARG 仅在 FROM 中可用，构建阶段需重新声明才能引用。
 ARG IP2REGION_DOWNLOAD_BASE_URL=https://raw.githubusercontent.com/lionsoul2014/ip2region
+ARG PIP_INDEX_URL=https://mirrors.ustc.edu.cn/pypi/simple
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
@@ -21,7 +23,9 @@ WORKDIR /app
 
 COPY requirements.txt .
 # --no-compile：镜像内不写 .pyc，配合 PYTHONDONTWRITEBYTECODE 让镜像更小。
-RUN pip install --no-cache-dir --no-compile -r requirements.txt
+RUN pip install --no-cache-dir --no-compile \
+        -i "${PIP_INDEX_URL}" \
+        -r requirements.txt
 
 COPY app ./app
 COPY alembic.ini .

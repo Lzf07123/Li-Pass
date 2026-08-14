@@ -306,9 +306,7 @@ Redis 已通过 `--appendonly yes` 显式开启 AOF（可用 `REDIS_APPENDONLY=n
 仓库内置的 gateway（nginx）只做 HTTP 路由，不负责 TLS 终止。生产上线时：
 
 1. 在部署环境配置 TLS 与路由（例如 K8s Ingress、云负载均衡或外部网关），把域名指向前端与后端服务。
-2. **HSTS 双保险**：
-   - 后端在 `SESSION_COOKIE_SECURE=true`（生产必填）时自动签发 `Strict-Transport-Security: max-age=63072000; includeSubDomains`，覆盖全部 API 响应；
-   - 如需让网关在**所有**响应（含前端 HTML）上再签发一层，在 `.env` 设置 `HSTS_MAX_AGE=63072000`（开发/HTTP 直连时保持留空，避免误发；浏览器按规范只在 HTTPS 连接上生效）。
+2. **HSTS 由外层网关统一配置**（`Strict-Transport-Security: max-age=63072000; includeSubDomains`，见下方 nginx 参考配置）。编排内网关不签发 HSTS；后端在生产（`SESSION_COOKIE_SECURE=true`）会以相同值兜底签发，覆盖 API 响应。若外层网关需要不同策略（如去掉 `includeSubDomains`），需同步调整后端签发值。
 3. 更新 `.env`（参考 `.env.example` 底部的生产配置示例）：
    - `ENVIRONMENT=production`
    - `JWT_ISSUER=https://auth.example.com`
@@ -399,7 +397,7 @@ sudo chmod +x /etc/letsencrypt/renewal-hooks/deploy/reload-nginx.sh
 - [ ] 已按合规要求评估 `AUDIT_RETENTION_DAYS`（默认 180 天，审计日志到期自动删除）
 - [ ] 已评估 `LOGIN_EMAIL_RATE_LIMIT` 的账号锁定权衡（防爆破 vs 短时拒绝目标账号登录）
 - [ ] 已备份 `backend-keys` 与 `backend-uploads` 卷，并演练过恢复
-- [ ] 网关已配置 TLS、HSTS、HTTP→HTTPS 跳转（后端生产会自动签发 HSTS；可用 `curl -sI https://域名/api/v1/healthz | grep -i strict-transport` 验证）
+- [ ] 外层网关已配置 TLS、HSTS、HTTP→HTTPS 跳转（可用 `curl -sI https://域名/api/v1/healthz | grep -i strict-transport` 验证；后端生产同值兜底签发）
 - [ ] TLS 曲线以 X25519 优先（`openssl s_client -connect 域名:443 -tls1_3` 协商结果非 secp256r1/prime256v1；或按上文 nginx 参考配置显式声明 `ssl_ecdh_curve`）
 - [ ] Let's Encrypt 续期可用：`certbot renew --dry-run` 通过，续期钩子已重载 nginx，并配置到期监控（<30 天告警）
 - [ ] 网关已放行 `/readyz`（或仅内部可达），不要把 `/docs` 暴露（生产已自动关闭）
@@ -422,7 +420,7 @@ sudo chmod +x /etc/letsencrypt/renewal-hooks/deploy/reload-nginx.sh
 
 - 基础设施镜像：`postgres:16-alpine`、`redis:7-alpine`
 - 自建服务镜像：`account-service-backend:local`、`account-service-frontend:local`、`account-service-demo-site:local`（同时作为 `docker compose build` 的标签）
-- 构建基础镜像：`python:3.12-slim`、`node:22-alpine`（前端依赖要求 Node ≥22.14）、`nginx:1.27-alpine`（作为构建参数传入 Dockerfile）。前端 `npm ci` 通过项目 `.npmrc` 使用国内镜像 `registry.npmmirror.com`（USTC npm 镜像已停服并重定向至此）；海外构建如遇镜像不可达，可临时覆盖 `npm config set registry https://registry.npmjs.org/`。
+- 构建基础镜像：`python:3.12-slim`、`node:22-alpine`（前端依赖要求 Node ≥22.14）、`nginx:1.27-alpine`（作为构建参数传入 Dockerfile）。后端与演示站 `pip install` 通过 `PIP_INDEX_URL` 使用中科大镜像 `https://mirrors.ustc.edu.cn/pypi/simple`（海外构建可改回 `https://pypi.org/simple`）；前端 `npm ci` 通过项目 `.npmrc` 使用国内镜像 `registry.npmmirror.com`（USTC npm 镜像已停服并重定向至此，海外可临时覆盖回 npmjs）。
 
 私有仓库 / 内网镜像源场景只需在 `.env` 设置一个变量（**必须以 `/` 结尾**）：
 

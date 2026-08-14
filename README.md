@@ -88,7 +88,7 @@ docker compose up -d --build
    cd backend
    python -m venv .venv
    source .venv/bin/activate
-   pip install -r requirements.txt
+   pip install -r requirements.txt -i https://mirrors.ustc.edu.cn/pypi/simple
    cp .env.example .env
    alembic upgrade head
    uvicorn app.main:app --reload
@@ -108,7 +108,7 @@ docker compose up -d --build
 
    ```bash
    cd examples/demo-site
-   pip install -r requirements.txt
+   pip install -r requirements.txt -i https://mirrors.ustc.edu.cn/pypi/simple
    export PORTAL_ISSUER=http://localhost:8000 PORTAL_CLIENT_ID=demo-site \
      DEMO_REDIRECT_URI=http://localhost:3001/callback
    python app.py
