@@ -28,6 +28,7 @@ from app.schemas.auth import (
 )
 from app.security.passwords import hash_password, verify_password
 from app.services.account_deletion import delete_user_account
+from app.services.device_info import describe_session_device
 from app.services.avatar_cleanup import delete_avatar_file
 from app.services.audit import log_audit, mask_phone
 from app.services.email import get_email_service
@@ -250,7 +251,7 @@ def list_sessions(
     return [
         {
             "id": str(s.id),
-            "device_name": s.device_name,
+            "device_name": describe_session_device(s.device_name, s.user_agent),
             "ip": s.ip,
             "user_agent": s.user_agent,
             "created_at": s.created_at,

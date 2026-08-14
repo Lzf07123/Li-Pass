@@ -47,6 +47,9 @@ def test_security_headers(client) -> None:
     assert response.headers["x-frame-options"] == "DENY"
     assert response.headers["referrer-policy"] == "no-referrer"
     assert "default-src 'self'" in response.headers["content-security-policy"]
+    assert response.headers["accept-ch"] == (
+        "Sec-CH-UA-Model, Sec-CH-UA-Platform-Version"
+    )
     assert response.headers["cache-control"] == "no-store"
 
 

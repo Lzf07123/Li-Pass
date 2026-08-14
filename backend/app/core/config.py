@@ -1,13 +1,18 @@
 from functools import lru_cache
+from pathlib import Path
 from urllib.parse import urlparse
 
 from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+# .env 固定相对 config.py 解析（backend/.env），与进程工作目录解耦：
+# 从仓库根或任意目录启动/测试时，不会误加载根目录的部署 .env。
+ENV_FILE = str(Path(__file__).resolve().parents[2] / ".env")
+
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
-        env_file=".env", env_file_encoding="utf-8", extra="ignore"
+        env_file=ENV_FILE, env_file_encoding="utf-8", extra="ignore"
     )
 
     app_name: str = "LinPass SSO"

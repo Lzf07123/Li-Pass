@@ -219,7 +219,7 @@ export function LineChart({
         </div>
       )}
 
-      <div className="mt-2 flex items-center gap-x-4 gap-y-1">
+      <div className="mt-2 flex items-center gap-x-4 gap-y-1 overflow-x-auto">
         {series.map((item, seriesIndex) => (
           <span
             key={item.name}

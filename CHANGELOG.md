@@ -8,6 +8,7 @@
 
 ### 安全加固
 
+- 依赖安全审计（pip-audit）：`python-multipart 0.0.20 → 0.0.32`（修复多个 2026 年公告的 multipart 解析 DoS）、`pyotp 2.1.0 → 2.10.0`（移除其携带的有漏洞传递依赖 `future 0.15.2`）；升级后 pip-audit 清零，npm 生产依赖审计 0 漏洞。
 - 后端镜像的 ip2region 数据与 Python 绑定源码改为构建时从固定 tag 拉取（SHA256 信任清单校验、下载带重试），修复镜像遗漏 vendored 绑定源码导致容器启动 `ModuleNotFoundError: No module named 'ip2region'`；构建期新增 `import app.main` 冒烟检查，把此类“漏 COPY/漏拉取”问题前移到镜像构建阶段暴露。构建下载基地址可用 `IP2REGION_DOWNLOAD_BASE_URL` 覆盖（Gitee raw 实测拒绝 xdb 数据文件，需保持 GitHub 源）。
 - 依赖安全升级：`fastapi 0.115.6 → 0.141.1`、`starlette 0.41.3 → 1.6.0`（修复 CVE-2026-48710「BadHost」Host 头认证绕过、CVE-2025-62727 Range 头 DoS、CVE-2025-54121 multipart 主线程阻塞）、`cryptography 44.0.0 → 50.0.0`（修复内嵌 OpenSSL 公告与 PKCS7 Bleichenbacher oracle）、`PyJWT 2.10.1 → 2.13.0`（修复 CVE-2026-32597 crit 头未校验）；新增 [Dependabot](.github/dependabot.yml) 每周依赖漏洞扫描。
 - ip2region 运行期更新强制 SHA256 信任清单：仅清单内版本可安装（`app/services/ip2region_pins.py`），未知版本/哈希不符一律拒绝并保留旧库；构建期脚本与运行期共用同一清单。
@@ -20,6 +21,7 @@
 
 ### 行为变更
 
+- 设备管理支持详细型号：后端响应新增 `Accept-CH: Sec-CH-UA-Model, Sec-CH-UA-Platform-Version`，Chromium 系浏览器登录时会话记录具体型号（如「MacBook Pro · macOS 14.5」）；Safari/Firefox 等不提供型号时降级为 UA 解析（如「iPhone · iOS 17.5 · Safari」「Android 14 · Chrome」）。历史会话存储的原始 UA 在读取时自动解析为友好设备名，用户中心与管理后台同步生效。
 - 构建提速：后端与演示站镜像的 `apt-get update` 新增 `APT_MIRROR` 构建参数（默认中科大镜像 `http://mirrors.ustc.edu.cn/debian`，同时覆盖 debian-security），修复基础镜像直连 deb.debian.org 导致的慢更新；海外构建可改回官方源。实测 10.1MB 索引/包 7–8 秒拉完。
 - 应用广场改为单列行布局：每个网站占一整行，左侧 logo/名称/描述（横置单行截断），「进入」「取消授权」按钮贴最右；窄屏自动换行仍右对齐。全局 `.btn`/`.btn-link` 禁止文字换行，避免按钮文案异常折行。
 - 站点设置「IP 归属地库」的「立即检查更新」改为后台任务 + 实时进度：`POST /settings/ip2region/update` 立即返回 202，下载在服务端后台继续（独立 DB 会话），新增 `GET /settings/ip2region/update/status` 上报阶段（检查/下载 IPv4/下载 IPv6/安装）与字节级百分比；前端每秒轮询并显示进度条，离开页面不中断、回来可恢复，完成/失败均有提示。设计见 [IP 库后台更新与实时进度设计](docs/superpowers/specs/2026-08-14-admin-ip2region-update-progress-design.md)。
@@ -31,6 +33,9 @@
 
 ### 缺陷修复
 
+- 测试环境异常修复（此前"升级依赖后首跑大量失败"的真实根因）：`Settings` 的 `.env` 原为相对当前工作目录解析，从仓库根运行测试时会误加载根目录的部署 `.env`（`ALLOWED_HOSTS` 不含 testserver、`EMAIL_BACKEND=smtp` 等），导致约 180 个测试批量 400。现改为固定相对 `config.py` 解析为 `backend/.env`，与工作目录解耦；并新增根目录 `pytest.ini`（`testpaths=backend/tests` + `pythonpath=backend`），支持从仓库根直接运行全量测试。
+- 页脚不再展示占位假备案号：`ICP_FILING_TEXT`/`POLICE_FILING_TEXT` 默认留空，未配置时隐藏备案链接，填入真实备案信息后自动显示（上线前清单同步提醒）。
+- 折线图图例在窄屏禁止换行后改为容器内横向滚动，避免溢出页面产生横向滚动条；Client Hints 品牌解析兼容 `Not)A;Brand`（品牌名含分号，改为引号感知正则）。
 - 数据统计的 60 秒快照缓存导致用户禁用/删除/注册后立即查看仍显示旧数据：在用户创建、状态/角色变更、批量更新与账号删除等写路径上主动失效统计缓存（`invalidate_admin_stats_cache`），禁用用户后统计立即反映。
 - 数据统计折线图图例与悬停提示文字禁止异常换行（`whitespace-nowrap`），图例不再折行。
 

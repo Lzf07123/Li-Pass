@@ -24,6 +24,9 @@ def _demote(db, email: str) -> None:
         select(func.count())
         .select_from(User)
         .where(User.role == UserRole.admin)
+        # PostgreSQL 下锁住管理员行，避免两个并发降级同时通过“最后一名”校验；
+        # SQLite 忽略 FOR UPDATE，测试不受影响。
+        .with_for_update()
     )
     if admin_count is not None and admin_count <= 1:
         print("拒绝降级：这是最后一名管理员，请先提升其他管理员")

@@ -20,11 +20,11 @@ export const FAVICON_PATH = FAVICON_WEBP;
 /** 页面品牌主图（登录页/页头 Logo）：透明背景，512×512 */
 export const APP_LOGO = "/brand-logo.webp";
 
-// TODO: 上线前替换为真实备案信息
-export const ICP_FILING_TEXT = "京ICP备00000000号-1";
+// 上线前填入真实备案信息；留空时页脚不显示对应链接（避免展示占位假备案号）。
+export const ICP_FILING_TEXT = "";
 export const ICP_FILING_URL = "https://beian.miit.gov.cn/";
 export const ICP_FILING_ICON = "/badges/icp.webp";
-export const POLICE_FILING_TEXT = "京公网安备 11000000000000号";
+export const POLICE_FILING_TEXT = "";
 export const POLICE_FILING_URL = "https://beian.mps.gov.cn/";
 export const POLICE_FILING_ICON = "/badges/police.webp";
 

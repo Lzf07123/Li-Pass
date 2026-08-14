@@ -27,6 +27,11 @@ from app.schemas.auth import (
     serialize_user,
 )
 from app.services.admin_stats import invalidate_admin_stats_cache
+from app.services.device_info import (
+    build_device_label,
+    parse_ch_headers,
+    parse_user_agent,
+)
 from app.security.passwords import (
     hash_password,
     password_needs_rehash,
@@ -78,7 +83,16 @@ def _create_session_and_cookie(
         user_id=user.id,
         token_hash=hash_token(token),
         auth_method=auth_method,
-        device_name=request.headers.get("user-agent", "")[:120],
+        device_name=(
+            build_device_label(
+                parse_ch_headers(request.headers)
+                if (
+                    request.headers.get("sec-ch-ua-model")
+                    or request.headers.get("sec-ch-ua-platform")
+                )
+                else parse_user_agent(request.headers.get("user-agent", ""))
+            )
+        )[:120],
         ip=request.client.host if request.client else "",
         user_agent=request.headers.get("user-agent", "")[:300],
         expires_at=now + timedelta(days=ttl_days),

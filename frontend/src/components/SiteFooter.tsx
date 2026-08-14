@@ -11,24 +11,28 @@ import {
 
 const filingLinks = (
   <>
-    <a
-      href={ICP_FILING_URL}
-      target="_blank"
-      rel="noreferrer"
-      className="inline-flex items-center gap-1 transition-colors duration-200 hover:text-foreground"
-    >
-      <img src={ICP_FILING_ICON} alt="" className="h-3.5 w-auto" />
-      {ICP_FILING_TEXT}
-    </a>
-    <a
-      href={POLICE_FILING_URL}
-      target="_blank"
-      rel="noreferrer"
-      className="inline-flex items-center gap-1 transition-colors duration-200 hover:text-foreground"
-    >
-      <img src={POLICE_FILING_ICON} alt="" className="h-3.5 w-auto" />
-      {POLICE_FILING_TEXT}
-    </a>
+    {ICP_FILING_TEXT && (
+      <a
+        href={ICP_FILING_URL}
+        target="_blank"
+        rel="noreferrer"
+        className="inline-flex items-center gap-1 whitespace-nowrap transition-colors duration-200 hover:text-foreground"
+      >
+        <img src={ICP_FILING_ICON} alt="" className="h-3.5 w-auto" />
+        {ICP_FILING_TEXT}
+      </a>
+    )}
+    {POLICE_FILING_TEXT && (
+      <a
+        href={POLICE_FILING_URL}
+        target="_blank"
+        rel="noreferrer"
+        className="inline-flex items-center gap-1 whitespace-nowrap transition-colors duration-200 hover:text-foreground"
+      >
+        <img src={POLICE_FILING_ICON} alt="" className="h-3.5 w-auto" />
+        {POLICE_FILING_TEXT}
+      </a>
+    )}
   </>
 );
 

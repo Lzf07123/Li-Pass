@@ -51,5 +51,7 @@ describe("LineChart", () => {
     for (const item of legendItems) {
       expect(item.className).toContain("whitespace-nowrap");
     }
+    const container = legendItems[0].parentElement;
+    expect(container?.className).toContain("overflow-x-auto");
   });
 });

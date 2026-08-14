@@ -101,6 +101,31 @@ def test_admin_sessions_include_ip_location(client, db_session, monkeypatch) -> 
     assert bob_item["ip_location"] == "广东省 深圳市"
 
 
+def test_admin_sessions_parse_legacy_ua_device_name(client, db_session) -> None:
+    """历史会话的 device_name 是原始 UA 时，读取时解析为友好设备名。"""
+    login_admin(client, db_session)
+    bob = User(
+        email="bob@example.com",
+        password_hash=hash_password("password123"),
+        nickname="Bob",
+    )
+    db_session.add(bob)
+    db_session.commit()
+    db_session.refresh(bob)
+    legacy_ua = (
+        "Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) "
+        "AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 "
+        "Mobile/15E148 Safari/604.1"
+    )
+    bob_session, _ = create_session(
+        db_session, bob, device_name=legacy_ua, user_agent=legacy_ua
+    )
+
+    items = client.get("/api/v1/admin/sessions").json()["items"]
+    bob_item = next(item for item in items if item["id"] == str(bob_session.id))
+    assert bob_item["device_name"] == "iPhone · iOS 17.5 · Safari"
+
+
 def test_admin_list_excludes_expired_sessions(client, db_session) -> None:
     login_admin(client, db_session)
     bob = User(

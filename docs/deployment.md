@@ -403,6 +403,7 @@ sudo chmod +x /etc/letsencrypt/renewal-hooks/deploy/reload-nginx.sh
 - [ ] `PUBLIC_BASE_URL` 为真实对外地址（不是 `localhost`），否则邀请邮件链接无法访问；启动日志中不应出现“FRONTEND_BASE_URL 指向本机”警告
 - [ ] 发信域名已配置 SPF，并尽量开启 DKIM/DMARC（阿里企业邮箱控制台开启；缺失时邮件易进垃圾箱或被拒收）
 - [ ] 已按合规要求评估 `AUDIT_RETENTION_DAYS`（默认 180 天，审计日志到期自动删除）
+- [ ] 页脚已填入真实 ICP/公安备案号（`frontend/src/lib/brand.ts`；未配置时自动隐藏占位，不会展示假备案号）
 - [ ] 已评估 `LOGIN_EMAIL_RATE_LIMIT` 的账号锁定权衡（防爆破 vs 短时拒绝目标账号登录）
 - [ ] 已备份 `backend-keys` 与 `backend-uploads` 卷，并演练过恢复
 - [ ] 外层网关已配置 TLS、HSTS、HTTP→HTTPS 跳转（可用 `curl -sI https://域名/api/v1/healthz | grep -i strict-transport` 验证；后端生产同值兜底签发）

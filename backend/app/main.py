@@ -222,6 +222,9 @@ def create_app() -> FastAPI:
         response.headers["Permissions-Policy"] = (
             "camera=(), microphone=(), geolocation=(), payment=(), usb=()"
         )
+        response.headers["Accept-CH"] = (
+            "Sec-CH-UA-Model, Sec-CH-UA-Platform-Version"
+        )
         response.headers["Content-Security-Policy"] = _build_csp(settings)
         if settings.session_cookie_secure:
             # 生产（HTTPS）自动签发 HSTS；开发/测试不签发，避免 HTTP 直连误发。
