@@ -57,7 +57,7 @@ export function AdminPage() {
     return (
       <div className="min-h-screen bg-background">
         <AppHeader title="管理后台" />
-        <main className="mx-auto max-w-5xl px-4 py-10 sm:px-6">
+        <main className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
           <div className="card p-8 text-center">
             <p className="mb-3 text-foreground">无权访问管理后台</p>
             <Link to="/" className="btn-link">
@@ -87,7 +87,7 @@ export function AdminPage() {
         }
       />
 
-      <main className="relative mx-auto w-full max-w-5xl flex-1 space-y-6 px-4 py-8 sm:px-6">
+      <main className="relative mx-auto w-full max-w-7xl flex-1 space-y-6 px-4 py-8 sm:px-6 lg:px-8">
         <div className="flex flex-wrap items-center gap-2">
           {TABS.map((item) => (
             <Link

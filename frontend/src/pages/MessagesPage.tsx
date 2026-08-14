@@ -108,7 +108,7 @@ export function MessagesPage() {
           </Link>
         }
       />
-      <main className="relative mx-auto w-full max-w-3xl flex-1 space-y-4 px-4 py-8 sm:px-6">
+      <main className="relative mx-auto w-full max-w-7xl flex-1 space-y-4 px-4 py-8 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between">
           <p className="text-sm text-muted">未读 {unread} 条</p>
           {unread > 0 && (

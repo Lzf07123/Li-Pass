@@ -20,6 +20,8 @@
 
 ### 行为变更
 
+- 桌面端留白优化：已登录页面统一放宽内容区宽度——管理后台、用户中心、收件箱由 `max-w-5xl/4xl/3xl` 统一为 `max-w-7xl`（1280px），顶栏/骨架屏/页脚同步，并新增 `lg:px-8` 大屏内边距；登录/注册/授权确认等表单页保持窄版（`max-w-md`）不变。
+- 管理后台「用户管理」新增「刷新」按钮：按当前搜索词与筛选条件重新拉取用户列表，加载中禁用、成功/失败均有提示，与会话监控等其他管理面板保持一致。设计见 [用户管理刷新按钮设计](docs/superpowers/specs/2026-08-14-admin-users-refresh-button-design.md)。
 - pip 源切换为中科大镜像 `https://mirrors.ustc.edu.cn/pypi/simple`：后端与演示站镜像构建通过 `PIP_INDEX_URL` 构建参数使用（海外构建可改回官方源），本地开发步骤同步更新；CI 保持官方 PyPI（GitHub 托管 runner 在海外走镜像更慢）。
 - 前端镜像构建优化：构建基础镜像 `node:20-alpine → node:22-alpine`（消除 jsdom 依赖链的引擎不匹配警告，与 CI 对齐），`npm ci` 启用 BuildKit 缓存挂载并跳过 audit/fund 网络往返，重建提速；`package.json` 显式声明 `engines.node >=22.14.0`。
 - 前端 npm 源切换为国内镜像 `registry.npmmirror.com`（项目级 `.npmrc`，Docker 构建与本地安装均生效；USTC 的 npm 镜像已停服并重定向至该源）。

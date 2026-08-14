@@ -417,7 +417,7 @@ export function DashboardPage() {
         }
       />
 
-      <main className="relative mx-auto w-full max-w-4xl flex-1 space-y-6 px-4 py-8 sm:px-6">
+      <main className="relative mx-auto w-full max-w-7xl flex-1 space-y-6 px-4 py-8 sm:px-6 lg:px-8">
         {user && (
           <>
             <FadeIn delay={0}>

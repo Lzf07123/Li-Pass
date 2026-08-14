@@ -77,6 +77,17 @@ export function AdminUsersPanel({ currentAdminId }: { currentAdminId: string }) 
     load();
   }, [load]);
 
+  const refreshAction = useAsyncAction(
+    async () => {
+      await load(query, statusFilter, roleFilter);
+      toast.success("用户列表已刷新");
+    },
+    {
+      onError: (err) =>
+        toast.error(err instanceof Error ? err.message : "刷新失败"),
+    },
+  );
+
   function search(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setSelected(new Set());
@@ -482,6 +493,14 @@ export function AdminUsersPanel({ currentAdminId }: { currentAdminId: string }) 
               搜索
             </button>
           </form>
+          <AsyncButton
+            type="button"
+            status={refreshAction.status}
+            onClick={() => void refreshAction.run()}
+            className="btn btn-secondary"
+          >
+            刷新
+          </AsyncButton>
         </div>
       </div>
 

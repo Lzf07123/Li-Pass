@@ -1,5 +1,5 @@
 /**
- * 已登录/后台页加载骨架：与 AppHeader + max-w-5xl 内容区 + SiteFooter
+ * 已登录/后台页加载骨架：与 AppHeader + max-w-7xl 内容区 + SiteFooter
  * 的布局逐区块对齐，替代路由懒加载时的小占位块。
  */
 export function PageSkeleton({ title = "" }: { title?: string }) {
@@ -10,7 +10,7 @@ export function PageSkeleton({ title = "" }: { title?: string }) {
       className="flex min-h-screen flex-col bg-background"
     >
       <header className="sticky top-0 z-20 border-b border-border bg-surface/85 backdrop-blur">
-        <div className="mx-auto flex h-16 max-w-5xl items-center gap-3 px-4 sm:px-6">
+        <div className="mx-auto flex h-16 max-w-7xl items-center gap-3 px-4 sm:px-6 lg:px-8">
           <div className="shimmer h-8 w-8 rounded-lg" />
           <div className="shimmer h-4 w-24 rounded" />
           {title && (
@@ -25,7 +25,7 @@ export function PageSkeleton({ title = "" }: { title?: string }) {
         </div>
       </header>
 
-      <main className="mx-auto w-full max-w-5xl flex-1 space-y-6 px-4 py-8 sm:px-6">
+      <main className="mx-auto w-full max-w-7xl flex-1 space-y-6 px-4 py-8 sm:px-6 lg:px-8">
         <div className="card p-6 sm:p-8">
           <div className="space-y-4">
             <div className="shimmer h-5 w-40 rounded" />
@@ -38,7 +38,7 @@ export function PageSkeleton({ title = "" }: { title?: string }) {
       </main>
 
       <footer className="border-t border-border/60 bg-surface/60">
-        <div className="mx-auto flex max-w-5xl flex-col items-center gap-2 px-4 py-6 sm:flex-row sm:justify-center sm:gap-4">
+        <div className="mx-auto flex max-w-7xl flex-col items-center gap-2 px-4 py-6 sm:flex-row sm:justify-center sm:gap-4 lg:px-8">
           <div className="shimmer h-3.5 w-40 rounded" />
           <div className="shimmer h-3.5 w-28 rounded" />
         </div>

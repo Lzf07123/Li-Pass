@@ -16,7 +16,7 @@ export function AppHeader({
 }) {
   return (
     <header className="sticky top-0 z-20 border-b border-border bg-surface/85 backdrop-blur">
-      <div className="mx-auto flex h-16 max-w-5xl items-center gap-3 px-4 sm:px-6">
+      <div className="mx-auto flex h-16 max-w-7xl items-center gap-3 px-4 sm:px-6 lg:px-8">
         <Link
           to="/"
           className="flex shrink-0 items-center gap-2.5 rounded-lg"

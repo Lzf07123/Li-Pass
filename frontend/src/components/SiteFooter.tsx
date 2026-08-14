@@ -46,7 +46,7 @@ export function SiteFooter({ compact = false }: { compact?: boolean }) {
 
   return (
     <footer className="relative mt-auto border-t border-border/60 bg-surface/60 backdrop-blur">
-      <div className="mx-auto flex max-w-5xl flex-col items-center gap-2 px-4 py-6 text-xs text-muted sm:flex-row sm:justify-center sm:gap-4">
+      <div className="mx-auto flex max-w-7xl flex-col items-center gap-2 px-4 py-6 text-xs text-muted sm:flex-row sm:justify-center sm:gap-4 lg:px-8">
         <span>© {year} {COPYRIGHT_HOLDER}</span>
         {filingLinks}
         {FOOTER_LINKS.length > 0 && (
