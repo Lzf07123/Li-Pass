@@ -51,6 +51,13 @@ docker compose -f docker-compose.yaml --env-file .env exec backend \
   python -m scripts.make_admin <你的邮箱>
 ```
 
+  误提升或需要收回管理员权限时降级（保留至少一名管理员）：
+
+```bash
+docker compose -f docker-compose.yaml --env-file .env exec backend \
+  python -m scripts.demote_admin <邮箱>
+```
+
 3. 创建演示客户端（可选，示例网站需要）：
 
 ```bash
@@ -421,7 +428,7 @@ sudo chmod +x /etc/letsencrypt/renewal-hooks/deploy/reload-nginx.sh
 
 - 基础设施镜像：`postgres:16-alpine`、`redis:7-alpine`
 - 自建服务镜像：`account-service-backend:local`、`account-service-frontend:local`、`account-service-demo-site:local`（同时作为 `docker compose build` 的标签）
-- 构建基础镜像：`python:3.12-slim`、`node:22-alpine`（前端依赖要求 Node ≥22.14）、`nginx:1.27-alpine`（作为构建参数传入 Dockerfile）。后端与演示站 `pip install` 通过 `PIP_INDEX_URL` 使用中科大镜像 `https://mirrors.ustc.edu.cn/pypi/simple`（海外构建可改回 `https://pypi.org/simple`）；前端 `npm ci` 通过项目 `.npmrc` 使用国内镜像 `registry.npmmirror.com`（USTC npm 镜像已停服并重定向至此，海外可临时覆盖回 npmjs）。
+- 构建基础镜像：`python:3.12-slim`、`node:22-alpine`（前端依赖要求 Node ≥22.14）、`nginx:1.27-alpine`（作为构建参数传入 Dockerfile）。国内构建全面走中科大镜像：后端与演示站 `apt-get update` 通过 `APT_MIRROR`（默认 `http://mirrors.ustc.edu.cn/debian`，海外改回 `http://deb.debian.org/debian`），`pip install` 通过 `PIP_INDEX_URL`（默认 `https://mirrors.ustc.edu.cn/pypi/simple`，海外改回 `https://pypi.org/simple`）；前端 `npm ci` 通过项目 `.npmrc` 使用 `registry.npmmirror.com`（USTC npm 镜像已停服并重定向至此，海外可临时覆盖回 npmjs）。
 
 私有仓库 / 内网镜像源场景只需在 `.env` 设置一个变量（**必须以 `/` 结尾**）：
 

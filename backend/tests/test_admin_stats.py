@@ -187,6 +187,27 @@ def test_admin_stats_overview_counts(client, db_session) -> None:
     assert overview["total_logins"] == 1
 
 
+def test_admin_stats_reflects_disabled_user_without_stale_cache(
+    client, db_session
+) -> None:
+    """禁用用户后立即查看统计，禁用数必须同步更新（不能命中旧缓存）。"""
+    make_user(db_session, "u1@example.com", status=UserStatus.active)
+    u2 = make_user(db_session, "u2@example.com", status=UserStatus.active)
+    login_admin(client, db_session)
+
+    first = client.get("/api/v1/admin/stats?days=30").json()["overview"]
+    assert first["disabled_users"] == 0
+
+    response = client.patch(
+        f"/api/v1/admin/users/{u2.id}",
+        json={"status": UserStatus.disabled.value},
+    )
+    assert response.status_code == 200
+
+    second = client.get("/api/v1/admin/stats?days=30").json()["overview"]
+    assert second["disabled_users"] == 1
+
+
 def test_admin_stats_daily_series_and_auth_methods(client, db_session) -> None:
     now = datetime.now(timezone.utc)
     yesterday = now - timedelta(days=1)

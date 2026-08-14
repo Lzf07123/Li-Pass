@@ -32,4 +32,24 @@ describe("LineChart", () => {
     expect(table).toHaveTextContent("12 次");
     expect(table).toHaveTextContent("6 次");
   });
+
+  it("图例文字禁止换行", () => {
+    render(
+      <LineChart
+        labels={["07-16"]}
+        series={[
+          { name: "登录次数", values: [12] },
+          { name: "新增注册", values: [3], dashed: true },
+        ]}
+      />,
+    );
+
+    const legendItems = screen
+      .getAllByText(/登录次数|新增注册/)
+      .filter((node) => node.tagName === "SPAN");
+    expect(legendItems.length).toBeGreaterThanOrEqual(2);
+    for (const item of legendItems) {
+      expect(item.className).toContain("whitespace-nowrap");
+    }
+  });
 });

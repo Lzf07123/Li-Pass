@@ -19,6 +19,7 @@ from app.schemas.auth import PasswordConfirm
 from app.security.passwords import hash_password, verify_password
 from app.security.tokens import generate_token, hash_token
 from app.services.account_deletion import delete_user_account
+from app.services.admin_stats import invalidate_admin_stats_cache
 from app.services.audit import log_audit, log_rate_limit_rejected_once
 from app.services.geoip import describe_ip
 from app.services.email import get_email_service
@@ -196,6 +197,7 @@ def create_user(
     )
     db.add(user)
     db.commit()
+    invalidate_admin_stats_cache()
     log_audit(
         db,
         "admin",
@@ -575,6 +577,7 @@ def batch_update_users(
         if payload.role is not None:
             user.role = payload.role
     db.commit()
+    invalidate_admin_stats_cache()
     log_audit(
         db,
         "admin",
@@ -617,6 +620,7 @@ def update_user(
     if payload.role is not None:
         user.role = payload.role
     db.commit()
+    invalidate_admin_stats_cache()
     log_audit(
         db,
         "admin",

@@ -39,7 +39,7 @@ account-service/
 │   │   ├── security/        # 密码哈希、JWT、TOTP、限流、审计
 │   │   ├── services/        # 邮件、会话、2FA、黑名单等业务服务
 │   │   └── core/            # 配置、数据库、日志
-│   ├── scripts/             # 运维脚本（已内置进镜像）：make_admin、seed_demo_client、rotate_jwt_key、download_ip2region
+│   ├── scripts/             # 运维脚本（已内置进镜像）：make_admin、demote_admin、seed_demo_client、rotate_jwt_key、download_ip2region
 │   └── tests/               # 仅保留本地，不入库
 ├── frontend/                # React SPA 门户
 │   ├── src/
@@ -142,6 +142,7 @@ docker compose exec backend python -m scripts.seed_demo_client
 
 - `docker compose exec backend python -m scripts.seed_demo_client`：创建示例授权网站客户端（`demo-site`，公开客户端）
 - `docker compose exec backend python -m scripts.make_admin <邮箱>`：把已注册用户提升为管理员（可管理应用与黑名单、查看审计日志）
+- `docker compose exec backend python -m scripts.demote_admin <邮箱>`：把管理员降级为普通用户（拒绝降级最后一名管理员）
 
 ## 文档
 

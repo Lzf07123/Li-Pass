@@ -26,6 +26,7 @@ from app.schemas.auth import (
     UserOut,
     serialize_user,
 )
+from app.services.admin_stats import invalidate_admin_stats_cache
 from app.security.passwords import (
     hash_password,
     password_needs_rehash,
@@ -138,6 +139,7 @@ def register(
         )
         db.add(user)
         db.commit()
+        invalidate_admin_stats_cache()
         log_audit(
             db,
             "user",
@@ -332,6 +334,7 @@ def register_by_invite(
         # 与普通注册并发撞邮箱时回滚（邀请消费一并回滚），返回明确的冲突而非 500。
         db.rollback()
         raise HTTPException(status.HTTP_409_CONFLICT, "该邮箱已注册")
+    invalidate_admin_stats_cache()
     log_audit(
         db,
         "user",

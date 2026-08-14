@@ -20,6 +20,7 @@
 
 ### 行为变更
 
+- 构建提速：后端与演示站镜像的 `apt-get update` 新增 `APT_MIRROR` 构建参数（默认中科大镜像 `http://mirrors.ustc.edu.cn/debian`，同时覆盖 debian-security），修复基础镜像直连 deb.debian.org 导致的慢更新；海外构建可改回官方源。实测 10.1MB 索引/包 7–8 秒拉完。
 - 应用广场改为单列行布局：每个网站占一整行，左侧 logo/名称/描述（横置单行截断），「进入」「取消授权」按钮贴最右；窄屏自动换行仍右对齐。全局 `.btn`/`.btn-link` 禁止文字换行，避免按钮文案异常折行。
 - 站点设置「IP 归属地库」的「立即检查更新」改为后台任务 + 实时进度：`POST /settings/ip2region/update` 立即返回 202，下载在服务端后台继续（独立 DB 会话），新增 `GET /settings/ip2region/update/status` 上报阶段（检查/下载 IPv4/下载 IPv6/安装）与字节级百分比；前端每秒轮询并显示进度条，离开页面不中断、回来可恢复，完成/失败均有提示。设计见 [IP 库后台更新与实时进度设计](docs/superpowers/specs/2026-08-14-admin-ip2region-update-progress-design.md)。
 - ip2region 数据与 Python 绑定源码改为随仓库跟踪入库（`backend/data/ip2region/` 与 `backend/ip2region/`，v3.17.0，SHA256 与信任清单一致），镜像构建直接 COPY、不再联网下载，解决远端拉取过慢问题；移除 `IP2REGION_DOWNLOAD_BASE_URL` 构建参数（运行期更新仍使用该环境变量）。更新数据/绑定时先运行 `python scripts/download_ip2region.py --data-dir data/ip2region --binding-dir ip2region` 再提交。
@@ -27,6 +28,15 @@
 - 管理后台「用户管理」新增「刷新」按钮：按当前搜索词与筛选条件重新拉取用户列表，加载中禁用、成功/失败均有提示，与会话监控等其他管理面板保持一致。设计见 [用户管理刷新按钮设计](docs/superpowers/specs/2026-08-14-admin-users-refresh-button-design.md)。
 - pip 源切换为中科大镜像 `https://mirrors.ustc.edu.cn/pypi/simple`：后端与演示站镜像构建通过 `PIP_INDEX_URL` 构建参数使用（海外构建可改回官方源），本地开发步骤同步更新；CI 保持官方 PyPI（GitHub 托管 runner 在海外走镜像更慢）。
 - 前端镜像构建优化：构建基础镜像 `node:20-alpine → node:22-alpine`（消除 jsdom 依赖链的引擎不匹配警告，与 CI 对齐），`npm ci` 启用 BuildKit 缓存挂载并跳过 audit/fund 网络往返，重建提速；`package.json` 显式声明 `engines.node >=22.14.0`。
+
+### 缺陷修复
+
+- 数据统计的 60 秒快照缓存导致用户禁用/删除/注册后立即查看仍显示旧数据：在用户创建、状态/角色变更、批量更新与账号删除等写路径上主动失效统计缓存（`invalidate_admin_stats_cache`），禁用用户后统计立即反映。
+- 数据统计折线图图例与悬停提示文字禁止异常换行（`whitespace-nowrap`），图例不再折行。
+
+### 运维工具
+
+- 补齐身份降级脚本 `scripts/demote_admin.py`：`python -m scripts.demote_admin <邮箱>` 把管理员降级为普通用户（已是普通用户则幂等跳过；拒绝降级最后一名管理员，防止失去后台入口），与 `make_admin` 对称。
 - 前端 npm 源切换为国内镜像 `registry.npmmirror.com`（项目级 `.npmrc`，Docker 构建与本地安装均生效；USTC 的 npm 镜像已停服并重定向至该源）。
 - 登录防爆破阈值收紧（默认值变更）：每邮箱+IP 失败次数 `LOGIN_RATE_LIMIT` 10→5（第 6 次密码错误返回 429）、全局限邮箱 `LOGIN_EMAIL_RATE_LIMIT` 20→10、每 IP `LOGIN_IP_RATE_LIMIT` 30→20。注意邮箱级限流的短时账号锁定权衡：攻击者可用错误密码暂时锁住目标账号，见 [部署与运维 §环境变量](docs/deployment.md)。
 - HSTS：由部署环境的外层网关统一配置（`Strict-Transport-Security: max-age=63072000; includeSubDomains`）；编排内网关不签发，后端在生产（`SESSION_COOKIE_SECURE=true`）以相同值兜底签发 API 响应。

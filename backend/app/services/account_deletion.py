@@ -4,6 +4,7 @@ from sqlalchemy import delete, update
 from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
+from app.services.admin_stats import invalidate_admin_stats_cache
 from app.models.account_invite import AccountInvite
 from app.models.authorization_code import AuthorizationCode
 from app.models.client_user_block import ClientUserBlock
@@ -57,3 +58,4 @@ def delete_user_account(db: Session, user: User, *, commit: bool = True) -> None
     db.delete(user)
     if commit:
         db.commit()
+    invalidate_admin_stats_cache()

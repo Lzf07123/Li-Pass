@@ -217,3 +217,13 @@ def collect_admin_stats(db: Session, days: int) -> dict:
     with _cache_lock:
         _CACHE[days] = (time.monotonic(), snapshot)
     return snapshot
+
+
+def invalidate_admin_stats_cache() -> None:
+    """用户数据变更（注册/删除/禁用/角色调整）后调用，清空统计快照缓存。
+
+    60 秒 TTL 缓存只用于降低高频刷新压力；对"禁用后立即查看统计"
+    这类强一致性诉求，必须在写路径上主动失效，否则会命中旧快照。
+    """
+    with _cache_lock:
+        _CACHE.clear()

@@ -70,6 +70,7 @@ services:
       args:
         IMAGE_REGISTRY: ${IMAGE_REGISTRY:-}
         PIP_INDEX_URL: ${PIP_INDEX_URL:-https://mirrors.ustc.edu.cn/pypi/simple}
+        APT_MIRROR: ${APT_MIRROR:-http://mirrors.ustc.edu.cn/debian}
     restart: unless-stopped
     init: true
     security_opt:
@@ -233,6 +234,7 @@ services:
       args:
         IMAGE_REGISTRY: ${IMAGE_REGISTRY:-}
         PIP_INDEX_URL: ${PIP_INDEX_URL:-https://mirrors.ustc.edu.cn/pypi/simple}
+        APT_MIRROR: ${APT_MIRROR:-http://mirrors.ustc.edu.cn/debian}
     restart: unless-stopped
     init: true
     security_opt:

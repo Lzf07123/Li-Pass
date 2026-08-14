@@ -196,13 +196,13 @@ export function LineChart({
             transform: "translateX(-50%)",
           }}
         >
-          <p className="mb-1 font-medium text-foreground">
+          <p className="mb-1 whitespace-nowrap font-medium text-foreground">
             {labels[hoverIndex]}
           </p>
           {series.map((item, seriesIndex) => (
             <p
               key={item.name}
-              className="flex items-center gap-1.5 text-muted"
+              className="flex items-center gap-1.5 whitespace-nowrap text-muted"
             >
               <span
                 className="inline-block size-2 rounded-full"
@@ -219,11 +219,11 @@ export function LineChart({
         </div>
       )}
 
-      <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1">
+      <div className="mt-2 flex items-center gap-x-4 gap-y-1">
         {series.map((item, seriesIndex) => (
           <span
             key={item.name}
-            className="flex items-center gap-1.5 text-xs text-muted"
+            className="flex items-center gap-1.5 whitespace-nowrap text-xs text-muted"
           >
             <span
               className="inline-block h-0.5 w-4 rounded-full"
