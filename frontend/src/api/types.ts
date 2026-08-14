@@ -86,6 +86,7 @@ export interface AdminSessionOut {
   auth_method: string;
   device_name: string;
   ip: string;
+  ip_location: string | null;
   user_agent: string;
   created_at: string;
   last_used_at: string;
@@ -200,6 +201,22 @@ export interface BatchDeleteResult {
 
 export interface SiteSettings {
   public_registration_enabled: boolean;
+  ip2region: Ip2regionStatus;
+}
+
+export interface Ip2regionStatus {
+  version: string | null;
+  data_updated_at: string | null;
+  v4_ready: boolean;
+  v6_ready: boolean;
+  auto_update_enabled: boolean;
+  update_interval_hours: number;
+}
+
+export interface Ip2regionUpdateResult {
+  version: string;
+  data_updated_at: string;
+  changed: boolean;
 }
 
 export interface AuditLogOut {
@@ -211,6 +228,93 @@ export interface AuditLogOut {
   target_type: string | null;
   target_id: string | null;
   ip: string | null;
+  ip_location: string | null;
   detail: Record<string, unknown> | null;
   created_at: string;
+}
+
+export interface AdminSystemInfo {
+  collected_at: string;
+  app: {
+    name: string;
+    environment: string;
+    python_version: string;
+    fastapi_version: string;
+  };
+  host: {
+    hostname: string;
+    system: string;
+    release: string;
+    machine: string;
+    platform: string;
+    cpu_cores: number | null;
+  };
+  load: {
+    avg_1m: number | null;
+    avg_5m: number | null;
+    avg_15m: number | null;
+  };
+  memory: {
+    total_bytes: number;
+    used_bytes: number;
+    available_bytes: number;
+    percent: number;
+    process_rss_bytes: number;
+  };
+  disk: {
+    path: string;
+    total_bytes: number;
+    used_bytes: number;
+    free_bytes: number;
+    percent: number;
+  };
+  uptime: {
+    system_seconds: number | null;
+    process_seconds: number;
+  };
+  process: {
+    pid: number;
+    python_implementation: string;
+  };
+  services: {
+    database: string;
+    redis: string;
+  };
+}
+
+export interface AdminStatsOverview {
+  total_users: number;
+  active_users: number;
+  disabled_users: number;
+  admins: number;
+  verified_users: number;
+  online_sessions: number;
+  total_logins: number;
+}
+
+export interface AdminStatsDailyPoint {
+  date: string;
+  logins: number;
+  login_users: number;
+  registrations: number;
+}
+
+export interface AdminStatsAuthMethod {
+  method: string;
+  count: number;
+}
+
+export interface AdminStatsRegion {
+  region: string;
+  count: number;
+}
+
+export interface AdminStats {
+  generated_at: string;
+  timezone: string;
+  days: number;
+  overview: AdminStatsOverview;
+  daily: AdminStatsDailyPoint[];
+  auth_methods: AdminStatsAuthMethod[];
+  regions: AdminStatsRegion[];
 }

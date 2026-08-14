@@ -1,6 +1,8 @@
 import type {
-  AdminSessionListOut,
   AdminNotificationListOut,
+  AdminSessionListOut,
+  AdminStats,
+  AdminSystemInfo,
   AdminUserOut,
   AppOut,
   AuditLogOut,
@@ -12,6 +14,7 @@ import type {
   ClientSecretOut,
   ClientUpdate,
   ConsentInfo,
+  Ip2regionUpdateResult,
   MessageListOut,
   RevokeSessionsResult,
   SendNotificationResult,
@@ -149,13 +152,31 @@ export const adminClientsApi = {
     }),
 };
 
+export interface SiteSettingsUpdate {
+  public_registration_enabled?: boolean;
+  ip2region_auto_update_enabled?: boolean;
+  ip2region_update_interval_hours?: number;
+}
+
 export const adminSettingsApi = {
   get: () => api<SiteSettings>("/api/v1/admin/settings"),
-  update: (data: SiteSettings) =>
+  update: (data: SiteSettingsUpdate) =>
     api<SiteSettings>("/api/v1/admin/settings", {
       method: "PUT",
       body: JSON.stringify(data),
     }),
+  ip2regionUpdate: () =>
+    api<Ip2regionUpdateResult>("/api/v1/admin/settings/ip2region/update", {
+      method: "POST",
+    }),
+};
+
+export const adminSystemApi = {
+  get: () => api<AdminSystemInfo>("/api/v1/admin/system"),
+};
+
+export const adminStatsApi = {
+  get: (days = 30) => api<AdminStats>(`/api/v1/admin/stats?days=${days}`),
 };
 
 export const meApi = {

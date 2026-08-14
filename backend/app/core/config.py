@@ -47,11 +47,11 @@ class Settings(BaseSettings):
     encryption_key_path: str = "encryption.key"
     twofa_store: str = "memory"
     rate_limiter: str = "memory"
-    login_rate_limit: int = 10
+    login_rate_limit: int = 5
     login_rate_window_seconds: int = 900
-    login_email_rate_limit: int = 20
+    login_email_rate_limit: int = 10
     login_email_rate_window_seconds: int = 900
-    login_ip_rate_limit: int = 30
+    login_ip_rate_limit: int = 20
     client_block_rate_limit: int = 100
     client_block_rate_window_seconds: int = 3600
     audit_retention_days: int = 180
@@ -87,6 +87,19 @@ class Settings(BaseSettings):
     ephemeral_retention_hours: int = 168
     db_pool_size: int = 5
     db_max_overflow: int = 10
+    # ip2region 离线 IP 库：数据目录、更新源与调度（详见 ip2region_update 服务）
+    ip2region_data_dir: str = "data/ip2region"
+    ip2region_releases_api_url: str = (
+        "https://api.github.com/repos/lionsoul2014/ip2region/releases/latest"
+    )
+    ip2region_download_base_url: str = (
+        "https://raw.githubusercontent.com/lionsoul2014/ip2region"
+    )
+    ip2region_http_timeout_seconds: float = 30.0
+    ip2region_auto_update_enabled: bool = False
+    ip2region_update_interval_hours: int = 24
+    ip2region_update_rate_limit: int = 6
+    ip2region_update_rate_window_seconds: int = 3600
 
     @model_validator(mode="after")
     def _validate_production(self):
@@ -106,6 +119,14 @@ class Settings(BaseSettings):
             raise ValueError("SMTP_MAX_RETRIES 必须在 0–5 之间")
         if self.smtp_retry_delay_seconds < 0:
             raise ValueError("SMTP_RETRY_DELAY_SECONDS 必须 ≥0")
+        if self.ip2region_http_timeout_seconds < 5:
+            raise ValueError("IP2REGION_HTTP_TIMEOUT_SECONDS 必须 ≥5")
+        if not 1 <= self.ip2region_update_interval_hours <= 8760:
+            raise ValueError("IP2REGION_UPDATE_INTERVAL_HOURS 必须在 1–8760 之间")
+        if self.ip2region_update_rate_limit < 1:
+            raise ValueError("IP2REGION_UPDATE_RATE_LIMIT 必须 ≥1")
+        if self.ip2region_update_rate_window_seconds < 1:
+            raise ValueError("IP2REGION_UPDATE_RATE_WINDOW_SECONDS 必须 ≥1")
         if not self.allowed_hosts:
             raise ValueError("ALLOWED_HOSTS 不能为空")
         if self.db_pool_size < 1 or self.db_max_overflow < 0:
@@ -171,6 +192,10 @@ class Settings(BaseSettings):
         if self.jwt_keys_dir and not self.jwt_keys_dir.startswith("/"):
             raise ValueError(
                 "JWT_KEYS_DIR 在生产环境必须使用绝对路径（推荐 /app/keys/jwt）"
+            )
+        if not self.ip2region_data_dir.startswith("/"):
+            raise ValueError(
+                "IP2REGION_DATA_DIR 在生产环境必须使用绝对路径（推荐 /app/data/ip2region）"
             )
         if self.email_backend != "smtp" or not self.smtp_host or not self.smtp_from:
             raise ValueError(

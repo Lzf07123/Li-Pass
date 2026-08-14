@@ -17,6 +17,7 @@ function sessionOut(overrides: Record<string, unknown> = {}) {
     auth_method: "password",
     device_name: "Chrome on macOS",
     ip: "203.0.113.7",
+    ip_location: "广东省 深圳市",
     user_agent: "Mozilla/5.0 test-agent",
     created_at: "2026-08-13T10:00:00Z",
     last_used_at: "2026-08-13T11:00:00Z",
@@ -75,6 +76,7 @@ describe("AdminSessionsPanel", () => {
     expect(screen.getByText("Chrome on macOS")).toBeInTheDocument();
     expect(screen.getByText("Safari on iPhone")).toBeInTheDocument();
     expect(screen.getByText("TOTP")).toBeInTheDocument();
+    expect(screen.getAllByText("广东省 深圳市").length).toBeGreaterThan(0);
     const heading = screen.getByRole("heading", { name: /会话监控/ });
     await waitFor(() =>
       expect(heading.textContent).toContain("共 2 个在线会话")

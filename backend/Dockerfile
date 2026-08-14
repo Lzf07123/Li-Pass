@@ -24,6 +24,9 @@ COPY app ./app
 COPY alembic.ini .
 COPY alembic ./alembic
 COPY scripts ./scripts
+# ip2region 离线数据（构建期固定 v3.17.0 + SHA256 校验；运行时可在站点设置中手动/自动更新）
+RUN mkdir -p /app/data/ip2region \
+    && python scripts/download_ip2region.py --data-dir /app/data/ip2region
 
 RUN mkdir -p /app/keys /app/uploads && chown -R 10001:10001 /app
 

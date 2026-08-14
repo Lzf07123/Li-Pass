@@ -113,6 +113,7 @@ class AdminSessionOut(BaseModel):
     auth_method: str
     device_name: str
     ip: str
+    ip_location: str | None = None
     user_agent: str
     created_at: datetime
     last_used_at: datetime

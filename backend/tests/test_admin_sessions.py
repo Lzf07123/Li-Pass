@@ -79,6 +79,28 @@ def test_admin_list_sessions_with_search(client, db_session) -> None:
     assert any(s["id"] == str(bob_session.id) for s in result)
 
 
+def test_admin_sessions_include_ip_location(client, db_session, monkeypatch) -> None:
+    from app.api.routes import admin_sessions as routes
+
+    monkeypatch.setattr(
+        routes, "describe_ip", lambda ip: "广东省 深圳市", raising=False
+    )
+    login_admin(client, db_session)
+    bob = User(
+        email="bob@example.com",
+        password_hash=hash_password("password123"),
+        nickname="Bob",
+    )
+    db_session.add(bob)
+    db_session.commit()
+    db_session.refresh(bob)
+    bob_session, _ = create_session(db_session, bob, ip="203.0.113.7")
+
+    items = client.get("/api/v1/admin/sessions").json()["items"]
+    bob_item = next(item for item in items if item["id"] == str(bob_session.id))
+    assert bob_item["ip_location"] == "广东省 深圳市"
+
+
 def test_admin_list_excludes_expired_sessions(client, db_session) -> None:
     login_admin(client, db_session)
     bob = User(

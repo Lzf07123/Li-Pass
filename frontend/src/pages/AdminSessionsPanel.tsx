@@ -290,6 +290,11 @@ export function AdminSessionsPanel() {
                   <div className="truncate" title={session.ip ?? undefined}>
                     {session.ip || "—"}
                   </div>
+                  {session.ip_location && (
+                    <div className="truncate text-xs text-muted">
+                      {session.ip_location}
+                    </div>
+                  )}
                 </td>
                 <td>
                   <span className="badge badge-muted">

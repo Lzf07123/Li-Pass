@@ -76,7 +76,9 @@ docker compose -f docker-compose.yaml --env-file .env exec backend \
 | `DATABASE_URL` / `REDIS_URL` | 数据与缓存连接串：留空时默认编排内 PostgreSQL/Redis（需 `bundle` profile）；填写远程地址即切换为远程实例 |
 | `PENDING_REQUEST_STORE` / `TWOFA_STORE` / `RATE_LIMITER` | 生产用 `redis` |
 | `ADMIN_INVITE_RATE_LIMIT` / `ADMIN_INVITE_RATE_WINDOW_SECONDS` | 管理端邀请限流（按来源 IP 计，批量邀请按人数累计；默认 100 次/小时） |
-| `LOGIN_EMAIL_RATE_LIMIT` / `LOGIN_EMAIL_RATE_WINDOW_SECONDS` | 全局限邮箱登录限流，防分布式 IP 爆破（默认 20 次/15 分钟）。注意这是短时账号级锁定：窗口内对同一邮箱的尝试超过阈值后，无论来源 IP 都会被拒绝，攻击者可用错误密码尝试暂时锁住目标账号；需在防爆破与可用性之间权衡 |
+| `LOGIN_RATE_LIMIT` / `LOGIN_RATE_WINDOW_SECONDS` | 按邮箱+IP 的登录失败次数限流（默认 5 次/15 分钟，第 6 次失败返回 429） |
+| `LOGIN_IP_RATE_LIMIT` / `LOGIN_IP_RATE_WINDOW_SECONDS` | 按来源 IP 的登录尝试次数限流（默认 20 次/15 分钟，在 Argon2 之前前置拦截） |
+| `LOGIN_EMAIL_RATE_LIMIT` / `LOGIN_EMAIL_RATE_WINDOW_SECONDS` | 全局限邮箱登录限流，防分布式 IP 爆破（默认 10 次/15 分钟）。注意这是短时账号级锁定：窗口内对同一邮箱的尝试超过阈值后，无论来源 IP 都会被拒绝，攻击者可用错误密码尝试暂时锁住目标账号；需在防爆破与可用性之间权衡 |
 | `CLIENT_BLOCK_RATE_LIMIT` / `CLIENT_BLOCK_RATE_WINDOW_SECONDS` | OAuth 客户端黑名单接口限流（默认 100 次/小时/client_id）。计数包含列表（GET）接口，高频轮询同样计入 |
 | `AUDIT_RETENTION_DAYS` | 审计日志保留天数，超期由后台维护任务删除（默认 180，且必须 ≥1 无法关闭）。安全审计痕迹到期即删，合规要求长期留存时请显式调大 |
 | `SESSION_RETENTION_DAYS` | 已吊销/已过期会话保留天数，超期由后台维护任务删除（默认 30）。空闲超时会话在访问时惰性吊销，此处按过期时间兜底删除 |
@@ -84,6 +86,10 @@ docker compose -f docker-compose.yaml --env-file .env exec backend \
 | `EPHEMERAL_RETENTION_HOURS` | 过期 OTP/授权码/邀请的保留期（小时），超期由后台维护任务删除（默认 168） |
 | `DB_POOL_SIZE` / `DB_MAX_OVERFLOW` | SQLAlchemy 连接池大小（默认 `5` + `10`；提高 worker 数时应同步放大） |
 | `UVICORN_WORKERS` | 后端 uvicorn worker 数（默认 `1`；使用 memory 存储的本地模式必须保持 1） |
+| `IP2REGION_DATA_DIR` | ip2region 数据目录（生产必须为绝对路径，默认 `/app/data/ip2region`，构建期已内置 v3.17.0） |
+| `IP2REGION_AUTO_UPDATE_ENABLED` | 自动更新默认开关（默认 `false`，可在站点设置运行时覆盖） |
+| `IP2REGION_UPDATE_INTERVAL_HOURS` | 自动检查间隔（默认 `24`，范围 1–8760） |
+| `IP2REGION_RELEASES_API_URL` / `IP2REGION_DOWNLOAD_BASE_URL` | 版本发现与下载源（默认 GitHub，被墙环境可切 Gitee 镜像） |
 | `JWT_PRIVATE_KEY_PATH` / `ENCRYPTION_KEY_PATH` | 密钥文件路径（生产必须为绝对路径，指向 `/app/keys` 卷） |
 | `JWT_KEYS_DIR` / `JWT_ACTIVE_KID` | 可选密钥轮换：目录内每个 `*.pem` 文件名即 kid；`JWT_ACTIVE_KID` 指定签名 kid（缺省取字典序最大），详见「密钥管理」 |
 | `EMAIL_BACKEND` | `console`（开发）或 `smtp`（生产） |
@@ -98,6 +104,13 @@ docker compose -f docker-compose.yaml --env-file .env exec backend \
 | `REDIS_MAXMEMORY` | 编排内 Redis 内存上限（默认 `192mb`，只淘汰带 TTL 的键） |
 | `REDIS_APPENDONLY` | 编排内 Redis AOF 持久化开关（默认 `yes`） |
 | `FORWARDED_ALLOW_IPS` | 反向代理 IP/CIDR 白名单；编排内默认只信任网关固定 IP `172.30.0.10`（compose 固定子网），使用外部反代时改为其网关 IP 或网段 |
+
+## IP 归属地库（ip2region）
+
+- 用途：会话监控与审计日志的 IP 归属地展示、数据统计的登录地域分布；查询完全离线。
+- 数据与内存：IPv4 + IPv6 两份 xdb 共约 48MB，进程内懒加载并常驻（每个 uvicorn worker 各一份）；提高 `UVICORN_WORKERS` 时按 48MB/worker 评估容器内存上限。
+- 更新：构建镜像时用固定 tag + SHA256 校验内置 v3.17.0；管理后台「站点设置 → IP 归属地库」可手动「立即检查更新」，或开启自动更新（默认关闭，间隔 24 小时）。**运行期更新同样强制 SHA256 校验**：只有列入代码内信任清单（`app/services/ip2region_pins.py`）的版本才允许安装，清单外的上游新版本一律拒绝（宁可停止更新也不装入未审计数据）；上游发布新版本后需先在构建流程中固定哈希并更新清单，再发布应用。更新采用下载到临时目录 → 结构校验 → SHA256 校验 → 先备份再原子替换（失败自动回滚旧库）→ 更新 meta.json，全程由跨进程文件锁互斥（多 worker 安全）；手动更新按管理员限流（默认 6 次/小时）并记审计。
+- 内网部署：GitHub 不可达时把 `IP2REGION_RELEASES_API_URL` 与 `IP2REGION_DOWNLOAD_BASE_URL` 指向 Gitee 镜像（见 `.env.example`），或完全关闭自动更新、仅在构建时随镜像更新。
 
 ## 编排内 / 远程数据库切换
 
@@ -143,7 +156,7 @@ SMTP_RETRY_DELAY_SECONDS=1
 邮件分为两类：注册/登录/重置/绑手机等场景发送 6 位验证码（10 分钟有效，重发会作废旧码）；邀请注册发送一次性邀请链接（7 天有效）。各发送接口的限流口径不同：
 
 - 登录后 2FA 验证码、手机绑定验证码：`OTP_SEND_LIMIT=5` 次/小时/邮箱；2FA 进入二次验证页不自动发信，需用户点击“获取验证码”，重发最小间隔 `OTP_RESEND_COOLDOWN_SECONDS`（默认 60 秒）
-- 登录失败：每邮箱+IP `LOGIN_RATE_LIMIT=10` 次/15 分钟，每 IP `LOGIN_IP_RATE_LIMIT=30` 次/15 分钟，全局限邮箱 `LOGIN_EMAIL_RATE_LIMIT=20` 次/15 分钟；邮箱级限流附带短时账号锁定权衡，见上表说明
+- 登录失败：每邮箱+IP `LOGIN_RATE_LIMIT=5` 次/15 分钟（第 6 次失败返回 429），每 IP `LOGIN_IP_RATE_LIMIT=20` 次/15 分钟，全局限邮箱 `LOGIN_EMAIL_RATE_LIMIT=10` 次/15 分钟；邮箱级限流附带短时账号锁定权衡，见上表说明
 - 邮箱激活验证码重发与验证尝试：`EMAIL_VERIFY_RATE_LIMIT=30` 次/小时/邮箱（不按 IP 限流，避免办公网/NAT 共享出口误伤）
 - 注册/邀请注册接口：`REGISTER_RATE_LIMIT=10` 次/小时/IP
 - 找回密码：`PASSWORD_RESET_RATE_LIMIT=5` 次/小时/邮箱（不按 IP 限流）
@@ -243,7 +256,7 @@ bash scripts/restore-db.sh backups/portal-20260813-120000.sql.gz
 
 ## 数据库迁移与升级策略
 
-当前为初版（`alembic` 迁移版本 `9a1b2c3d4e5f`）。后续开发版本必须遵循以下规则，保证平滑升级且不丢数据：
+迁移为单链增量结构（当前 head 为 `6d1f9c0b2e4a`，含管理后台统计所需的审计日志复合索引）。后续开发版本必须遵循以下规则，保证平滑升级且不丢数据：
 
 1. **所有结构变更都走 Alembic 增量迁移**：禁止手工改生产库，也禁止用 `Base.metadata.create_all` 初始化已有库。后端启动命令已内置 `alembic upgrade head`，新版本上线时自动升级到最新结构。
 2. **迁移必须可降级**：每个迁移的 `downgrade()` 要完整可执行；无法安全回退的结构变更要写成“先加后删”的两阶段迁移（expand → migrate → contract），而不是一步重命名/删列。
@@ -280,6 +293,7 @@ docker compose --profile bundle exec backend alembic downgrade -1
 | Redis | 验证码、2FA 挑战、待授权请求、限流计数 | `account-service_redis-data-prod`（`/data`，RDB + AOF） | 数据保留（短 TTL 数据本就过期） |
 | 后端 | JWT 私钥、Fernet 加密密钥 | `account-service_backend-keys`（`/app/keys`） | 密钥保留 |
 | 后端 | 用户头像 | `account-service_backend-uploads`（`/app/uploads`） | 头像保留 |
+| 后端 | ip2region 离线库（含运行期更新结果） | `account-service_backend-data`（`/app/data`） | 保留（首次挂载自动带入镜像内置数据） |
 | 前端 nginx | 无（仅静态构建产物） | 容器层 | 重建后由镜像重新提供 |
 | 示例授权网站 | 无 | 容器层 | 重建后恢复默认 |
 
@@ -292,7 +306,9 @@ Redis 已通过 `--appendonly yes` 显式开启 AOF（可用 `REDIS_APPENDONLY=n
 仓库内置的 gateway（nginx）只做 HTTP 路由，不负责 TLS 终止。生产上线时：
 
 1. 在部署环境配置 TLS 与路由（例如 K8s Ingress、云负载均衡或外部网关），把域名指向前端与后端服务。
-2. **HSTS 必须在网关侧配置**（例如 `Strict-Transport-Security: max-age=63072000; includeSubDomains`），仓库内前端/后端不直接签发，避免 HTTP 直连时误发。
+2. **HSTS 双保险**：
+   - 后端在 `SESSION_COOKIE_SECURE=true`（生产必填）时自动签发 `Strict-Transport-Security: max-age=63072000; includeSubDomains`，覆盖全部 API 响应；
+   - 如需让网关在**所有**响应（含前端 HTML）上再签发一层，在 `.env` 设置 `HSTS_MAX_AGE=63072000`（开发/HTTP 直连时保持留空，避免误发；浏览器按规范只在 HTTPS 连接上生效）。
 3. 更新 `.env`（参考 `.env.example` 底部的生产配置示例）：
    - `ENVIRONMENT=production`
    - `JWT_ISSUER=https://auth.example.com`
@@ -303,6 +319,72 @@ Redis 已通过 `--appendonly yes` 显式开启 AOF（可用 `REDIS_APPENDONLY=n
    - `SESSION_COOKIE_SAMESITE`：按「SameSite 与部署拓扑」选择 `lax` 或 `none`
    - `FORWARDED_ALLOW_IPS`：使用编排内网关时保持默认（`172.30.0.10`）；改用外部反代时填网关 IP/CIDR，让限流/审计拿到真实客户端 IP
 4. 重新构建并启动。
+
+### 外部 nginx 终止 TLS 的参考配置
+
+若使用自建 nginx 终止 HTTPS，推荐以下要点（密钥交换曲线把 `X25519` 放在首位，避免协商到较弱的 `secp256r1`/`prime256v1`）：
+
+```nginx
+server {
+    listen 443 ssl;
+    http2 on;
+    server_name portal.example.com;
+
+    ssl_certificate     /etc/letsencrypt/live/portal.example.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/portal.example.com/privkey.pem;
+
+    # 只启用 TLS 1.2/1.3；曲线优先 X25519
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_ecdh_curve X25519:prime256v1:secp384r1;
+
+    # 会话复用与 OCSP 装订（减少握手开销并保护隐私）
+    ssl_session_cache shared:SSL:10m;
+    ssl_session_timeout 1d;
+    ssl_session_tickets off;
+    ssl_stapling on;
+    ssl_stapling_verify on;
+
+    add_header Strict-Transport-Security "max-age=63072000; includeSubDomains" always;
+
+    location / {
+        proxy_pass http://127.0.0.1:80;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
+
+server {
+    listen 80;
+    server_name portal.example.com;
+    return 301 https://$host$request_uri;
+}
+```
+
+更完整的参数建议参考 [Mozilla SSL Configuration Generator](https://ssl-config.mozilla.org/)（选择 nginx + modern）。
+
+### Let's Encrypt 证书与自动续期
+
+Let's Encrypt 证书有效期只有 90 天，必须配置可靠的自动续期，否则证书过期会导致全站不可用。certbot 默认安装的 systemd timer 每天会尝试两次续期，但仍建议显式配置并定期巡检：
+
+```bash
+# 签发（nginx 插件会自动改写配置并配置续期）
+sudo apt install certbot python3-certbot-nginx
+sudo certbot --nginx -d portal.example.com
+
+# 验证自动续期可用（不会真正续期）
+sudo certbot renew --dry-run
+
+# 续期后重载 nginx：编辑续期钩子，保证新证书生效
+sudo tee /etc/letsencrypt/renewal-hooks/deploy/reload-nginx.sh > /dev/null <<'EOF'
+#!/bin/sh
+systemctl reload nginx
+EOF
+sudo chmod +x /etc/letsencrypt/renewal-hooks/deploy/reload-nginx.sh
+```
+
+监控建议：对 `certbot certificates` 输出或证书文件做到期检查（例如每日 cron 里 `openssl x509 -enddate` 判断剩余天数），小于 30 天即告警；同时确认 80 端口的 ACME 验证路径在防火墙/负载均衡层可达。
 
 ## 上线前安全清单
 
@@ -317,7 +399,9 @@ Redis 已通过 `--appendonly yes` 显式开启 AOF（可用 `REDIS_APPENDONLY=n
 - [ ] 已按合规要求评估 `AUDIT_RETENTION_DAYS`（默认 180 天，审计日志到期自动删除）
 - [ ] 已评估 `LOGIN_EMAIL_RATE_LIMIT` 的账号锁定权衡（防爆破 vs 短时拒绝目标账号登录）
 - [ ] 已备份 `backend-keys` 与 `backend-uploads` 卷，并演练过恢复
-- [ ] 网关已配置 TLS、HSTS、HTTP→HTTPS 跳转
+- [ ] 网关已配置 TLS、HSTS、HTTP→HTTPS 跳转（后端生产会自动签发 HSTS；可用 `curl -sI https://域名/api/v1/healthz | grep -i strict-transport` 验证）
+- [ ] TLS 曲线以 X25519 优先（`openssl s_client -connect 域名:443 -tls1_3` 协商结果非 secp256r1/prime256v1；或按上文 nginx 参考配置显式声明 `ssl_ecdh_curve`）
+- [ ] Let's Encrypt 续期可用：`certbot renew --dry-run` 通过，续期钩子已重载 nginx，并配置到期监控（<30 天告警）
 - [ ] 网关已放行 `/readyz`（或仅内部可达），不要把 `/docs` 暴露（生产已自动关闭）
 - [ ] 用 `docker compose config` 检查渲染后的编排，确认没有把演示站点带进生产栈
 

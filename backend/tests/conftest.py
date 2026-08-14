@@ -26,8 +26,9 @@ from app.models.base import Base
 
 @pytest.fixture(autouse=True)
 def _clear_memory_state():
-    """内存限流器/挑战存储/待授权存储是进程级单例，测试间共享同一 IP，
-    必须在每个用例前清空，否则会把测试会话的限流配额耗尽。"""
+    """内存限流器/挑战存储/待授权存储/统计缓存是进程级单例，测试间共享，
+    必须在每个用例前清空，避免配额耗尽或跨测试数据串扰。"""
+    from app.services.admin_stats import _CACHE as _stats_cache
     from app.services.pending_requests import _memory_store as _pending_store
     from app.services.rate_limit import _memory_limiter
     from app.services.twofa import _memory_store as _twofa_store
@@ -35,6 +36,7 @@ def _clear_memory_state():
     _memory_limiter._items.clear()
     _pending_store._items.clear()
     _twofa_store._items.clear()
+    _stats_cache.clear()
     yield
 
 

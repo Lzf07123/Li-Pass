@@ -128,12 +128,20 @@ services:
       EPHEMERAL_RETENTION_HOURS: ${EPHEMERAL_RETENTION_HOURS:-168}
       DB_POOL_SIZE: ${DB_POOL_SIZE:-5}
       DB_MAX_OVERFLOW: ${DB_MAX_OVERFLOW:-10}
+      IP2REGION_DATA_DIR: ${IP2REGION_DATA_DIR:-/app/data/ip2region}
+      IP2REGION_AUTO_UPDATE_ENABLED: ${IP2REGION_AUTO_UPDATE_ENABLED:-false}
+      IP2REGION_UPDATE_INTERVAL_HOURS: ${IP2REGION_UPDATE_INTERVAL_HOURS:-24}
+      IP2REGION_RELEASES_API_URL: ${IP2REGION_RELEASES_API_URL:-https://api.github.com/repos/lionsoul2014/ip2region/releases/latest}
+      IP2REGION_DOWNLOAD_BASE_URL: ${IP2REGION_DOWNLOAD_BASE_URL:-https://raw.githubusercontent.com/lionsoul2014/ip2region}
       UVICORN_WORKERS: ${UVICORN_WORKERS:-1}
     # 不向宿主机开放端口：只允许通过 gateway（nginx）访问，
     # 容器内网（172.30.0.0/24）仍可通过 backend:8000 互通。
     volumes:
       - backend-keys:/app/keys
       - backend-uploads:/app/uploads
+      # 运行期更新的 ip2region 数据落盘：容器重建后保留，避免反复重下。
+      # 首次挂载时 Docker 会把镜像内置数据复制进空卷（v3.17.0）。
+      - backend-data:/app/data
     depends_on:
       postgres:
         condition: service_healthy
@@ -191,6 +199,8 @@ services:
       - no-new-privileges:true
     environment:
       TZ: ${TZ:-Asia/Shanghai}
+      # HSTS max-age（秒）；留空 = 网关不签发（后端在生产会自动签发）
+      HSTS_MAX_AGE: ${HSTS_MAX_AGE:-}
     # 固定容器 IP：后端 FORWARDED_ALLOW_IPS 只信任这一台网关。
     # 避开编排内其他动态分配的 .2/.3 等地址，固定使用高位地址。
     networks:
@@ -258,6 +268,7 @@ volumes:
   redis-data-prod:
   backend-keys:
   backend-uploads:
+  backend-data:
 
 networks:
   default:

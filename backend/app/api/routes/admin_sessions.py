@@ -14,6 +14,7 @@ from app.models.session import Session as SessionModel
 from app.models.user import User
 from app.schemas.auth import AdminSessionListOut
 from app.services.audit import log_audit, log_rate_limit_rejected_once
+from app.services.geoip import describe_ip
 from app.services.rate_limit import get_rate_limiter
 
 logger = logging.getLogger(__name__)
@@ -65,6 +66,7 @@ def _serialize_session(session: SessionModel, user: User, current: bool) -> dict
         "auth_method": session.auth_method,
         "device_name": session.device_name,
         "ip": session.ip,
+        "ip_location": describe_ip(session.ip),
         "user_agent": session.user_agent,
         "created_at": session.created_at,
         "last_used_at": session.last_used_at,

@@ -13,6 +13,8 @@ import { AdminClientsPage } from "./AdminClientsPage";
 import { AdminNotificationsPanel } from "./AdminNotificationsPanel";
 import { AdminSessionsPanel } from "./AdminSessionsPanel";
 import { AdminSettingsPanel } from "./AdminSettingsPanel";
+import { AdminStatsPanel } from "./AdminStatsPanel";
+import { AdminSystemPanel } from "./AdminSystemPanel";
 import { AdminUsersPanel } from "./AdminUsersPanel";
 
 const TABS = [
@@ -21,6 +23,8 @@ const TABS = [
   { key: "notifications", label: "通知管理" },
   { key: "clients", label: "应用管理" },
   { key: "settings", label: "站点设置" },
+  { key: "system", label: "系统信息" },
+  { key: "stats", label: "数据统计" },
   { key: "audit", label: "审计日志" },
 ] as const;
 
@@ -102,6 +106,8 @@ export function AdminPage() {
           {tab === "notifications" && <AdminNotificationsPanel />}
           {tab === "clients" && <AdminClientsPage />}
           {tab === "settings" && <AdminSettingsPanel />}
+          {tab === "system" && <AdminSystemPanel />}
+          {tab === "stats" && <AdminStatsPanel />}
           {tab === "audit" && <AdminAuditPanel />}
         </FadeIn>
       </main>

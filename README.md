@@ -13,7 +13,7 @@
 - 网站级访问控制：每个授权网站可独立封禁/解封账号，认证链路三层拦截
 - 用户中心：资料修改、头像上传、密码修改、设备与会话管理、站内信收件箱与邮件通知开关、账号注销（手机绑定接口保留，前端暂未开放）
 - 应用广场：展示已授权网站，一键进入
-- 管理后台：用户管理（邀请注册/批量邀请、批量状态/删除）、会话监控（查看在线会话并支持单个/批量/全部强制下线）、通知管理（站内信/自定义邮件）、授权网站管理（含黑名单）、审计日志
+- 管理后台：用户管理（邀请注册/批量邀请、批量状态/删除）、会话监控（查看在线会话与 IP 归属地，支持单个/批量/全部强制下线）、通知管理（站内信/自定义邮件）、授权网站管理（含黑名单）、站点设置（公开注册开关与 IP 归属地库更新）、系统信息（内存/磁盘/负载/服务状态）、数据统计（账号构成、登录趋势、认证方式与登录地域分布）、审计日志
 - 网站自助黑名单 API：授权网站可用自己的 client_id/secret 封禁/解封账号
 - 示例授权网站：本地一键演示完整登录闭环
 
@@ -24,7 +24,7 @@
 | 后端 | FastAPI + Pydantic v2 + SQLAlchemy 2.0 + Alembic |
 | 前端 | React + Vite + TypeScript + Tailwind CSS |
 | 数据 | PostgreSQL 16 + Redis 7 |
-| 安全 | Argon2id、RS256 JWT、TOTP、PKCE、限流与审计 |
+| 安全 | Argon2id、RS256 JWT、TOTP、PKCE、多层登录限流与审计、HSTS/CSP 安全头与 CSRF Origin 校验 |
 | 部署 | Docker Compose + 内置 nginx 单域名网关（唯一对外入口 :80）；HTTPS 与路由由部署环境负责 |
 
 ## 项目结构
@@ -39,7 +39,7 @@ account-service/
 │   │   ├── security/        # 密码哈希、JWT、TOTP、限流、审计
 │   │   ├── services/        # 邮件、会话、2FA、黑名单等业务服务
 │   │   └── core/            # 配置、数据库、日志
-│   ├── scripts/             # 运维脚本（已内置进镜像）：make_admin、seed_demo_client
+│   ├── scripts/             # 运维脚本（已内置进镜像）：make_admin、seed_demo_client、rotate_jwt_key、download_ip2region
 │   └── tests/               # 仅保留本地，不入库
 ├── frontend/                # React SPA 门户
 │   ├── src/
@@ -161,3 +161,9 @@ docker compose exec backend python -m scripts.seed_demo_client
 - ✅ 里程碑 3：用户中心 + 网站级访问控制
 - ✅ 里程碑 4：2FA + 安全加固
 - ✅ 里程碑 5：生产部署 + 对接文档
+
+## 开源协议
+
+本项目采用 [Apache License 2.0](LICENSE) 发布。你可以自由使用、修改、分发与商用，同时保留版权与许可声明。
+
+第三方组件说明：`backend/ip2region/` 为 ip2region v3.17.0 的官方 Python 绑定源码（Apache-2.0），其许可文件随源码保留在 [backend/ip2region/LICENSE](backend/ip2region/LICENSE)。

@@ -46,3 +46,15 @@ def test_audit_list_filters_by_actor_and_time(client, db_session) -> None:
     assert resp.status_code == 200
     items = resp.json()
     assert all(item["actor_id"] == "u1" for item in items)
+
+
+def test_audit_list_include_ip_location(client, db_session, monkeypatch) -> None:
+    from app.api.routes import admin_users as routes
+
+    monkeypatch.setattr(
+        routes, "describe_ip", lambda ip: "广东省 深圳市", raising=False
+    )
+    _login_admin(client, db_session)
+    log_audit(db_session, "user", "u1", "login", category="auth", ip="203.0.113.7")
+    items = client.get("/api/v1/admin/audit-logs").json()
+    assert items[0]["ip_location"] == "广东省 深圳市"

@@ -26,6 +26,7 @@ def _prod_env(**overrides: str) -> dict[str, str]:
         "RATE_LIMITER": "redis",
         "JWT_PRIVATE_KEY_PATH": "/app/keys/jwt_private.pem",
         "ENCRYPTION_KEY_PATH": "/app/keys/encryption.key",
+        "IP2REGION_DATA_DIR": "/app/data/ip2region",
     }
     env.update(overrides)
     return env
@@ -71,6 +72,17 @@ def test_notification_settings_reject_invalid_values(monkeypatch) -> None:
 def test_session_revoke_rate_limit_reject_invalid_values(monkeypatch) -> None:
     monkeypatch.setenv("ADMIN_SESSION_REVOKE_RATE_LIMIT", "0")
     with pytest.raises(ValueError):
+        Settings(_env_file=None)
+
+
+def test_production_relative_ip2region_data_dir_rejected(monkeypatch) -> None:
+    with pytest.raises(ValueError, match="IP2REGION_DATA_DIR"):
+        _settings(monkeypatch, IP2REGION_DATA_DIR="data/ip2region")
+
+
+def test_invalid_ip2region_update_interval_rejected(monkeypatch) -> None:
+    monkeypatch.setenv("IP2REGION_UPDATE_INTERVAL_HOURS", "0")
+    with pytest.raises(ValueError, match="IP2REGION_UPDATE_INTERVAL_HOURS"):
         Settings(_env_file=None)
 
 

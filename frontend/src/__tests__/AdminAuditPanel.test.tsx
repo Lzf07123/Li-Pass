@@ -30,6 +30,7 @@ describe("AdminAuditPanel", () => {
                 target_type: null,
                 target_id: null,
                 ip: "127.0.0.1",
+                ip_location: "内网地址",
                 detail: null,
                 created_at: "2026-08-13T00:00:00Z",
               },
@@ -58,6 +59,7 @@ describe("AdminAuditPanel", () => {
     expect(
       within(screen.getByRole("table")).getByText("安全")
     ).toBeInTheDocument();
+    expect(screen.getByText("内网地址")).toBeInTheDocument();
   });
 
   it("筛选分类包含通知管理", async () => {

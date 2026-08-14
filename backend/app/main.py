@@ -16,6 +16,8 @@ from app.api.routes import admin_clients as admin_clients_routes
 from app.api.routes import admin_notifications as admin_notifications_routes
 from app.api.routes import admin_sessions as admin_sessions_routes
 from app.api.routes import admin_settings as admin_settings_routes
+from app.api.routes import admin_stats as admin_stats_routes
+from app.api.routes import admin_system as admin_system_routes
 from app.api.routes import admin_users as admin_users_routes
 from app.api.routes import auth as auth_routes
 from app.api.routes import client_blocks as client_blocks_routes
@@ -29,6 +31,7 @@ from app.core.db import get_db
 from app.core.redis import get_redis_client
 from app.services.avatar_cleanup import cleanup_orphan_avatars
 from app.services.email import warn_email_config
+from app.services.ip2region_update import maybe_auto_update
 from app.services.maintenance import cleanup_expired_ephemeral_rows
 
 logger = logging.getLogger(__name__)
@@ -64,6 +67,19 @@ def _run_maintenance(app: FastAPI) -> None:
         logger.exception("后台维护任务失败")
 
 
+def _run_ip2region_update(app: FastAPI) -> None:
+    """检查站点设置并按间隔执行 ip2region 自动更新；失败仅记录日志。"""
+    try:
+        dependency = app.dependency_overrides.get(get_db, get_db)
+        db = next(dependency())
+        try:
+            maybe_auto_update(db)
+        finally:
+            db.close()
+    except Exception:
+        logger.exception("ip2region 自动更新检查失败")
+
+
 async def _maintenance_loop(app: FastAPI) -> None:
     interval = get_settings().avatar_cleanup_interval_seconds
     if interval <= 0:
@@ -74,19 +90,32 @@ async def _maintenance_loop(app: FastAPI) -> None:
         await asyncio.to_thread(_run_maintenance, app)
 
 
+async def _ip2region_update_loop(app: FastAPI) -> None:
+    """每小时醒来一次；是否执行/多久执行一次由站点设置决定。"""
+    while True:
+        await asyncio.sleep(3600)
+        await asyncio.to_thread(_run_ip2region_update, app)
+
+
 @contextlib.asynccontextmanager
 async def lifespan(app: FastAPI):
     # 启动时先清理一次历史遗留；周期任务可单独开关。
     await asyncio.to_thread(_run_maintenance, app)
     warn_email_config(get_settings())
+    maintenance_task = None
     if get_settings().avatar_cleanup_interval_seconds > 0:
-        task = asyncio.create_task(_maintenance_loop(app))
+        maintenance_task = asyncio.create_task(_maintenance_loop(app))
+    ip2region_task = asyncio.create_task(_ip2region_update_loop(app))
+    try:
         yield
-        task.cancel()
+    finally:
+        ip2region_task.cancel()
         with contextlib.suppress(asyncio.CancelledError):
-            await task
-    else:
-        yield
+            await ip2region_task
+        if maintenance_task is not None:
+            maintenance_task.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await maintenance_task
 
 
 def create_app() -> FastAPI:
@@ -102,8 +131,14 @@ def create_app() -> FastAPI:
         CORSMiddleware,
         allow_origins=settings.cors_origins,
         allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
+        allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+        allow_headers=[
+            "Authorization",
+            "Content-Type",
+            "Accept",
+            "Origin",
+            "X-Requested-With",
+        ],
     )
     app.add_middleware(
         TrustedHostMiddleware,
@@ -187,10 +222,12 @@ def create_app() -> FastAPI:
         response.headers["Permissions-Policy"] = (
             "camera=(), microphone=(), geolocation=(), payment=(), usb=()"
         )
-        response.headers["Content-Security-Policy"] = (
-            f"default-src 'self'; connect-src 'self' {_origin(settings.jwt_issuer)}; "
-            "img-src 'self' data:; style-src 'self' 'unsafe-inline'"
-        )
+        response.headers["Content-Security-Policy"] = _build_csp(settings)
+        if settings.session_cookie_secure:
+            # 生产（HTTPS）自动签发 HSTS；开发/测试不签发，避免 HTTP 直连误发。
+            response.headers["Strict-Transport-Security"] = (
+                "max-age=63072000; includeSubDomains"
+            )
         return response
 
     app.mount(
@@ -207,6 +244,8 @@ def create_app() -> FastAPI:
     app.include_router(admin_users_routes.router)
     app.include_router(admin_sessions_routes.router)
     app.include_router(admin_notifications_routes.router)
+    app.include_router(admin_system_routes.router)
+    app.include_router(admin_stats_routes.router)
     app.include_router(messages_routes.router)
     app.include_router(consent_routes.router)
     app.include_router(client_blocks_routes.router)
@@ -221,6 +260,17 @@ def _origin(url: str) -> str:
         return f"{parsed.scheme}://{parsed.netloc}"
     except ValueError:
         return url
+
+
+def _build_csp(settings) -> str:
+    """构造 CSP：生产禁用内联样式；开发保留以支撑 Swagger 文档内联样式。"""
+    style_src = (
+        "'self'" if settings.environment == "production" else "'self' 'unsafe-inline'"
+    )
+    return (
+        f"default-src 'self'; connect-src 'self' {_origin(settings.jwt_issuer)}; "
+        f"img-src 'self' data:; style-src {style_src}"
+    )
 
 
 app = create_app()

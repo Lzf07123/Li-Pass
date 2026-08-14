@@ -34,6 +34,13 @@ server {
     # 上传头像 ≤5MB，留余量
     client_max_body_size 6m;
 
+    # HSTS：仅当 HSTS_MAX_AGE 环境变量非空时签发（生产由 .env 显式开启）。
+    # 后端在生产（SESSION_COOKIE_SECURE=true）也会自动签发，二者互补。
+    set $hsts_max_age "${HSTS_MAX_AGE}";
+    if ($hsts_max_age != "") {
+        add_header Strict-Transport-Security "max-age=$hsts_max_age; includeSubDomains" always;
+    }
+
     # 所有 location 通用：透传真实 Host，供后端 TrustedHost / 限流使用
     proxy_set_header Host $host;
     proxy_set_header X-Real-IP $remote_addr;

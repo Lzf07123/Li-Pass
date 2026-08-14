@@ -20,6 +20,7 @@ from app.security.passwords import hash_password, verify_password
 from app.security.tokens import generate_token, hash_token
 from app.services.account_deletion import delete_user_account
 from app.services.audit import log_audit, log_rate_limit_rejected_once
+from app.services.geoip import describe_ip
 from app.services.email import get_email_service
 from app.services.rate_limit import get_rate_limiter
 
@@ -853,6 +854,7 @@ def list_audit_logs(
             "target_type": log.target_type,
             "target_id": log.target_id,
             "ip": log.ip,
+            "ip_location": describe_ip(log.ip),
             "detail": log.detail,
             "created_at": log.created_at,
         }

@@ -22,3 +22,23 @@ def set_site_setting_bool(db: Session, key: str, value: bool) -> None:
     else:
         row.value = text
     db.commit()
+
+
+def get_site_setting_int(db: Session, key: str, default: int) -> int:
+    row = db.get(SiteSetting, key)
+    if row is None:
+        return default
+    try:
+        return int(row.value.strip())
+    except ValueError:
+        return default
+
+
+def set_site_setting_int(db: Session, key: str, value: int) -> None:
+    text = str(value)
+    row = db.get(SiteSetting, key)
+    if row is None:
+        db.add(SiteSetting(key=key, value=text))
+    else:
+        row.value = text
+    db.commit()

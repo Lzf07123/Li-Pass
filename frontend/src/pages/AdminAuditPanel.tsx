@@ -153,7 +153,14 @@ export function AdminAuditPanel() {
                 <td>
                   <span className="badge badge-muted">{log.action}</span>
                 </td>
-                <td>{log.ip ?? "-"}</td>
+                <td>
+                  <div>{log.ip ?? "-"}</div>
+                  {log.ip_location && (
+                    <div className="text-xs text-muted">
+                      {log.ip_location}
+                    </div>
+                  )}
+                </td>
                 <td>
                   {log.detail && Object.keys(log.detail).length > 0 ? (
                     <details>
