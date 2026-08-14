@@ -12,6 +12,8 @@ npm run dev
 
 开发服务器默认运行在 http://localhost:5173 （Vite 默认端口，与 nginx 生产容器一致）。
 
+项目内 `.npmrc` 已把 npm 源指向 `https://registry.npmmirror.com/`（国内加速；USTC 的 npm 镜像已停服并重定向到该源），Docker 构建与本地 `npm ci` 均生效。海外网络或 CI 如遇镜像不可达，可临时用 `npm config set registry https://registry.npmjs.org/` 覆盖。
+
 ## 脚本
 
 | 命令 | 说明 |
