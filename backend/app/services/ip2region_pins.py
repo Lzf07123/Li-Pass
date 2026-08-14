@@ -19,3 +19,25 @@ PINNED_SHA256: dict[tuple[str, str], str] = {
         "ip2region_v6.xdb",
     ): "5b93da35ac28bc316dccc54a758381f7a874ae0461dd51ff5df5e34815586f11",
 }
+
+# 构建期拉取的 Python 绑定源码固定哈希（相对 binding/python 的路径）。
+# 本地 vendored backend/ip2region/ 供开发与测试使用，镜像内则在构建时按此清单拉取，
+# 二者内容必须一致（test_ip2region_pins 会校验）。
+BINDING_SHA256: dict[tuple[str, str], str] = {
+    (
+        "v3.17.0",
+        "ip2region/__init__.py",
+    ): "1cb7dfe6b8b19feff29bf9c9a3107b34ee856d19817a5ac1e464070ddb330b5d",
+    (
+        "v3.17.0",
+        "ip2region/util.py",
+    ): "eda5592a77007bf3a2cf4255a7eb7372cf57a7db844e5238231843bf3bfeab9e",
+    (
+        "v3.17.0",
+        "ip2region/searcher.py",
+    ): "621c93ae7a3bc858cef994b2ed99551550c3574fb0e6d537affd1b4458d9a0d8",
+    (
+        "v3.17.0",
+        "LICENSE",
+    ): "4416735adc725546aea1d352879eac20932e76bc3050a4c81ec9fa6a3a3a125c",
+}

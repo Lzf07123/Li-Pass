@@ -26,6 +26,8 @@ from ip2region import util as ip2region_util
 
 logger = logging.getLogger(__name__)
 
+HTTP_USER_AGENT = "Mozilla/5.0 (compatible; LinPass-SSO/1.0)"
+
 V4_FILENAME = "ip2region_v4.xdb"
 V6_FILENAME = "ip2region_v6.xdb"
 META_FILENAME = "meta.json"
@@ -59,7 +61,7 @@ def _file_update_lock(data_dir: Path):
 
 
 def _http_get_json(url: str, timeout: float) -> dict:
-    request = Request(url, headers={"User-Agent": "LinPass-SSO/1.0"})
+    request = Request(url, headers={"User-Agent": HTTP_USER_AGENT})
     with urlopen(request, timeout=timeout) as response:
         payload = json.loads(response.read().decode("utf-8"))
     if not isinstance(payload, dict):
@@ -80,7 +82,7 @@ def fetch_latest_version() -> str:
 
 
 def _download_to(url: str, destination: Path, timeout: float) -> None:
-    request = Request(url, headers={"User-Agent": "LinPass-SSO/1.0"})
+    request = Request(url, headers={"User-Agent": HTTP_USER_AGENT})
     with urlopen(request, timeout=timeout) as response, open(
         destination, "wb"
     ) as out:

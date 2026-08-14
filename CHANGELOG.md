@@ -8,6 +8,7 @@
 
 ### 安全加固
 
+- 后端镜像的 ip2region 数据与 Python 绑定源码改为构建时从固定 tag 拉取（SHA256 信任清单校验、下载带重试），修复镜像遗漏 vendored 绑定源码导致容器启动 `ModuleNotFoundError: No module named 'ip2region'`；构建期新增 `import app.main` 冒烟检查，把此类“漏 COPY/漏拉取”问题前移到镜像构建阶段暴露。构建下载基地址可用 `IP2REGION_DOWNLOAD_BASE_URL` 覆盖（Gitee raw 实测拒绝 xdb 数据文件，需保持 GitHub 源）。
 - 依赖安全升级：`fastapi 0.115.6 → 0.141.1`、`starlette 0.41.3 → 1.6.0`（修复 CVE-2026-48710「BadHost」Host 头认证绕过、CVE-2025-62727 Range 头 DoS、CVE-2025-54121 multipart 主线程阻塞）、`cryptography 44.0.0 → 50.0.0`（修复内嵌 OpenSSL 公告与 PKCS7 Bleichenbacher oracle）、`PyJWT 2.10.1 → 2.13.0`（修复 CVE-2026-32597 crit 头未校验）；新增 [Dependabot](.github/dependabot.yml) 每周依赖漏洞扫描。
 - ip2region 运行期更新强制 SHA256 信任清单：仅清单内版本可安装（`app/services/ip2region_pins.py`），未知版本/哈希不符一律拒绝并保留旧库；构建期脚本与运行期共用同一清单。
 - ip2region 更新互斥改为数据目录上的跨进程文件锁（fcntl），修复多 worker 并发写同一临时目录的竞态；双文件替换改为先备份再原子替换、任一失败自动回滚，杜绝 v4/v6 版本错位。

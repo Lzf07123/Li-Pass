@@ -69,6 +69,7 @@ services:
       context: ./backend
       args:
         IMAGE_REGISTRY: ${IMAGE_REGISTRY:-}
+        IP2REGION_DOWNLOAD_BASE_URL: ${IP2REGION_DOWNLOAD_BASE_URL:-https://raw.githubusercontent.com/lionsoul2014/ip2region}
     restart: unless-stopped
     init: true
     security_opt:

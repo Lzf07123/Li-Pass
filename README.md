@@ -166,4 +166,4 @@ docker compose exec backend python -m scripts.seed_demo_client
 
 本项目采用 [Apache License 2.0](LICENSE) 发布。你可以自由使用、修改、分发与商用，同时保留版权与许可声明。
 
-第三方组件说明：`backend/ip2region/` 为 ip2region v3.17.0 的官方 Python 绑定源码（Apache-2.0），其许可文件随源码保留在 [backend/ip2region/LICENSE](backend/ip2region/LICENSE)。
+第三方组件说明：`backend/ip2region/` 为 ip2region v3.17.0 的官方 Python 绑定源码（Apache-2.0），其许可文件随源码保留在 [backend/ip2region/LICENSE](backend/ip2region/LICENSE)，供本地开发与测试使用；Docker 镜像在构建时按固定 tag + SHA256 校验从上游拉取绑定源码与 xdb 数据（见 `backend/scripts/download_ip2region.py`）。
