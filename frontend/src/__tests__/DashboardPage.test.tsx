@@ -69,6 +69,138 @@ describe("DashboardPage", () => {
     expect(screen.getByRole("button", { name: "上传头像" })).toBeInTheDocument();
   });
 
+  it("退出所有设备保留当前会话并刷新列表", async () => {
+    const current = {
+      id: "s1",
+      device_name: "MacBook Pro",
+      ip: "127.0.0.1",
+      user_agent: "ua",
+      created_at: "2026-08-15T00:00:00Z",
+      last_used_at: "2026-08-15T01:00:00Z",
+      expires_at: "2026-09-15T00:00:00Z",
+      current: true,
+    };
+    const other = { ...current, id: "s2", device_name: "iPhone", current: false };
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ unread: 0 }), { status: 200 })
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            id: "1",
+            email: "a@example.com",
+            nickname: "Alice",
+            email_verified: true,
+            phone: null,
+            role: "user",
+            status: "active",
+          }),
+          { status: 200 }
+        )
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify([]), { status: 200 })
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify([current, other]), { status: 200 })
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            email_otp_enabled: false,
+            totp_enabled: false,
+            recovery_codes_remaining: 0,
+          }),
+          { status: 200 }
+        )
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ revoked: 1 }), { status: 200 })
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify([current]), { status: 200 })
+      );
+    vi.stubGlobal("fetch", fetchMock);
+    renderWithProviders(<DashboardPage />);
+
+    await waitFor(() => expect(screen.getByText("iPhone")).toBeInTheDocument());
+    fireEvent.click(screen.getByRole("button", { name: "退出所有设备" }));
+    expect(
+      screen.getByText(/确定退出除当前设备外的 1 台设备吗/),
+    ).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "全部退出" }));
+
+    await waitFor(() =>
+      expect(screen.getByText("已退出 1 台设备")).toBeInTheDocument(),
+    );
+    await waitFor(() =>
+      expect(screen.queryByText("iPhone")).not.toBeInTheDocument(),
+    );
+    const revokeCall = fetchMock.mock.calls.find((call) =>
+      String(call[0]).endsWith("/api/v1/sessions/revoke-all"),
+    );
+    expect((revokeCall?.[1] as RequestInit | undefined)?.method).toBe("POST");
+  });
+
+  it("仅剩当前设备时退出所有设备按钮不可用", async () => {
+    const current = {
+      id: "s1",
+      device_name: "MacBook Pro",
+      ip: "127.0.0.1",
+      user_agent: "ua",
+      created_at: "2026-08-15T00:00:00Z",
+      last_used_at: "2026-08-15T01:00:00Z",
+      expires_at: "2026-09-15T00:00:00Z",
+      current: true,
+    };
+    vi.stubGlobal(
+      "fetch",
+      vi
+        .fn()
+        .mockResolvedValueOnce(
+          new Response(JSON.stringify({ unread: 0 }), { status: 200 })
+        )
+        .mockResolvedValueOnce(
+          new Response(
+            JSON.stringify({
+              id: "1",
+              email: "a@example.com",
+              nickname: "Alice",
+              email_verified: true,
+              phone: null,
+              role: "user",
+              status: "active",
+            }),
+            { status: 200 }
+          )
+        )
+        .mockResolvedValueOnce(
+          new Response(JSON.stringify([]), { status: 200 })
+        )
+        .mockResolvedValueOnce(
+          new Response(JSON.stringify([current]), { status: 200 })
+        )
+        .mockResolvedValueOnce(
+          new Response(
+            JSON.stringify({
+              email_otp_enabled: false,
+              totp_enabled: false,
+              recovery_codes_remaining: 0,
+            }),
+            { status: 200 }
+          )
+        )
+    );
+    renderWithProviders(<DashboardPage />);
+
+    await waitFor(() =>
+      expect(screen.getByText("MacBook Pro")).toBeInTheDocument(),
+    );
+    expect(screen.getByRole("button", { name: "退出所有设备" })).toBeDisabled();
+  });
+
   it("取消授权后应用从广场移除", async () => {
     vi.spyOn(window, "confirm").mockReturnValue(true);
     const originalLocation = window.location;

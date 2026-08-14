@@ -1,10 +1,10 @@
 import logging
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile, status
-from sqlalchemy import func, or_, select
+from sqlalchemy import func, or_, select, update
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_session, get_current_user
@@ -287,6 +287,59 @@ def revoke_session(
         target_type="session",
         target_id=str(session.id),
     )
+
+
+@router.post("/sessions/revoke-all", response_model=dict)
+def revoke_all_sessions(
+    request: Request,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> dict:
+    """退出除当前会话外的全部登录设备；当前会话不受影响。"""
+    settings = get_settings()
+    now = datetime.now(timezone.utc)
+    idle_cutoff = now - timedelta(days=settings.session_idle_days)
+    # 先清理本用户过期/空闲超时的“僵尸”会话，与列表口径一致，
+    # 避免把它们计入退出数量；只作用于当前用户，不影响他人。
+    db.execute(
+        update(SessionModel)
+        .where(
+            SessionModel.revoked_at.is_(None),
+            SessionModel.user_id == user.id,
+            or_(
+                SessionModel.expires_at < now,
+                SessionModel.last_used_at < idle_cutoff,
+            ),
+        )
+        .values(revoked_at=now)
+        .execution_options(synchronize_session=False)
+    )
+    current = get_current_session(request, db)
+    result = db.execute(
+        update(SessionModel)
+        .where(
+            SessionModel.revoked_at.is_(None),
+            SessionModel.user_id == user.id,
+            SessionModel.id != current.id,
+        )
+        .values(revoked_at=now)
+        .execution_options(synchronize_session=False)
+    )
+    count = result.rowcount or 0
+    db.commit()
+    log_audit(
+        db,
+        "user",
+        str(user.id),
+        "session_revoke_all",
+        category="user",
+        target_type="session",
+        target_id=None,
+        ip=request.client.host if request.client else None,
+        user_agent=request.headers.get("user-agent"),
+        detail={"count": count},
+    )
+    return {"revoked": count}
 
 
 @router.get("/apps", response_model=list[AppOut])

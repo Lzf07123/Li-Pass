@@ -1,5 +1,6 @@
 from sqlalchemy import select
 
+from app.models.audit_log import AuditLog
 from app.models.oauth_client import OAuthClient
 from app.models.user import User
 from app.models.user_consent import UserConsent
@@ -68,6 +69,40 @@ def test_sessions_list_and_revoke(client, captured_email) -> None:
     other = next(s for s in sessions if not s["current"])
     assert client.delete(f"/api/v1/sessions/{other['id']}").status_code == 204
     assert len(client.get("/api/v1/sessions").json()) == 1
+
+
+def test_sessions_revoke_all_keeps_current(
+    client, captured_email, db_session
+) -> None:
+    register_and_login(client, captured_email)
+    client.post(
+        "/api/v1/auth/login",
+        json={"email": "a@example.com", "password": "password123"},
+    )
+    client.post(
+        "/api/v1/auth/login",
+        json={"email": "a@example.com", "password": "password123"},
+    )
+    # 三次登录产生 3 个会话：当前 + 2 个历史设备
+    assert len(client.get("/api/v1/sessions").json()) == 3
+
+    response = client.post("/api/v1/sessions/revoke-all")
+    assert response.status_code == 200
+    assert response.json() == {"revoked": 2}
+
+    sessions = client.get("/api/v1/sessions").json()
+    assert len(sessions) == 1
+    assert sessions[0]["current"] is True
+
+    audit = db_session.scalar(
+        select(AuditLog).where(AuditLog.action == "session_revoke_all")
+    )
+    assert audit is not None
+    assert audit.detail == {"count": 2}
+
+
+def test_sessions_revoke_all_requires_auth(client) -> None:
+    assert client.post("/api/v1/sessions/revoke-all").status_code == 401
 
 
 def test_apps_plaza_lists_consented(client, captured_email, db_session) -> None:

@@ -229,6 +229,8 @@ export const meApi = {
 export const sessionsApi = {
   list: () => api<SessionOut[]>("/api/v1/sessions"),
   revoke: (id: string) => api<void>(`/api/v1/sessions/${id}`, { method: "DELETE" }),
+  revokeAll: () =>
+    api<{ revoked: number }>("/api/v1/sessions/revoke-all", { method: "POST" }),
 };
 
 export const appsApi = {

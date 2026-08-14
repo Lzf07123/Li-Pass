@@ -48,6 +48,7 @@ export function DashboardPage() {
   const [totpCode, setTotpCode] = useState("");
   const [recoveryCodes, setRecoveryCodes] = useState<string[] | null>(null);
   const [revokeTarget, setRevokeTarget] = useState<AppOut | null>(null);
+  const [revokeAllOpen, setRevokeAllOpen] = useState(false);
   const [revokeSessionId, setRevokeSessionId] = useState<string | null>(null);
   const [twofaBusy, setTwofaBusy] = useState<
     "email" | "totp-setup" | "totp-enable" | "totp-disable" | null
@@ -221,6 +222,22 @@ export function DashboardPage() {
     setRevokeSessionId(id);
     void revokeSessionAction.run(id);
   }
+
+  const revokeAllAction = useAsyncAction(
+    async () => {
+      const result = await sessionsApi.revokeAll();
+      setSessions(await sessionsApi.list());
+      setRevokeAllOpen(false);
+      toast.success(
+        result.revoked > 0
+          ? `已退出 ${result.revoked} 台设备`
+          : "当前没有其他设备需要退出",
+      );
+    },
+    {
+      onError: (err) => showError(err, "退出所有设备失败"),
+    },
+  );
 
   const revokeAppAction = useAsyncAction(
     async (clientId: string, name: string) => {
@@ -748,13 +765,23 @@ export function DashboardPage() {
 
         <FadeIn delay={0.32}>
           <section className="card p-6">
-            <h2 className="mb-4 inline-flex items-center gap-2 text-base font-semibold text-foreground">
-              <LineIcon name="monitor" className="h-4 w-4 text-primary" />
-              登录设备
-              <span className="ml-2 text-sm font-normal text-muted">
-                共 <AnimatedNumber value={sessions.length} /> 个会话
-              </span>
-            </h2>
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+              <h2 className="inline-flex items-center gap-2 text-base font-semibold text-foreground">
+                <LineIcon name="monitor" className="h-4 w-4 text-primary" />
+                登录设备
+                <span className="ml-2 text-sm font-normal text-muted">
+                  共 <AnimatedNumber value={sessions.length} /> 个会话
+                </span>
+              </h2>
+              <button
+                type="button"
+                onClick={() => setRevokeAllOpen(true)}
+                disabled={sessions.length <= 1 || revokeAllAction.pending}
+                className="btn btn-danger"
+              >
+                退出所有设备
+              </button>
+            </div>
             <ul className={`space-y-2 ${sessionsBreathing ? "animate-breath" : ""}`}>
               {sessions.map((session) => (
                 <li
@@ -899,6 +926,23 @@ export function DashboardPage() {
         onConfirm={confirmRevoke}
         onCancel={() => {
           if (!revokeAppAction.pending) setRevokeTarget(null);
+        }}
+      />
+
+      <ConfirmDialog
+        open={revokeAllOpen}
+        title="退出所有设备"
+        message={
+          <span>
+            确定退出除当前设备外的 {Math.max(0, sessions.length - 1)}{" "}
+            台设备吗？其他设备上的登录会话将全部失效。
+          </span>
+        }
+        status={revokeAllAction.status}
+        confirmLabel="全部退出"
+        onConfirm={() => void revokeAllAction.run()}
+        onCancel={() => {
+          if (!revokeAllAction.pending) setRevokeAllOpen(false);
         }}
       />
 
