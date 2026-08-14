@@ -380,7 +380,7 @@ async def upload_avatar(
     content_length = request.headers.get("content-length")
     if content_length and content_length.isdigit() and int(content_length) > max_bytes:
         raise HTTPException(
-            status.HTTP_413_CONTENT_TOO_LARGE,
+            status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
             f"头像大小不能超过 {settings.avatar_max_size_mb} MB",
         )
     # 只读取上限 + 1 字节，避免大文件整体读入内存造成 DoS。
@@ -390,7 +390,7 @@ async def upload_avatar(
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "图片文件内容无效")
     if len(content) > max_bytes:
         raise HTTPException(
-            status.HTTP_413_CONTENT_TOO_LARGE,
+            status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
             f"头像大小不能超过 {settings.avatar_max_size_mb} MB",
         )
 

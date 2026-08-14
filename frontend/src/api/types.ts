@@ -326,6 +326,17 @@ export interface AdminStatsRegion {
   count: number;
 }
 
+export interface AdminStatsMapRegion {
+  name: string;
+  value: number;
+}
+
+export interface AdminStatsRegionsOther {
+  overseas: number;
+  internal: number;
+  unknown: number;
+}
+
 export interface AdminStats {
   generated_at: string;
   timezone: string;
@@ -334,4 +345,6 @@ export interface AdminStats {
   daily: AdminStatsDailyPoint[];
   auth_methods: AdminStatsAuthMethod[];
   regions: AdminStatsRegion[];
+  regions_map: AdminStatsMapRegion[];
+  regions_other: AdminStatsRegionsOther;
 }

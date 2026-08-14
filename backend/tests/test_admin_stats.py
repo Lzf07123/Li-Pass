@@ -342,3 +342,160 @@ def test_admin_stats_regions_empty_without_db(client, db_session, monkeypatch) -
     monkeypatch.setattr(geoip, "resolver_ready", lambda: False)
     login_admin(client, db_session)
     assert client.get("/api/v1/admin/stats?days=7").json()["regions"] == []
+
+
+def test_admin_stats_regions_map_province_aggregation(
+    client, db_session, monkeypatch
+) -> None:
+    from app.services import geoip
+    from app.services.geoip import GeoIpResult
+
+    fake = {
+        "1.1.1.1": (
+            GeoIpResult("中国", "广东省", "深圳市", "电信", "广东省 深圳市"),
+            None,
+        ),
+        "8.8.8.8": (
+            GeoIpResult("United States", "California", "San Jose", None, "US"),
+            None,
+        ),
+        "127.0.0.1": (None, "内网地址"),
+        "10.0.0.1": (None, "保留地址"),
+    }
+    monkeypatch.setattr(geoip, "resolver_ready", lambda: True)
+    monkeypatch.setattr(
+        geoip, "locate_ip", lambda ip: fake.get(ip, (None, "未知"))
+    )
+    now = datetime.now(timezone.utc)
+    u1 = make_user(db_session, "u1@example.com")
+    rows = [
+        ("1.1.1.1", "login", 1),
+        ("1.1.1.1", "login", 2),
+        ("8.8.8.8", "login", 3),
+        ("127.0.0.1", "login", 4),
+        ("10.0.0.1", "2fa_login", 5),
+    ]
+    db_session.add_all(
+        [
+            AuditLog(
+                actor_type="user",
+                actor_id=str(u1.id),
+                action=action,
+                category="auth",
+                ip=ip,
+                created_at=now - timedelta(hours=offset),
+            )
+            for ip, action, offset in rows
+        ]
+    )
+    db_session.commit()
+    login_admin(client, db_session)
+
+    body = client.get("/api/v1/admin/stats?days=7").json()
+    assert body["regions_map"] == [{"name": "广东省", "value": 2}]
+    # unknown 含管理员自身登录的审计行（TestClient host "testclient" 非 IP）。
+    assert body["regions_other"] == {
+        "overseas": 1,
+        "internal": 2,
+        "unknown": 1,
+    }
+
+
+def test_admin_stats_regions_map_alias_normalization(
+    client, db_session, monkeypatch
+) -> None:
+    from app.services import geoip
+    from app.services.geoip import GeoIpResult
+
+    fake = {
+        "1.1.1.1": (GeoIpResult("中国", "内蒙古", None, None, "内蒙古"), None),
+        "8.8.8.8": (GeoIpResult("中国", "香港", None, None, "香港"), None),
+        "9.9.9.9": (
+            GeoIpResult("中国", "不存在的省份", None, None, "未知省"),
+            None,
+        ),
+    }
+    monkeypatch.setattr(geoip, "resolver_ready", lambda: True)
+    monkeypatch.setattr(
+        geoip, "locate_ip", lambda ip: fake.get(ip, (None, "未知"))
+    )
+    now = datetime.now(timezone.utc)
+    u1 = make_user(db_session, "u1@example.com")
+    db_session.add_all(
+        [
+            AuditLog(
+                actor_type="user",
+                actor_id=str(u1.id),
+                action="login",
+                category="auth",
+                ip=ip,
+                created_at=now - timedelta(hours=index),
+            )
+            for index, ip in enumerate(("1.1.1.1", "8.8.8.8", "9.9.9.9"), 1)
+        ]
+    )
+    db_session.commit()
+    login_admin(client, db_session)
+
+    body = client.get("/api/v1/admin/stats?days=7").json()
+    assert {item["name"]: item["value"] for item in body["regions_map"]} == {
+        "内蒙古自治区": 1,
+        "香港特别行政区": 1,
+    }
+    # 1 条“不存在的省份” + 1 条管理员自身登录（testclient 非 IP）。
+    assert body["regions_other"]["unknown"] == 2
+
+
+def test_admin_stats_regions_map_unresolved_country_counts_unknown(
+    client, db_session, monkeypatch
+) -> None:
+    """库内未识别记录（country 为空）归「未知」，不得混入「海外」。"""
+    from app.services import geoip
+    from app.services.geoip import GeoIpResult
+
+    fake = {
+        "1.1.1.1": (GeoIpResult(None, None, None, None, "未知"), None),
+    }
+    monkeypatch.setattr(geoip, "resolver_ready", lambda: True)
+    monkeypatch.setattr(
+        geoip, "locate_ip", lambda ip: fake.get(ip, (None, "未知"))
+    )
+    now = datetime.now(timezone.utc)
+    u1 = make_user(db_session, "u1@example.com")
+    db_session.add(
+        AuditLog(
+            actor_type="user",
+            actor_id=str(u1.id),
+            action="login",
+            category="auth",
+            ip="1.1.1.1",
+            created_at=now - timedelta(hours=1),
+        )
+    )
+    db_session.commit()
+    login_admin(client, db_session)
+
+    body = client.get("/api/v1/admin/stats?days=7").json()
+    assert body["regions_map"] == []
+    # 1 条未识别记录 + 1 条管理员自身登录（testclient 非 IP）。
+    assert body["regions_other"] == {
+        "overseas": 0,
+        "internal": 0,
+        "unknown": 2,
+    }
+
+
+def test_admin_stats_regions_map_empty_without_db(
+    client, db_session, monkeypatch
+) -> None:
+    from app.services import geoip
+
+    monkeypatch.setattr(geoip, "resolver_ready", lambda: False)
+    login_admin(client, db_session)
+    body = client.get("/api/v1/admin/stats?days=7").json()
+    assert body["regions_map"] == []
+    assert body["regions_other"] == {
+        "overseas": 0,
+        "internal": 0,
+        "unknown": 0,
+    }

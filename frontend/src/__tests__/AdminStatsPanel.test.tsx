@@ -36,6 +36,11 @@ function statsBody(overrides: Record<string, unknown> = {}) {
       { region: "United States", count: 4 },
       { region: "其它", count: 3 },
     ],
+    regions_map: [
+      { name: "广东省", value: 12 },
+      { name: "北京市", value: 4 },
+    ],
+    regions_other: { overseas: 4, internal: 2, unknown: 1 },
     ...overrides,
   };
 }
@@ -62,15 +67,17 @@ describe("AdminStatsPanel", () => {
     expect(screen.getByText("共 9 个在线会话")).toBeInTheDocument();
     expect(screen.getByText("密码")).toBeInTheDocument();
     expect(screen.getByText("邮箱验证码")).toBeInTheDocument();
-    expect(screen.getByRole("img")).toBeInTheDocument();
+    expect(
+      screen.getByRole("img", { name: /趋势图/ }),
+    ).toBeInTheDocument();
     expect(screen.getAllByText("登录次数").length).toBeGreaterThanOrEqual(2);
     expect(screen.getAllByText("新增注册").length).toBeGreaterThanOrEqual(2);
     expect(
-      screen.getByText(/登录来源地域分布（近 30 天，Top 10）/),
+      screen.getByText(/登录来源地域分布（近 30 天）/),
     ).toBeInTheDocument();
-    expect(screen.getByText("广东省 深圳市")).toBeInTheDocument();
-    expect(screen.getByText("United States")).toBeInTheDocument();
-    expect(screen.getByText("其它")).toBeInTheDocument();
+    expect(screen.getAllByText("广东省").length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText("海外 4")).toBeInTheDocument();
+    expect(screen.getByText("内网 2")).toBeInTheDocument();
   });
 
   it("切换时间范围后按对应 days 重新请求", async () => {

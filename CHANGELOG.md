@@ -21,6 +21,7 @@
 
 ### 行为变更
 
+- 数据统计「登录来源地域分布」由 Top 10 条形列表改为中国地图省级着色：后端新增 `regions_map`（省级聚合，含内蒙古/港澳等别名规范化）与 `regions_other`（海外/内网/未知汇总），前端新增自研 SVG `ChinaMap` 组件（GeoJSON 入库离线、5 档单色渐变与色阶图例、悬停省份提示次数与占比、海外/内网/其它徽章与明细表兜底）。设计见 [登录来源地域分布地图设计](docs/superpowers/specs/2026-08-15-admin-login-region-map-design.md)。
 - 设备管理支持详细型号：后端响应新增 `Accept-CH: Sec-CH-UA-Model, Sec-CH-UA-Platform-Version`，Chromium 系浏览器登录时会话记录具体型号（如「MacBook Pro · macOS 14.5」）；Safari/Firefox 等不提供型号时降级为 UA 解析（如「iPhone · iOS 17.5 · Safari」「Android 14 · Chrome」）。历史会话存储的原始 UA 在读取时自动解析为友好设备名，用户中心与管理后台同步生效。
 - 构建提速：后端与演示站镜像的 `apt-get update` 新增 `APT_MIRROR` 构建参数（默认中科大镜像 `http://mirrors.ustc.edu.cn/debian`，同时覆盖 debian-security），修复基础镜像直连 deb.debian.org 导致的慢更新；海外构建可改回官方源。实测 10.1MB 索引/包 7–8 秒拉完。
 - 应用广场改为单列行布局：每个网站占一整行，左侧 logo/名称/描述（横置单行截断），「进入」「取消授权」按钮贴最右；窄屏自动换行仍右对齐。全局 `.btn`/`.btn-link` 禁止文字换行，避免按钮文案异常折行。
@@ -33,6 +34,8 @@
 
 ### 缺陷修复
 
+- 头像上传超限修复：`starlette 1.6.0` 已将 `HTTP_413_CONTENT_TOO_LARGE` 更名为 `HTTP_413_REQUEST_ENTITY_TOO_LARGE`，超限头像此前会在校验时抛出 `AttributeError`（表现为 500 而非 413），已改用新常量并保留现有测试覆盖。
+- 地域分布地图口径修正：IP 库内未识别记录（country 为空，如 `0|0|0|0|0`）此前被误计入「海外」，现归「未知」；无省份数据（仅海外/内网/未知）时不再渲染无意义的色阶图例；悬停提示框左边界钳制，避免极窄视口越界。
 - 测试环境异常修复（此前"升级依赖后首跑大量失败"的真实根因）：`Settings` 的 `.env` 原为相对当前工作目录解析，从仓库根运行测试时会误加载根目录的部署 `.env`（`ALLOWED_HOSTS` 不含 testserver、`EMAIL_BACKEND=smtp` 等），导致约 180 个测试批量 400。现改为固定相对 `config.py` 解析为 `backend/.env`，与工作目录解耦；并新增根目录 `pytest.ini`（`testpaths=backend/tests` + `pythonpath=backend`），支持从仓库根直接运行全量测试。
 - 页脚不再展示占位假备案号：`ICP_FILING_TEXT`/`POLICE_FILING_TEXT` 默认留空，未配置时隐藏备案链接，填入真实备案信息后自动显示（上线前清单同步提醒）。
 - 折线图图例在窄屏禁止换行后改为容器内横向滚动，避免溢出页面产生横向滚动条；Client Hints 品牌解析兼容 `Not)A;Brand`（品牌名含分号，改为引号感知正则）。

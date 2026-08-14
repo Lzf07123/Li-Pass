@@ -191,3 +191,17 @@ def describe_ip(ip: str | None) -> str | None:
         return None
     result = get_geoip_resolver().resolve(normalized)
     return result.display if result else None
+
+
+def locate_ip(ip: str | None) -> tuple[GeoIpResult | None, str | None]:
+    """返回 (归属地结果, 分类标签)：公共 IP 且库就绪时给出 country/province，
+    否则给出 内网地址/保留地址/未知 标签；无法解析时结果与标签均为 None。"""
+    if not ip:
+        return None, "未知"
+    normalized, label = normalize_ip(ip)
+    if label:
+        return None, label
+    if normalized is None:
+        return None, "未知"
+    result = get_geoip_resolver().resolve(normalized)
+    return result, None

@@ -20,6 +20,56 @@ _CACHE_TTL_SECONDS = 60.0
 _cache_lock = threading.Lock()
 _CACHE: dict[int, tuple[float, dict]] = {}
 
+# ip2region 省份名 → 地图 GeoJSON 的省级行政区全名（覆盖简称/别名变体）。
+PROVINCE_ALIASES = {
+    "内蒙古": "内蒙古自治区",
+    "广西": "广西壮族自治区",
+    "西藏": "西藏自治区",
+    "宁夏": "宁夏回族自治区",
+    "新疆": "新疆维吾尔自治区",
+    "香港": "香港特别行政区",
+    "澳门": "澳门特别行政区",
+    "台湾": "台湾省",
+}
+GEO_PROVINCES = frozenset(
+    {
+        "北京市",
+        "天津市",
+        "河北省",
+        "山西省",
+        "内蒙古自治区",
+        "辽宁省",
+        "吉林省",
+        "黑龙江省",
+        "上海市",
+        "江苏省",
+        "浙江省",
+        "安徽省",
+        "福建省",
+        "江西省",
+        "山东省",
+        "河南省",
+        "湖北省",
+        "湖南省",
+        "广东省",
+        "广西壮族自治区",
+        "海南省",
+        "重庆市",
+        "四川省",
+        "贵州省",
+        "云南省",
+        "西藏自治区",
+        "陕西省",
+        "甘肃省",
+        "青海省",
+        "宁夏回族自治区",
+        "新疆维吾尔自治区",
+        "台湾省",
+        "香港特别行政区",
+        "澳门特别行政区",
+    }
+)
+
 
 def _day_expr(db: Session, column: Column) -> object:
     """按 Asia/Shanghai 自然日截断：SQLite 与 PostgreSQL 两种方言。"""
@@ -192,9 +242,66 @@ def _regions(db: Session, days: int, now: datetime) -> list[dict]:
     return result
 
 
+def _regions_map(db: Session, days: int, now: datetime) -> dict:
+    """窗口内登录 IP 按省级行政区聚合（供中国地图着色）；海外/内网/未知单独汇总。"""
+    if not geoip.resolver_ready():
+        return {
+            "map": [],
+            "overseas": 0,
+            "internal": 0,
+            "unknown": 0,
+        }
+    start = now - timedelta(days=days)
+    rows = db.execute(
+        select(AuditLog.ip, func.count())
+        .where(
+            AuditLog.action.in_(LOGIN_ACTIONS),
+            AuditLog.created_at >= start,
+            AuditLog.created_at < now,
+            AuditLog.ip.is_not(None),
+        )
+        .group_by(AuditLog.ip)
+    ).all()
+    counts: dict[str, int] = {}
+    overseas = 0
+    internal = 0
+    unknown = 0
+    for ip, count in rows:
+        if not ip:
+            continue
+        result, label = geoip.locate_ip(ip)
+        if label == "内网地址" or label == "保留地址":
+            internal += int(count)
+            continue
+        if label == "未知" or result is None:
+            unknown += int(count)
+            continue
+        # 库内未识别记录（country 为空，如 "0|0|0|0|0"）应归「未知」，
+        # 只有明确解析为其他国家时才计入「海外」。
+        if result.country == "中国":
+            raw_province = (result.province or "").strip()
+            province = PROVINCE_ALIASES.get(raw_province, raw_province)
+            if province in GEO_PROVINCES:
+                counts[province] = counts.get(province, 0) + int(count)
+            else:
+                unknown += int(count)
+        elif result.country is None:
+            unknown += int(count)
+        else:
+            overseas += int(count)
+    ordered = sorted(counts.items(), key=lambda item: item[1], reverse=True)
+    return {
+        "map": [{"name": name, "value": value} for name, value in ordered],
+        "overseas": overseas,
+        "internal": internal,
+        "unknown": unknown,
+    }
+
+
 def _collect_stats(db: Session, days: int) -> dict:
     """聚合一次统计快照；days 的 7–90 边界由路由层校验。"""
     now = datetime.now(timezone.utc)
+    regions_map = _regions_map(db, days, now)
     return {
         "generated_at": now.isoformat(),
         "timezone": "Asia/Shanghai",
@@ -203,6 +310,12 @@ def _collect_stats(db: Session, days: int) -> dict:
         "daily": _daily_series(db, days, now),
         "auth_methods": _auth_methods(db, now),
         "regions": _regions(db, days, now),
+        "regions_map": regions_map["map"],
+        "regions_other": {
+            "overseas": regions_map["overseas"],
+            "internal": regions_map["internal"],
+            "unknown": regions_map["unknown"],
+        },
     }
 
 

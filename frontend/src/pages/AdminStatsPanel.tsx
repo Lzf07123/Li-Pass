@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from "react";
 import { adminStatsApi } from "../api/client";
 import type { AdminStats } from "../api/types";
 import { AsyncButton } from "../components/AsyncButton";
+import { ChinaMap } from "../components/charts/ChinaMap";
 import { LineChart } from "../components/charts/LineChart";
 import { useAsyncAction } from "../hooks/useAsyncAction";
 import { useToast } from "../hooks/useToast";
@@ -131,10 +132,6 @@ export function AdminStatsPanel() {
   const maxMethodCount = stats
     ? Math.max(1, ...stats.auth_methods.map((item) => item.count))
     : 1;
-  const maxRegionCount = stats
-    ? Math.max(1, ...stats.regions.map((item) => item.count))
-    : 1;
-
   return (
     <section className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -245,39 +242,21 @@ export function AdminStatsPanel() {
 
           <div className="card p-5">
             <p className="mb-3 text-sm text-muted">
-              登录来源地域分布（近 {days} 天，Top 10）
+              登录来源地域分布（近 {days} 天）
             </p>
-            {stats.regions.length === 0 ? (
+            {stats.regions_map.length === 0 &&
+            stats.regions_other.overseas +
+              stats.regions_other.internal +
+              stats.regions_other.unknown ===
+              0 ? (
               <p className="text-sm text-muted">
                 暂无数据：IP 库未安装或统计窗口内无登录。
               </p>
             ) : (
-              <div className="space-y-2.5">
-                {stats.regions.map((item) => (
-                  <div
-                    key={item.region}
-                    className="flex items-center gap-3 text-sm"
-                  >
-                    <span
-                      className="w-32 shrink-0 truncate text-muted"
-                      title={item.region}
-                    >
-                      {item.region}
-                    </span>
-                    <div className="h-2 flex-1 overflow-hidden rounded-full bg-surface-2">
-                      <div
-                        className="h-full rounded-full bg-primary"
-                        style={{
-                          width: `${(item.count / maxRegionCount) * 100}%`,
-                        }}
-                      />
-                    </div>
-                    <span className="w-10 shrink-0 text-right text-foreground">
-                      {numberFormat.format(item.count)}
-                    </span>
-                  </div>
-                ))}
-              </div>
+              <ChinaMap
+                data={stats.regions_map}
+                others={stats.regions_other}
+              />
             )}
           </div>
         </div>
