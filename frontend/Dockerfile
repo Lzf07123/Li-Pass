@@ -1,10 +1,12 @@
 ARG IMAGE_REGISTRY=
-FROM ${IMAGE_REGISTRY}node:20-alpine AS build
+FROM ${IMAGE_REGISTRY}node:22-alpine AS build
 ARG VITE_API_BASE_URL=http://localhost:8000
 ENV VITE_API_BASE_URL=$VITE_API_BASE_URL
 WORKDIR /app
 COPY package*.json ./
-RUN npm ci
+# 复用 BuildKit 的 npm 缓存卷（跨构建共享），并跳过 audit/fund 的网络往返
+RUN --mount=type=cache,target=/root/.npm \
+    npm ci --no-audit --no-fund
 COPY . .
 RUN npm run build
 

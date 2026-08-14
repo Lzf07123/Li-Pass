@@ -1,9 +1,13 @@
 {
   "name": "frontend",
+  "description": "LinPass SSO 统一登录门户前端",
   "private": true,
   "license": "Apache-2.0",
   "version": "0.0.0",
   "type": "module",
+  "engines": {
+    "node": ">=22.14.0"
+  },
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build && node scripts/precompress.mjs",

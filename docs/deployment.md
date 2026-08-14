@@ -422,7 +422,7 @@ sudo chmod +x /etc/letsencrypt/renewal-hooks/deploy/reload-nginx.sh
 
 - 基础设施镜像：`postgres:16-alpine`、`redis:7-alpine`
 - 自建服务镜像：`account-service-backend:local`、`account-service-frontend:local`、`account-service-demo-site:local`（同时作为 `docker compose build` 的标签）
-- 构建基础镜像：`python:3.12-slim`、`node:20-alpine`、`nginx:1.27-alpine`（作为构建参数传入 Dockerfile）
+- 构建基础镜像：`python:3.12-slim`、`node:22-alpine`（前端依赖要求 Node ≥22.14）、`nginx:1.27-alpine`（作为构建参数传入 Dockerfile）
 
 私有仓库 / 内网镜像源场景只需在 `.env` 设置一个变量（**必须以 `/` 结尾**）：
 

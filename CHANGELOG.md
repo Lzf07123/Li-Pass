@@ -19,6 +19,7 @@
 
 ### 行为变更
 
+- 前端镜像构建优化：构建基础镜像 `node:20-alpine → node:22-alpine`（消除 jsdom 依赖链的引擎不匹配警告，与 CI 对齐），`npm ci` 启用 BuildKit 缓存挂载并跳过 audit/fund 网络往返，重建提速；`package.json` 显式声明 `engines.node >=22.14.0`。
 - 登录防爆破阈值收紧（默认值变更）：每邮箱+IP 失败次数 `LOGIN_RATE_LIMIT` 10→5（第 6 次密码错误返回 429）、全局限邮箱 `LOGIN_EMAIL_RATE_LIMIT` 20→10、每 IP `LOGIN_IP_RATE_LIMIT` 30→20。注意邮箱级限流的短时账号锁定权衡：攻击者可用错误密码暂时锁住目标账号，见 [部署与运维 §环境变量](docs/deployment.md)。
 - HSTS：后端在生产（`SESSION_COOKIE_SECURE=true`）自动签发 `Strict-Transport-Security: max-age=63072000; includeSubDomains`；网关可另设 `HSTS_MAX_AGE`（秒）在全部响应上追加签发（默认留空不签发）。
 - CORS 收紧：`allow_methods` / `allow_headers` 由通配改为显式白名单，带凭据的跨域请求不再反射任意请求头。
