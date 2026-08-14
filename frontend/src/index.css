@@ -449,6 +449,42 @@
   .table-shell tbody tr {
     @apply transition-colors duration-150 hover:bg-surface-2/60;
   }
+
+  /* 横向滑动标签栏：单行不换行、隐藏滚动条、轻量 snap 吸附与边缘吸附间距；
+     边缘渐隐提示由 ScrollTabs 组件叠加，活动标签由组件自动滚入视口中央。 */
+  .scroll-tabs {
+    @apply flex items-center gap-2 overflow-x-auto;
+    flex-wrap: nowrap;
+    padding-block: 0.375rem;
+    scroll-snap-type: x proximity;
+    scroll-padding-inline: 1rem;
+    overscroll-behavior-x: contain;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  .scroll-tabs::-webkit-scrollbar {
+    display: none;
+  }
+  .scroll-tabs > * {
+    flex-shrink: 0;
+    scroll-snap-align: start;
+  }
+  /* 激活标签（btn-primary）无边框，比带边框的 btn-secondary 矮 2px；
+     补齐透明边框使单行标签高度一致，避免激活态上下错位。 */
+  .scroll-tabs .btn-primary {
+    border: 1px solid transparent;
+  }
+  @media (min-width: 640px) {
+    .scroll-tabs {
+      scroll-padding-inline: 1.5rem;
+    }
+  }
+  @media (min-width: 1024px) {
+    .scroll-tabs {
+      scroll-padding-inline: 2rem;
+    }
+  }
 }
 
 /* ========== 动效令牌与过渡工具类 ========== */

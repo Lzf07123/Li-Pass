@@ -21,6 +21,7 @@
 
 ### 行为变更
 
+- 管理后台标签栏改为全局横向滑动策略：新增通用 `ScrollTabs` 组件，标签单行排列、超出宽度时左右滑动而非换行堆叠（隐藏滚动条、snap 轻吸附、阻止滚动连带页面滚动），可滚动方向叠加主题色边缘渐隐提示，挂载与切换标签时活动标签自动滚入视口中央（深链直达 `/admin/audit` 等活动标签始终可见）；移动端通栏呈现，并统一激活/非激活标签高度，消除激活态 2px 高低错位。
 - 数据统计「登录来源地域分布」由 Top 10 条形列表改为中国地图省级着色：后端新增 `regions_map`（省级聚合，含内蒙古/港澳等别名规范化）与 `regions_other`（海外/内网/未知汇总），前端新增自研 SVG `ChinaMap` 组件（GeoJSON 入库离线、5 档单色渐变与色阶图例、悬停省份提示次数与占比、海外/内网/其它徽章与明细表兜底）。设计见 [登录来源地域分布地图设计](docs/superpowers/specs/2026-08-15-admin-login-region-map-design.md)。
 - 设备管理支持详细型号：后端响应新增 `Accept-CH: Sec-CH-UA-Model, Sec-CH-UA-Platform-Version`，Chromium 系浏览器登录时会话记录具体型号（如「MacBook Pro · macOS 14.5」）；Safari/Firefox 等不提供型号时降级为 UA 解析（如「iPhone · iOS 17.5 · Safari」「Android 14 · Chrome」）。历史会话存储的原始 UA 在读取时自动解析为友好设备名，用户中心与管理后台同步生效。
 - 构建提速：后端与演示站镜像的 `apt-get update` 新增 `APT_MIRROR` 构建参数（默认中科大镜像 `http://mirrors.ustc.edu.cn/debian`，同时覆盖 debian-security），修复基础镜像直连 deb.debian.org 导致的慢更新；海外构建可改回官方源。实测 10.1MB 索引/包 7–8 秒拉完。
