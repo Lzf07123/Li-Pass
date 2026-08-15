@@ -5,7 +5,7 @@ import logging
 import socket
 import uuid
 from dataclasses import dataclass
-from urllib.parse import urlparse
+from urllib.parse import quote, urlparse
 
 import httpx
 from sqlalchemy import select
@@ -64,6 +64,18 @@ def assert_safe_backchannel_url(url: str) -> None:
     if not host:
         raise ValueError("回程地址缺少主机名")
     _assert_public_host(host)
+
+
+def build_logout_funnel(uris: list[str], final_url: str) -> str:
+    """把多个网站的登出入口串成一条 `?next=` 链，浏览器依序跳转后回最终页。
+
+    RP 约定：收到 `next` 参数时在本地清会话后跳转过去；链从最后一个目标
+    开始反向包一层，保证第一个跳的是 uris[0]。
+    """
+    chain = final_url
+    for uri in reversed(uris):
+        chain = f"{uri}?next={quote(chain, safe='')}"
+    return chain
 
 
 @dataclass(frozen=True)

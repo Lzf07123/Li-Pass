@@ -2,14 +2,25 @@ import logging
 import uuid
 from datetime import datetime, timedelta, timezone
 
-from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
+from fastapi import (
+    APIRouter,
+    BackgroundTasks,
+    Depends,
+    HTTPException,
+    Request,
+    Response,
+    status,
+)
 from sqlalchemy import select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
 from app.core.db import get_db
+from app.api.deps import clear_session_cookie
 from app.models.account_invite import AccountInvite
+from app.models.oauth_client import OAuthClient
+from app.models.oidc_client_session import OIDCClientSession
 from app.models.otp import OtpPurpose
 from app.models.session import Session as SessionModel
 from app.models.user import User, UserStatus
@@ -41,6 +52,11 @@ from app.security.tokens import generate_token, hash_token
 from app.services.email import get_email_service
 from app.services.otps import create_otp, otp_attempts_exhausted, verify_otp
 from app.services.audit import log_audit, log_rate_limit_rejected_once
+from app.services.federated_logout import (
+    build_logout_funnel,
+    collect_logout_targets,
+    dispatch_backchannel_logout,
+)
 from app.services.rate_limit import get_rate_limiter
 from app.services.site_settings import (
     PUBLIC_REGISTRATION_ENABLED_KEY,
@@ -640,9 +656,35 @@ def verify_twofa(
     return serialize_user(user)
 
 
-@router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
-def logout(request: Request, response: Response, db: Session = Depends(get_db)) -> None:
+def _funnel_uris(db: Session, session_id: uuid.UUID) -> list[str]:
+    """该会话登录过、且只支持浏览器串跳（无回程通道）的网站登出入口。"""
+    rows = db.execute(
+        select(OAuthClient.logout_uri)
+        .join(OIDCClientSession, OIDCClientSession.client_id == OAuthClient.id)
+        .where(
+            OIDCClientSession.session_id == session_id,
+            OIDCClientSession.revoked_at.is_(None),
+            OAuthClient.is_active.is_(True),
+            OAuthClient.logout_uri.is_not(None),
+            OAuthClient.logout_uri != "",
+            (OAuthClient.backchannel_logout_uri.is_(None))
+            | (OAuthClient.backchannel_logout_uri == ""),
+        )
+        .order_by(OAuthClient.created_at.asc())
+    ).all()
+    return [uri for (uri,) in rows]
+
+
+@router.post("/logout", response_model=dict)
+def logout(
+    request: Request,
+    response: Response,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db),
+) -> dict:
     token = request.cookies.get(settings.session_cookie_name)
+    targets: list = []
+    funnel_uris: list[str] = []
     if token:
         session = db.scalar(
             select(SessionModel).where(SessionModel.token_hash == hash_token(token))
@@ -661,14 +703,19 @@ def logout(request: Request, response: Response, db: Session = Depends(get_db)) 
                 ip=request.client.host if request.client else None,
                 user_agent=request.headers.get("user-agent"),
             )
-    # 删除 Cookie 必须镜像设置时的属性（Secure/SameSite/HttpOnly），
-    # 否则 HTTPS 生产环境下浏览器可能不认可这条删除指令，导致登出后 Cookie 仍有效。
-    response.delete_cookie(
-        settings.session_cookie_name,
-        secure=settings.session_cookie_secure,
-        httponly=True,
-        samesite=settings.session_cookie_samesite,
+            targets = collect_logout_targets(db, [session.id])
+            if targets:
+                background_tasks.add_task(dispatch_backchannel_logout, targets)
+            funnel_uris = _funnel_uris(db, session.id)
+    clear_session_cookie(response)
+    redirect_to = (
+        build_logout_funnel(
+            funnel_uris, f"{settings.frontend_base_url}/login"
+        )
+        if funnel_uris
+        else None
     )
+    return {"redirect_to": redirect_to}
 
 
 @router.post("/password/reset", status_code=status.HTTP_202_ACCEPTED)

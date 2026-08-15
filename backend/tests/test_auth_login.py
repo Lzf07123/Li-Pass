@@ -32,7 +32,9 @@ def test_login_logout_flow(client, captured_email) -> None:
     assert "portal_session" in response.cookies
 
     assert client.get("/api/v1/me").status_code == 200
-    assert client.post("/api/v1/auth/logout").status_code == 204
+    logout = client.post("/api/v1/auth/logout")
+    assert logout.status_code == 200
+    assert logout.json() == {"redirect_to": None}
     assert client.get("/api/v1/me").status_code == 401
 
 
@@ -80,7 +82,7 @@ def test_logout_deletes_cookie_with_matching_attributes(client, captured_email) 
     assert "SameSite=lax" in login.headers["set-cookie"]
 
     logout = client.post("/api/v1/auth/logout")
-    assert logout.status_code == 204
+    assert logout.status_code == 200
     delete_header = logout.headers["set-cookie"]
     assert "portal_session=" in delete_header
     assert "Max-Age=0" in delete_header

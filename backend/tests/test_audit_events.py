@@ -42,7 +42,7 @@ def test_register_logs_audit(client, db_session, captured_email) -> None:
 def test_logout_logs_audit(client, db_session) -> None:
     _login_admin(client, db_session)
     resp = client.post("/api/v1/auth/logout")
-    assert resp.status_code == 204
+    assert resp.status_code == 200
     row = db_session.scalar(
         select(AuditLog).where(AuditLog.action == "logout")
     )
