@@ -22,6 +22,8 @@ def test_register_verify_updates_user(client, db_session, captured_email) -> Non
     user = db_session.scalar(select(User).where(User.email == "a@example.com"))
     assert user is not None
     assert user.email_verified_at is not None
+    # 强制 2FA：验证邮箱后直接启用邮箱验证码作为默认方案。
+    assert user.email_otp_enabled is True
 
 
 def test_register_duplicate_email(client, captured_email) -> None:

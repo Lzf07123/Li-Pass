@@ -196,6 +196,8 @@ def create_user(
         status=payload.status or UserStatus.active,
         # 管理员代建账号视为已完成邮箱验证；邀请注册则必须由受邀者激活。
         email_verified_at=datetime.now(timezone.utc),
+        # 强制 2FA：代建账号直接启用邮箱验证码作为默认第二方案。
+        email_otp_enabled=True,
     )
     db.add(user)
     db.commit()

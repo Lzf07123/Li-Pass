@@ -2,6 +2,7 @@ import base64
 import hashlib
 
 from app.models.oauth_client import OAuthClient
+from app.services.rate_limit import get_rate_limiter
 
 TEST_VERIFIER = "v" * 43
 
@@ -28,6 +29,7 @@ def login_with_email_2fa(
     captured_email,
     email: str,
     password: str,
+    headers: dict | None = None,
     **login_kwargs,
 ):
     """登录并透明地完成邮箱 2FA 挑战（无 2FA 时直接建立会话）。
@@ -38,13 +40,19 @@ def login_with_email_2fa(
     response = client.post(
         "/api/v1/auth/login",
         json={"email": email, "password": password, **login_kwargs},
+        headers=headers,
     )
     if response.status_code != 200 or not response.json().get("requires_2fa"):
         return response
     challenge_id = response.json()["challenge_id"]
+    # 同一测试内多次登录会触发 60 秒重发冷却与每小时配额，
+    # 测试侧先清理内存限流计数（生产行为的冷却由 test_twofa_login 单独覆盖）。
+    get_rate_limiter().reset("otp_resend_cooldown", email)
+    get_rate_limiter().reset("otp_send", email)
     client.post(
         "/api/v1/auth/2fa/send",
         json={"challenge_id": challenge_id},
+        headers=headers,
     )
     code = captured_email.messages[-1][2]
     return client.post(
@@ -54,6 +62,7 @@ def login_with_email_2fa(
             "method": "email_otp",
             "code": code,
         },
+        headers=headers,
     )
 
 

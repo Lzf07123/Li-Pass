@@ -7,7 +7,7 @@ from app.models.audit_log import AuditLog
 from app.models.user import User, UserRole
 from app.security.passwords import hash_password, verify_password
 from app.security.tokens import generate_token, hash_token
-from tests.helpers import register_and_login
+from tests.helpers import login_with_email_2fa, register_and_login
 
 
 def _login_admin(client, db_session) -> User:
@@ -32,7 +32,7 @@ def _token_from_link(link: str) -> str:
     return link.split("token=", 1)[1]
 
 
-def test_admin_create_user_directly(client, db_session) -> None:
+def test_admin_create_user_directly(client, captured_email, db_session) -> None:
     admin = _login_admin(client, db_session)
     response = client.post(
         "/api/v1/admin/users",
@@ -61,11 +61,13 @@ def test_admin_create_user_directly(client, db_session) -> None:
         == 409
     )
 
-    # 管理员代建账号可直接登录（视为已验证邮箱）
+    # 管理员代建账号视为已验证邮箱，强制 2FA 下登录需完成邮箱验证码。
     assert (
-        client.post(
-            "/api/v1/auth/login",
-            json={"email": "newbie@example.com", "password": "password123"},
+        login_with_email_2fa(
+            client,
+            captured_email,
+            "newbie@example.com",
+            "password123",
         ).status_code
         == 200
     )

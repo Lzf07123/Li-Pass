@@ -5,7 +5,12 @@ from app.models.oauth_client import OAuthClient
 from app.models.user import User
 from app.models.user_consent import UserConsent
 from app.security.passwords import verify_password
-from tests.helpers import authorize_params, create_client, register_and_login
+from tests.helpers import (
+    authorize_params,
+    create_client,
+    login_with_email_2fa,
+    register_and_login,
+)
 
 
 def test_update_profile_and_password(client, captured_email, db_session) -> None:
@@ -61,9 +66,8 @@ def test_sessions_list_and_revoke(client, captured_email) -> None:
     current_id = sessions[0]["id"]
     assert client.delete(f"/api/v1/sessions/{current_id}").status_code == 400
 
-    client.post(
-        "/api/v1/auth/login",
-        json={"email": "a@example.com", "password": "password123"},
+    login_with_email_2fa(
+        client, captured_email, "a@example.com", "password123"
     )
     sessions = client.get("/api/v1/sessions").json()
     other = next(s for s in sessions if not s["current"])
@@ -75,14 +79,8 @@ def test_sessions_revoke_all_keeps_current(
     client, captured_email, db_session
 ) -> None:
     register_and_login(client, captured_email)
-    client.post(
-        "/api/v1/auth/login",
-        json={"email": "a@example.com", "password": "password123"},
-    )
-    client.post(
-        "/api/v1/auth/login",
-        json={"email": "a@example.com", "password": "password123"},
-    )
+    login_with_email_2fa(client, captured_email, "a@example.com", "password123")
+    login_with_email_2fa(client, captured_email, "a@example.com", "password123")
     # 三次登录产生 3 个会话：当前 + 2 个历史设备
     assert len(client.get("/api/v1/sessions").json()) == 3
 

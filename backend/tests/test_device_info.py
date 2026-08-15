@@ -7,6 +7,7 @@ from app.services.device_info import (
     parse_ch_headers,
     parse_user_agent,
 )
+from tests.helpers import login_with_email_2fa
 
 IPHONE_UA = (
     "Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) "
@@ -168,9 +169,11 @@ def test_login_stores_device_label_from_client_hints(
         "/api/v1/auth/email/verify",
         json={"email": "a@example.com", "code": code},
     )
-    client.post(
-        "/api/v1/auth/login",
-        json={"email": "a@example.com", "password": "password123"},
+    login_with_email_2fa(
+        client,
+        captured_email,
+        "a@example.com",
+        "password123",
         headers={
             "sec-ch-ua-model": '"MacBook Pro"',
             "sec-ch-ua-platform": '"macOS"',

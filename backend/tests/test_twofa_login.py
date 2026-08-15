@@ -1,10 +1,15 @@
 import pyotp
 
+from app.services.rate_limit import get_rate_limiter
 from tests.helpers import register_and_login
 
 
 def enable_email_2fa(client, captured_email) -> None:
     register_and_login(client, captured_email)
+    # register_and_login 内部已消耗一次 2FA 邮件发送；
+    # 本文件要单独验证登录后的 60 秒重发冷却，先把测试侧计数清零。
+    get_rate_limiter().reset("otp_resend_cooldown", "a@example.com")
+    get_rate_limiter().reset("otp_send", "a@example.com")
     response = client.post(
         "/api/v1/me/2fa/email/enable",
         json={"current_password": "password123"},
@@ -108,7 +113,7 @@ def test_totp_login_flow(client, captured_email) -> None:
         "/api/v1/auth/login",
         json={"email": "a@example.com", "password": "password123"},
     )
-    assert response.json()["methods"] == ["totp", "recovery"]
+    assert response.json()["methods"] == ["email_otp", "totp", "recovery"]
     challenge_id = response.json()["challenge_id"]
     response = client.post(
         "/api/v1/auth/2fa/verify",
