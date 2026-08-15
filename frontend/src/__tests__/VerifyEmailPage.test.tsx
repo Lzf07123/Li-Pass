@@ -60,6 +60,11 @@ describe("VerifyEmailPage", () => {
       "/verify-email?email=a%40example.com&next=https%3A%2F%2Fevil.example%2Fsteal",
     ]);
     await screen.findByLabelText("验证码");
+    expect(
+      screen.getByText(
+        "无法验证返回原网站的链接（域名或协议与门户不一致），验证完成后将停留在门户个人中心。",
+      ),
+    ).toBeInTheDocument();
     fireEvent.change(screen.getByLabelText("验证码"), {
       target: { value: "123456" },
     });
