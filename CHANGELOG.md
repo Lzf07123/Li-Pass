@@ -26,6 +26,7 @@
 
 ### 行为变更
 
+- 认证页与用户中心接入 React Bits 风格的 `StrokeText` 描边绘制标题（gsap 依赖）：页面标题按字符描边后从左向右擦入填充，描边/填充色走 `--portal-primary`/`--portal-fg` 令牌自动跟随明暗主题，`prefers-reduced-motion` 下直接呈现最终态；`ScrollTrigger` 仅在 `trigger="scroll"` 时按需加载。视觉层同步微调：极光背景色相加入青/紫低透明度点缀、认证卡新增蓝→青→紫渐变描边（`.card-signature`）、主按钮改为「主色→主色悬停」纵向渐变并在 hover 时下移渐变与抬升阴影，浅深主题分别调色。
 - 品牌名统一为 **Li&Pass**：前端品牌配置、页面标题/文案、邮件主题与模板、TOTP issuer、User-Agent、Compose/环境变量示例与全部文档同步更新。
 - 会话 Cookie 由 `portal_session` 改为 `lipass_session`：后端同时接受两个名字（旧浏览器中的会话自然过期前仍可登录），新会话签发新名，登出同时删除两个名字。JWT 单文件模式 kid 由 `portal-rs256-1` 改为 `lipass-rs256-1`：JWKS 同时发布新旧两个 kid 指向同一公钥，旧 kid 令牌到期前仍可验证，新签名一律用新 kid；轮换脚本兼容历史 `portal-rs256-*.pem` 编号。
 - 用户中心「登录设备」新增「退出所有设备」：一键下线除当前会话外的全部设备。后端新增 `POST /api/v1/sessions/revoke-all`（先清理本用户过期/空闲的僵尸会话、再撤销其余会话、保留当前会话并记录审计），前端新增危险按钮与确认弹窗，完成后刷新列表并提示退出设备数；仅剩当前设备时按钮禁用。

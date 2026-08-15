@@ -3,8 +3,8 @@ import type { ReactNode } from "react";
 
 import { APP_NAME, APP_TAGLINE } from "../lib/brand";
 import { AuroraBackground } from "./bits/AuroraBackground";
-import { BlurText } from "./bits/BlurText";
 import { ShinyText } from "./bits/ShinyText";
+import { StrokeText } from "./bits/StrokeText";
 import { Brand } from "./Brand";
 import { FloatingBackground } from "./FloatingBackground";
 import { SiteFooter } from "./SiteFooter";
@@ -40,15 +40,28 @@ export function AuthShell({
       <div className="relative flex flex-1 items-center justify-center">
         <div className="w-full max-w-md">
           <div
-            className="animate-fade-up-slow mb-8 flex flex-col items-center gap-3 text-center"
+            className="animate-fade-up-slow mb-8 flex w-full flex-col items-center gap-3 text-center"
             style={{ animationDelay: "0.05s" }}
           >
             <Brand className="h-12 w-12 drop-shadow-sm" />
             <div>
-              <BlurText
-                text={title}
-                className="text-[22px] font-semibold tracking-tight text-foreground"
-              />
+              <h1>
+                <StrokeText
+                  text={title}
+                  strokeColor="var(--portal-primary)"
+                  fillColor="var(--portal-fg)"
+                  strokeWidth={1.3}
+                  drawDuration={1.05}
+                  fillDelay={0.15}
+                  stagger={0.045}
+                  ease="power2.out"
+                  trigger="mount"
+                  fillMode="wipe"
+                  fontSize={34}
+                  fontWeight={700}
+                  letterSpacing={0}
+                />
+              </h1>
               {subtitle && <p className="mt-1.5 text-sm text-muted">{subtitle}</p>}
             </div>
           </div>
@@ -65,7 +78,7 @@ export function AuthShell({
               }
             }}
           >
-            <div className="card p-6 sm:p-8">{children}</div>
+            <div className="card card-signature p-6 sm:p-8">{children}</div>
           </div>
         </div>
       </div>

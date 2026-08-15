@@ -166,6 +166,35 @@
     transform: translateY(-1px);
     box-shadow: var(--shadow-lg);
   }
+  /* 认证卡片：低饱和品牌色相渐变描边（蓝→青→紫→青蓝），
+     呼应网站设计风格的色彩层次；明暗主题分别调色。 */
+  .card-signature {
+    border: 1px solid transparent;
+    background:
+      linear-gradient(var(--portal-surface), var(--portal-surface)) padding-box,
+      linear-gradient(
+          140deg,
+          rgba(3, 105, 161, 0.55) 0%,
+          rgba(14, 165, 233, 0.3) 26%,
+          rgba(129, 140, 248, 0.42) 54%,
+          rgba(45, 212, 191, 0.34) 78%,
+          rgba(3, 105, 161, 0.5) 100%
+        )
+        border-box;
+  }
+  .dark .card-signature {
+    background:
+      linear-gradient(var(--portal-surface), var(--portal-surface)) padding-box,
+      linear-gradient(
+          140deg,
+          rgba(56, 189, 248, 0.6) 0%,
+          rgba(34, 211, 238, 0.36) 30%,
+          rgba(129, 140, 248, 0.46) 60%,
+          rgba(167, 139, 250, 0.36) 85%,
+          rgba(56, 189, 248, 0.55) 100%
+        )
+        border-box;
+  }
 
   /* 按钮 */
   .btn {
@@ -185,7 +214,23 @@
     transform: translateY(0) scale(0.97);
   }
   .btn-primary {
-    @apply bg-primary text-primary-foreground shadow-sm hover:bg-primary-hover;
+    @apply text-primary-foreground shadow-sm;
+    background-image: linear-gradient(
+      180deg,
+      var(--portal-primary),
+      var(--portal-primary-hover)
+    );
+    background-size: 100% 200%;
+    background-position: 50% 0;
+    transition:
+      color var(--motion-fast) var(--ease-out),
+      background-position var(--motion-base) var(--ease-out),
+      box-shadow var(--motion-fast) var(--ease-out),
+      transform var(--motion-base) var(--ease-spring);
+  }
+  .btn-primary:not(:disabled):hover {
+    background-position: 50% 100%;
+    box-shadow: var(--shadow-md);
   }
   .btn-secondary {
     @apply border border-border bg-surface text-foreground hover:bg-surface-2;
@@ -782,8 +827,8 @@
     height: 30rem;
     background: radial-gradient(
       circle at 60% 40%,
-      rgba(22, 163, 74, 0.12) 0%,
-      rgba(14, 165, 233, 0.08) 45%,
+      rgba(20, 184, 166, 0.14) 0%,
+      rgba(34, 211, 238, 0.1) 45%,
       transparent 70%
     );
     animation: aurora-drift-2 20s ease-in-out infinite alternate;
@@ -795,8 +840,8 @@
     height: 26rem;
     background: radial-gradient(
       circle at 40% 60%,
-      rgba(2, 132, 199, 0.14) 0%,
-      rgba(99, 102, 241, 0.08) 45%,
+      rgba(99, 102, 241, 0.16) 0%,
+      rgba(139, 92, 246, 0.1) 45%,
       transparent 70%
     );
     animation: aurora-drift-3 24s ease-in-out infinite alternate;
@@ -812,16 +857,16 @@
   .dark .aurora-blob-2 {
     background: radial-gradient(
       circle at 60% 40%,
-      rgba(74, 222, 128, 0.08) 0%,
-      rgba(56, 189, 248, 0.06) 45%,
+      rgba(45, 212, 191, 0.1) 0%,
+      rgba(34, 211, 238, 0.07) 45%,
       transparent 70%
     );
   }
   .dark .aurora-blob-3 {
     background: radial-gradient(
       circle at 40% 60%,
-      rgba(56, 189, 248, 0.12) 0%,
-      rgba(129, 140, 248, 0.07) 45%,
+      rgba(129, 140, 248, 0.14) 0%,
+      rgba(167, 139, 250, 0.09) 45%,
       transparent 70%
     );
   }

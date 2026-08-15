@@ -76,7 +76,7 @@ WCAG AA（正文 ≥ 4.5:1）。深色模式使用去饱和浅色调变体，而
 
 ### 按钮（`.btn` 系列）
 
-- `.btn-primary`：主色背景 + 白色前景；hover 换 `primary-hover`。
+- `.btn-primary`：主色 → 主色悬停的纵向渐变背景 + 主色前景；hover 渐变下移并抬升阴影（`background-position` 过渡）。
 - `.btn-secondary`：透明/表面背景 + 边框；hover 换 `surface-2`。
 - `.btn-danger`：危险色背景 + 白色前景；hover 透明度降低。
 - `.btn-ghost` / `.btn-link`：弱化/文字按钮，用于次要操作。
@@ -86,6 +86,7 @@ WCAG AA（正文 ≥ 4.5:1）。深色模式使用去饱和浅色调变体，而
 
 - `bg-surface` + `border-border` + `rounded-2xl` + 弥散阴影。
 - hover：`translateY(-1px)` 并切换 `--shadow-lg`；交互式卡片加 `.card-interactive`。
+- `.card-signature`：认证页专用，叠加于 `.card` 之上，以蓝→青→紫低透明度渐变替代描边（padding-box 表面 + border-box 渐变边框双背景）。
 
 ### 表单（`.label` / `.input` / `.input-sm`）
 

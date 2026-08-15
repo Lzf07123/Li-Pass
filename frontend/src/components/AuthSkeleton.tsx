@@ -22,7 +22,7 @@ export function AuthSkeleton() {
           >
             <div className="shimmer h-12 w-12 rounded-full" />
             <div className="space-y-2">
-              <div className="shimmer mx-auto h-6 w-44 rounded-md" />
+              <div className="shimmer mx-auto h-11 w-56 rounded-md" />
               <div className="shimmer mx-auto h-4 w-56 rounded-md" />
             </div>
           </div>

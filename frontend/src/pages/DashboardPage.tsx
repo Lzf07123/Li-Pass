@@ -23,6 +23,7 @@ import { useBreathOnChange } from "../hooks/useBreathOnChange";
 import { useToast } from "../hooks/useToast";
 import { FadeIn } from "../components/bits/FadeIn";
 import { LineIcon } from "../components/bits/LineIcon";
+import { StrokeText } from "../components/bits/StrokeText";
 
 // 绑定手机功能暂未完善：置为 true 即恢复显示（代码与接口保留）。
 const PHONE_BINDING_ENABLED = false;
@@ -437,6 +438,30 @@ export function DashboardPage() {
       <main className="relative mx-auto w-full max-w-7xl flex-1 space-y-6 px-4 py-8 sm:px-6 lg:px-8">
         {user && (
           <>
+            <FadeIn delay={0}>
+              <section className="pt-2 text-center">
+                <h1>
+                  <StrokeText
+                    text={user.nickname.trim() ? `你好，${user.nickname.trim()}` : "你好"}
+                    strokeColor="var(--portal-primary)"
+                    fillColor="var(--portal-fg)"
+                    strokeWidth={1.3}
+                    drawDuration={1.05}
+                    fillDelay={0.15}
+                    stagger={0.05}
+                    ease="power2.out"
+                    trigger="mount"
+                    fillMode="wipe"
+                    fontSize={36}
+                    fontWeight={700}
+                    letterSpacing={0}
+                  />
+                </h1>
+                <p className="mt-2 text-sm text-muted">
+                  在这里管理你的账号安全、授权网站与登录会话
+                </p>
+              </section>
+            </FadeIn>
             <FadeIn delay={0}>
               <section className="card p-6">
                 <h2 className="mb-4 inline-flex items-center gap-2 text-base font-semibold text-foreground">
