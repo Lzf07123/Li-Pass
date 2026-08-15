@@ -18,6 +18,7 @@ from fastapi import (
 )
 from fastapi.responses import RedirectResponse
 from sqlalchemy import select, update
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.api.deps import (
@@ -213,7 +214,10 @@ def _resolve_logout_client(
 ) -> OAuthClient | None:
     if client_id:
         return db.scalar(
-            select(OAuthClient).where(OAuthClient.client_id == client_id)
+            select(OAuthClient).where(
+                OAuthClient.client_id == client_id,
+                OAuthClient.is_active.is_(True),
+            )
         )
     if id_token_hint:
         try:
@@ -223,7 +227,10 @@ def _resolve_logout_client(
         audience = claims.get("aud")
         if isinstance(audience, str):
             return db.scalar(
-                select(OAuthClient).where(OAuthClient.client_id == audience)
+                select(OAuthClient).where(
+                    OAuthClient.client_id == audience,
+                    OAuthClient.is_active.is_(True),
+                )
             )
     return None
 
@@ -414,7 +421,12 @@ def token(
                     user_id=user.id,
                 )
             )
-            db.commit()
+            try:
+                db.commit()
+            except IntegrityError:
+                # 同一 (session, client) 并发换码时可能同时插入：唯一约束
+                # 兜底，回滚后继续发令牌，不影响本次授权。
+                db.rollback()
 
     settings = get_settings()
     return {

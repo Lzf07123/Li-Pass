@@ -51,6 +51,28 @@ def test_end_session_rejects_unregistered_redirect(
     assert "evil.example" not in resp.headers["location"]
 
 
+def test_end_session_rejects_redirect_of_inactive_client(
+    client, db_session, captured_email
+) -> None:
+    register_and_login(client, captured_email)
+    create_client(
+        db_session,
+        client_id="cli_logout",
+        redirect_uris=["http://x/cb"],
+        post_logout_redirect_uris=["https://x/after-logout"],
+        is_active=False,
+    )
+    resp = client.get(
+        "/oauth2/end-session",
+        params={
+            "client_id": "cli_logout",
+            "post_logout_redirect_uri": "https://x/after-logout",
+        },
+    )
+    assert resp.status_code == 302
+    assert "after-logout" not in resp.headers["location"]
+
+
 def test_end_session_without_portal_session_redirects_back(
     client, db_session
 ) -> None:

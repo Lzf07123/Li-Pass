@@ -82,4 +82,12 @@ describe("LogoutConfirmPage", () => {
       configurable: true,
     });
   });
+
+  it("缺少 request_id 时提示错误而不是无限加载", async () => {
+    vi.stubGlobal("fetch", vi.fn());
+    renderWithProviders(<LogoutConfirmPage />, ["/logout/confirm"]);
+    await waitFor(() =>
+      expect(screen.getByText("缺少登出请求参数")).toBeInTheDocument()
+    );
+  });
 });

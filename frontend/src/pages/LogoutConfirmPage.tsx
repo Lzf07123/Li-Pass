@@ -17,7 +17,10 @@ export function LogoutConfirmPage() {
   const toast = useToast();
 
   useEffect(() => {
-    if (!requestId) return;
+    if (!requestId) {
+      setError("缺少登出请求参数");
+      return;
+    }
     oauthApi
       .logoutRequestInfo(requestId)
       .then((info) => setClientName(info.client_name))
