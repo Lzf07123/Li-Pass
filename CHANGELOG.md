@@ -10,6 +10,7 @@
 
 ### 功能
 
+- 邀请注册前置校验：新增 `GET /api/v1/auth/invite/status`（返回脱敏邮箱与是否已注册），邀请页在展示注册表单前先校验链接——无效/已使用/已取消/已过期分别展示对应提示页，邀请邮箱已注册账号时提示直接登录，不再让用户填完信息提交后才报错。
 - 登录可信设备（7 天免登录二次验证，**仅登录环节**）：用户完成登录 2FA 时可勾选「信任此设备」，此后 7 天内该设备用正确密码登录跳过 2FA（密码校验不受影响）；豁免不覆盖修改密码/注销/管理端等敏感操作复核。凭证为 256 位随机 token（数据库只存 SHA-256 哈希），Cookie `lipass_trusted_device`（HttpOnly、生产 Secure、SameSite=Lax），有效期可配置 `TRUSTED_DEVICE_TTL_DAYS`（默认 7）；用户中心新增「可信设备」列表与逐台移除，修改密码与「退出所有设备」清除全部可信设备。审计新增 `trusted_device_granted`/`2fa_trusted_skip`/`trusted_device_revoked`。设计见 [可信设备设计](docs/superpowers/specs/2026-08-16-trusted-device-design.md)。
 - 注销/删除账号升级为「密码 + 任意 2FA」双因素复核：注销账号、管理端删除用户与批量删除必须同时提供当前密码与一种二次验证码（邮箱验证码或 TOTP），且**不享受 30 分钟免复核窗口**（每次必验）；新增 `POST /api/v1/me/step-up/send` 发送复核邮箱验证码（与登录 2FA 共用发送冷却与每小时配额），前端新增通用双因素复核表单（获取验证码 + 60 秒重发冷却）。设计见 [账号安全与体验改进设计](docs/superpowers/specs/2026-08-16-account-ux-security-improvements-design.md)。
 - 密码输入实时强度显示（弱/中/强三段色条）：接入注册、邀请注册、找回密码、用户中心修改密码与管理员代建账号；按长度、大小写、数字、符号评分，仅显示、不改变后端密码策略。

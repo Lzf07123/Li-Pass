@@ -7,6 +7,7 @@ from fastapi import (
     BackgroundTasks,
     Depends,
     HTTPException,
+    Query,
     Request,
     Response,
     status,
@@ -389,6 +390,43 @@ def register_by_invite(
         detail={"email": invite.email},
     )
     return {"message": "账号已创建，请登录"}
+
+
+def _mask_email(email: str) -> str:
+    local, _, domain = email.partition("@")
+    if not domain:
+        return email
+    return f"{local[0] if local else ''}***@{domain}"
+
+
+@router.get("/invite/status")
+def invite_status(
+    token: str = Query(...),
+    db: Session = Depends(get_db),
+) -> dict:
+    """注册表单加载前预校验邀请链接：无效/已用/已取消/过期返回相应错误。"""
+    invite = db.scalar(
+        select(AccountInvite).where(
+            AccountInvite.token_hash == hash_token(token)
+        )
+    )
+    if invite is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "邀请链接无效")
+    if invite.cancelled_at is not None:
+        raise HTTPException(status.HTTP_410_GONE, "邀请已被取消，请联系管理员重新邀请")
+    if invite.used_at is not None:
+        raise HTTPException(status.HTTP_410_GONE, "邀请链接已被使用")
+    if _as_utc(invite.expires_at) < datetime.now(timezone.utc):
+        raise HTTPException(status.HTTP_410_GONE, "邀请链接已过期，请联系管理员重新邀请")
+    email_taken = (
+        db.scalar(select(User).where(User.email == invite.email)) is not None
+    )
+    return {
+        "valid": True,
+        "email": _mask_email(invite.email),
+        "email_taken": email_taken,
+        "expires_at": _as_utc(invite.expires_at),
+    }
 
 
 @router.post("/login")
