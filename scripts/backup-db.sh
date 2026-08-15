@@ -4,7 +4,7 @@ cd "$(dirname "$0")/.."
 
 mkdir -p backups
 stamp=$(date +%Y%m%d-%H%M%S)
-out="backups/portal-${stamp}.sql.gz"
+out="backups/lipass-${stamp}.sql.gz"
 
 echo "==> 备份 PostgreSQL 到 $out"
 docker compose --profile bundle exec -T postgres \

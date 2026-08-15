@@ -77,11 +77,14 @@ docker compose -f docker-compose.yaml --env-file .env exec backend \
 | `ALLOWED_HOSTS` | 后端接受的 Host 白名单（JSON 数组；生产必填真实域名，防 Host 头注入/DNS rebinding） |
 | `SESSION_COOKIE_SECURE` | HTTPS 下必须 `true` |
 | `SESSION_COOKIE_SAMESITE` | 见下方「SameSite 与部署拓扑」 |
+| `SESSION_COOKIE_NAME` | 会话 Cookie 名（默认 `lipass_session`）；后端同时兼容接受旧名 `portal_session`，旧浏览器里的会话自然过期前仍可登录，详见「标识迁移」 |
 | `SESSION_TTL_DAYS` / `SESSION_DEFAULT_TTL_DAYS` | 勾选“记住我”/未勾选时的会话有效期（默认 30 天 / 1 天；未勾选同时使用会话级 Cookie，关闭浏览器即失效） |
 | `SESSION_IDLE_DAYS` | 会话空闲超时天数（默认 7 天，超过即强制下线） |
 | `PUBLIC_REGISTRATION_ENABLED` | 公开注册入口默认值（默认 `true`）；`false` 时注册页提示“注册渠道暂时关闭，只接收邀请注册”，后端同时拒绝公开注册请求。管理后台「站点设置」可运行时覆盖该默认值（存入 `site_settings` 表） |
 | `DATABASE_URL` / `REDIS_URL` | 数据与缓存连接串：留空时默认编排内 PostgreSQL/Redis（需 `bundle` profile）；填写远程地址即切换为远程实例 |
 | `PENDING_REQUEST_STORE` / `TWOFA_STORE` / `RATE_LIMITER` | 生产用 `redis` |
+| `LOGOUT_TOKEN_TTL_SECONDS` | 联邦登出令牌有效期（默认 `120`，范围 30–600）；接收方按此做新鲜窗口校验 |
+| `BACKCHANNEL_LOGOUT_TIMEOUT_SECONDS` / `BACKCHANNEL_LOGOUT_MAX_RETRIES` | 回程登出通知的请求超时（默认 `5` 秒）与失败重试次数（默认 `2` 次） |
 | `ADMIN_INVITE_RATE_LIMIT` / `ADMIN_INVITE_RATE_WINDOW_SECONDS` | 管理端邀请限流（按来源 IP 计，批量邀请按人数累计；默认 100 次/小时） |
 | `LOGIN_RATE_LIMIT` / `LOGIN_RATE_WINDOW_SECONDS` | 按邮箱+IP 的登录失败次数限流（默认 5 次/15 分钟，第 6 次失败返回 429） |
 | `LOGIN_IP_RATE_LIMIT` / `LOGIN_IP_RATE_WINDOW_SECONDS` | 按来源 IP 的登录尝试次数限流（默认 20 次/15 分钟，在 Argon2 之前前置拦截） |
@@ -237,13 +240,13 @@ docker run --rm -v lipass_backend-keys:/keys -v "$PWD":/backup alpine \
 
 ```bash
 docker compose -f docker-compose.yaml --env-file .env exec postgres \
-  pg_dump -U portal portal | gzip > portal-$(date +%Y%m%d-%H%M%S).sql.gz
+  pg_dump -U portal portal | gzip > lipass-$(date +%Y%m%d-%H%M%S).sql.gz
 ```
 
 恢复：
 
 ```bash
-gunzip -c portal-20260101-120000.sql.gz | \
+gunzip -c lipass-20260101-120000.sql.gz | \
   docker compose -f docker-compose.yaml --env-file .env exec -T postgres \
   psql -U portal portal
 ```
@@ -258,8 +261,8 @@ docker run --rm -v lipass_backend-uploads:/uploads -v "$PWD":/backup alpine \
 仓库提供一键备份/恢复脚本（仅编排内 PostgreSQL，`--profile bundle`）：
 
 ```bash
-bash scripts/backup-db.sh                  # 备份到 backups/portal-<时间戳>.sql.gz
-bash scripts/restore-db.sh backups/portal-20260813-120000.sql.gz
+bash scripts/backup-db.sh                  # 备份到 backups/lipass-<时间戳>.sql.gz
+bash scripts/restore-db.sh backups/lipass-20260813-120000.sql.gz
 ```
 
 ## 数据库迁移与升级策略

@@ -5,6 +5,11 @@
 ### 破坏性变更
 
 - OIDC `access_token` 的 `aud` 从 `client_id` 改为 `{issuer}/oauth2/userinfo`，并已在 userinfo 端点强制校验。`id_token` 的 `aud` 仍为 `client_id`，不受影响。此前若对接方校验过 `access_token` 的 `aud == client_id`，发布后需同步更新为 userinfo 端点地址。详见 [对接指南 §2.5](docs/oidc-integration.md)。
+- 技术标识统一为 `lipass`：Compose 项目/镜像/网络/命名卷由 `account-service` 系列改为 `lipass` 系列，从旧版升级需先按 [部署文档 §标识迁移](docs/deployment.md) 迁移数据卷；`acr` 声明由 `urn:portal-oss:acr:1fa/2fa` 改为 `urn:lipass:acr:1fa/2fa`，接入方在升级期按“两套值等价”校验，窗口过后只保留新值。
+
+### 功能
+
+- 联邦登出完整落地：RP 发起登出（`GET /oauth2/end-session` + 确认页 `/logout/confirm` + 精确匹配回跳白名单）、回程登出（`logout_token` 签发/异步分发/重试/SSRF 防护）、无回程网站的浏览器串跳漏斗、用户/管理员会话撤销与取消授权联动下线；`id_token` 新增 `sid`，发现文档新增 `end_session_endpoint`/`backchannel_logout_supported`；管理端新增「登出回跳白名单」「回程登出地址」配置，演示站实现对应 RP 侧示例。详见 [对接指南 §7](docs/oidc-integration.md) 与 [实施计划](docs/superpowers/plans/2026-08-15-federated-logout.md)。
 
 ### 安全加固
 
@@ -21,6 +26,8 @@
 
 ### 行为变更
 
+- 品牌名统一为 **Li&Pass**：前端品牌配置、页面标题/文案、邮件主题与模板、TOTP issuer、User-Agent、Compose/环境变量示例与全部文档同步更新。
+- 会话 Cookie 由 `portal_session` 改为 `lipass_session`：后端同时接受两个名字（旧浏览器中的会话自然过期前仍可登录），新会话签发新名，登出同时删除两个名字。JWT 单文件模式 kid 由 `portal-rs256-1` 改为 `lipass-rs256-1`：JWKS 同时发布新旧两个 kid 指向同一公钥，旧 kid 令牌到期前仍可验证，新签名一律用新 kid；轮换脚本兼容历史 `portal-rs256-*.pem` 编号。
 - 用户中心「登录设备」新增「退出所有设备」：一键下线除当前会话外的全部设备。后端新增 `POST /api/v1/sessions/revoke-all`（先清理本用户过期/空闲的僵尸会话、再撤销其余会话、保留当前会话并记录审计），前端新增危险按钮与确认弹窗，完成后刷新列表并提示退出设备数；仅剩当前设备时按钮禁用。
 - 管理后台标签栏改为全局横向滑动策略：新增通用 `ScrollTabs` 组件，标签单行排列、超出宽度时左右滑动而非换行堆叠（隐藏滚动条、snap 轻吸附、阻止滚动连带页面滚动），可滚动方向叠加主题色边缘渐隐提示，挂载与切换标签时活动标签自动滚入视口中央（深链直达 `/admin/audit` 等活动标签始终可见）；移动端通栏呈现，并统一激活/非激活标签高度，消除激活态 2px 高低错位。
 - 数据统计「登录来源地域分布」由 Top 10 条形列表改为中国地图省级着色：后端新增 `regions_map`（省级聚合，含内蒙古/港澳等别名规范化）与 `regions_other`（海外/内网/未知汇总），前端新增自研 SVG `ChinaMap` 组件（GeoJSON 入库离线、5 档单色渐变与色阶图例、悬停省份提示次数与占比、海外/内网/其它徽章与明细表兜底）。设计见 [登录来源地域分布地图设计](docs/superpowers/specs/2026-08-15-admin-login-region-map-design.md)。
@@ -36,6 +43,8 @@
 
 ### 缺陷修复
 
+- 网关演示站动态上游解析的 `proxy_pass` 带变量时其 URI 部分会整体替换原始路径，`/demo/login`、`POST /demo/logout` 等子路径被透传成 `/`（404/405）；已改用 `rewrite` 显式剥离 `/demo` 前缀后不带 URI 转发。
+- 联邦登出迁移 `7f2a9d3c8e1b` 的 downgrade 在 PostgreSQL 上失败：`authorization_codes.session_id` 外键未命名导致无法生成 `DROP CONSTRAINT`；已命名外键并在真实 PostgreSQL 上验证 downgrade/upgrade 往返。
 - 头像上传超限修复：`starlette 1.6.0` 已将 `HTTP_413_CONTENT_TOO_LARGE` 更名为 `HTTP_413_REQUEST_ENTITY_TOO_LARGE`，超限头像此前会在校验时抛出 `AttributeError`（表现为 500 而非 413），已改用新常量并保留现有测试覆盖。
 - 地域分布地图口径修正：IP 库内未识别记录（country 为空，如 `0|0|0|0|0`）此前被误计入「海外」，现归「未知」；无省份数据（仅海外/内网/未知）时不再渲染无意义的色阶图例；悬停提示框左边界钳制，避免极窄视口越界。
 - 测试环境异常修复（此前"升级依赖后首跑大量失败"的真实根因）：`Settings` 的 `.env` 原为相对当前工作目录解析，从仓库根运行测试时会误加载根目录的部署 `.env`（`ALLOWED_HOSTS` 不含 testserver、`EMAIL_BACKEND=smtp` 等），导致约 180 个测试批量 400。现改为固定相对 `config.py` 解析为 `backend/.env`，与工作目录解耦；并新增根目录 `pytest.ini`（`testpaths=backend/tests` + `pythonpath=backend`），支持从仓库根直接运行全量测试。
@@ -46,6 +55,7 @@
 
 ### 运维工具
 
+- 备份脚本输出文件名前缀由 `portal-` 统一为 `lipass-`（脚本依赖 Compose 服务名，随项目改名无需其它改动）。
 - 补齐身份降级脚本 `scripts/demote_admin.py`：`python -m scripts.demote_admin <邮箱>` 把管理员降级为普通用户（已是普通用户则幂等跳过；拒绝降级最后一名管理员，防止失去后台入口），与 `make_admin` 对称。
 - 前端 npm 源切换为国内镜像 `registry.npmmirror.com`（项目级 `.npmrc`，Docker 构建与本地安装均生效；USTC 的 npm 镜像已停服并重定向至该源）。
 - 登录防爆破阈值收紧（默认值变更）：每邮箱+IP 失败次数 `LOGIN_RATE_LIMIT` 10→5（第 6 次密码错误返回 429）、全局限邮箱 `LOGIN_EMAIL_RATE_LIMIT` 20→10、每 IP `LOGIN_IP_RATE_LIMIT` 30→20。注意邮箱级限流的短时账号锁定权衡：攻击者可用错误密码暂时锁住目标账号，见 [部署与运维 §环境变量](docs/deployment.md)。
