@@ -169,6 +169,7 @@ export function AdminStatsPanel() {
             enableTilt
             particleCount={6}
             spotlightRadius={260}
+            compact
           />
 
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">

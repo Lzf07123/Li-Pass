@@ -123,6 +123,14 @@
   .magic-bento-card:first-child {
     grid-column: auto;
   }
+
+  .magic-bento--compact .card-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .magic-bento--compact .magic-bento-card:first-child {
+    grid-column: auto;
+  }
 }
 
 @media (min-width: 600px) {
@@ -133,6 +141,33 @@
   .magic-bento-card:first-child {
     grid-column: span 2;
   }
+
+  .magic-bento--compact .card-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .magic-bento--compact .magic-bento-card:first-child {
+    grid-column: auto;
+  }
+}
+
+/* 紧凑模式：等宽 3 列、单卡更矮，用于页面顶部概览而不挤压下方内容 */
+.magic-bento--compact .magic-bento-card {
+  min-height: 112px;
+  padding: 0.9rem 1rem;
+}
+
+.magic-bento--compact .magic-bento-card__title {
+  font-size: 15px;
+}
+
+.magic-bento--compact .magic-bento-card__title--emphasize {
+  font-size: 24px;
+}
+
+.magic-bento--compact .magic-bento-card__description {
+  font-size: 12px;
+  line-height: 1.4;
 }
 
 /* 边框辉光：跟随光标的径向渐变描边（mask 抠出边框环） */

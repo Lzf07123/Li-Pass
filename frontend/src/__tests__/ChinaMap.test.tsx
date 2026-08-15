@@ -1,10 +1,10 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
 import { ChinaMap } from "../components/charts/ChinaMap";
 
 describe("ChinaMap", () => {
-  it("渲染省份着色、徽章与明细表", () => {
+  it("渲染省份着色、徽章与明细表", async () => {
     render(
       <ChinaMap
         data={[
@@ -19,6 +19,9 @@ describe("ChinaMap", () => {
       screen.getByRole("img", { name: /中国登录来源地域分布图/ }),
     ).toBeInTheDocument();
 
+    await waitFor(() =>
+      expect(document.querySelector('[data-name="广东省"]')).not.toBeNull(),
+    );
     const guangdong = document.querySelector('[data-name="广东省"]');
     expect(guangdong).not.toBeNull();
     expect(guangdong?.getAttribute("d")).not.toContain("NaN");
@@ -38,7 +41,7 @@ describe("ChinaMap", () => {
     expect(table).toHaveTextContent("北京市");
   });
 
-  it("悬停省份显示次数与占比提示", () => {
+  it("悬停省份显示次数与占比提示", async () => {
     render(
       <ChinaMap
         data={[{ name: "广东省", value: 12 }]}
@@ -46,6 +49,9 @@ describe("ChinaMap", () => {
       />,
     );
 
+    await waitFor(() =>
+      expect(document.querySelector('[data-name="广东省"]')).not.toBeNull(),
+    );
     const guangdong = document.querySelector(
       '[data-name="广东省"]',
     ) as SVGPathElement;
@@ -57,7 +63,7 @@ describe("ChinaMap", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("无省份数据时隐藏色阶图例，仅保留徽章与空明细表", () => {
+  it("无省份数据时隐藏色阶图例，仅保留徽章与空明细表", async () => {
     render(
       <ChinaMap
         data={[]}
@@ -68,6 +74,9 @@ describe("ChinaMap", () => {
     expect(screen.getByText("海外 3")).toBeInTheDocument();
     expect(screen.queryByText("0")).not.toBeInTheDocument();
     expect(screen.queryByText(/–/)).not.toBeInTheDocument();
+    await waitFor(() =>
+      expect(document.querySelector('[data-name="北京市"]')).not.toBeNull(),
+    );
     const map = screen.getByRole("img", {
       name: /中国登录来源地域分布图/,
     });

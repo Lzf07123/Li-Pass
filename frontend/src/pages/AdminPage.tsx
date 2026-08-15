@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 import { Link, Navigate, useLocation, useNavigate } from "react-router-dom";
 
 import { authApi } from "../api/client";
@@ -9,14 +9,39 @@ import { PageSkeleton } from "../components/PageSkeleton";
 import { PillTabs } from "../components/PillTabs";
 import { SiteFooter } from "../components/SiteFooter";
 import { FadeIn } from "../components/bits/FadeIn";
-import { AdminAuditPanel } from "./AdminAuditPanel";
-import { AdminClientsPage } from "./AdminClientsPage";
-import { AdminNotificationsPanel } from "./AdminNotificationsPanel";
-import { AdminSessionsPanel } from "./AdminSessionsPanel";
-import { AdminSettingsPanel } from "./AdminSettingsPanel";
-import { AdminStatsPanel } from "./AdminStatsPanel";
-import { AdminSystemPanel } from "./AdminSystemPanel";
-import { AdminUsersPanel } from "./AdminUsersPanel";
+
+// 面板级代码分割：管理后台 8 个标签按需加载，避免访问任一标签都下载
+// 全部面板（其中数据统计含约 578KB 的省级 GeoJSON 与图表代码）。
+const AdminAuditPanel = lazy(() =>
+  import("./AdminAuditPanel").then((m) => ({ default: m.AdminAuditPanel }))
+);
+const AdminClientsPage = lazy(() =>
+  import("./AdminClientsPage").then((m) => ({ default: m.AdminClientsPage }))
+);
+const AdminNotificationsPanel = lazy(() =>
+  import("./AdminNotificationsPanel").then((m) => ({
+    default: m.AdminNotificationsPanel,
+  }))
+);
+const AdminSessionsPanel = lazy(() =>
+  import("./AdminSessionsPanel").then((m) => ({
+    default: m.AdminSessionsPanel,
+  }))
+);
+const AdminSettingsPanel = lazy(() =>
+  import("./AdminSettingsPanel").then((m) => ({
+    default: m.AdminSettingsPanel,
+  }))
+);
+const AdminStatsPanel = lazy(() =>
+  import("./AdminStatsPanel").then((m) => ({ default: m.AdminStatsPanel }))
+);
+const AdminSystemPanel = lazy(() =>
+  import("./AdminSystemPanel").then((m) => ({ default: m.AdminSystemPanel }))
+);
+const AdminUsersPanel = lazy(() =>
+  import("./AdminUsersPanel").then((m) => ({ default: m.AdminUsersPanel }))
+);
 
 const TABS = [
   { key: "users", label: "用户管理" },
@@ -100,16 +125,25 @@ export function AdminPage() {
           activeKey={tab}
           className="-mx-4 px-4 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8"
         />
-        <FadeIn key={tab} inView={false} delay={0.04}>
-          {tab === "users" && <AdminUsersPanel currentAdminId={me.id} />}
-          {tab === "sessions" && <AdminSessionsPanel />}
-          {tab === "notifications" && <AdminNotificationsPanel />}
-          {tab === "clients" && <AdminClientsPage />}
-          {tab === "settings" && <AdminSettingsPanel />}
-          {tab === "system" && <AdminSystemPanel />}
-          {tab === "stats" && <AdminStatsPanel />}
-          {tab === "audit" && <AdminAuditPanel />}
-        </FadeIn>
+        <Suspense
+          fallback={
+            <div aria-busy="true" aria-label="正在加载面板" className="space-y-4">
+              <div className="shimmer h-48 rounded-2xl" />
+              <div className="shimmer h-72 rounded-2xl" />
+            </div>
+          }
+        >
+          <FadeIn key={tab} inView={false} delay={0.04}>
+            {tab === "users" && <AdminUsersPanel currentAdminId={me.id} />}
+            {tab === "sessions" && <AdminSessionsPanel />}
+            {tab === "notifications" && <AdminNotificationsPanel />}
+            {tab === "clients" && <AdminClientsPage />}
+            {tab === "settings" && <AdminSettingsPanel />}
+            {tab === "system" && <AdminSystemPanel />}
+            {tab === "stats" && <AdminStatsPanel />}
+            {tab === "audit" && <AdminAuditPanel />}
+          </FadeIn>
+        </Suspense>
       </main>
       <SiteFooter />
     </div>

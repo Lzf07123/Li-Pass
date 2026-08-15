@@ -33,6 +33,8 @@ export type MagicBentoProps = {
   clickEffect?: boolean;
   enableMagnetism?: boolean;
   className?: string;
+  /** 紧凑模式：等宽 3 列、降低卡片高度，适合嵌入页面顶部概览区 */
+  compact?: boolean;
 };
 
 function createParticleElement(
@@ -519,6 +521,7 @@ export function MagicBento({
   clickEffect = true,
   enableMagnetism = true,
   className = "",
+  compact = false,
 }: MagicBentoProps) {
   const gridRef = useRef<HTMLDivElement | null>(null);
   const isMobile = useMobileDetection();
@@ -533,7 +536,9 @@ export function MagicBento({
     glowColor ?? (theme === "dark" ? DEFAULT_GLOW_DARK : DEFAULT_GLOW_LIGHT);
 
   return (
-    <div className={`magic-bento ${className}`.trim()}>
+    <div
+      className={`magic-bento${compact ? " magic-bento--compact" : ""} ${className}`.trim()}
+    >
       {enableSpotlight && (
         <GlobalSpotlight
           gridRef={gridRef}

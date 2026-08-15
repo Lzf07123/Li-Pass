@@ -1,7 +1,5 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { MouseEvent as ReactMouseEvent } from "react";
-
-import geoData from "../../assets/maps/china.json";
 
 export interface RegionDatum {
   name: string;
@@ -25,10 +23,6 @@ const HEIGHT = 780;
 const PADDING = 18;
 const OPACITY_STEPS = [0.25, 0.43, 0.61, 0.79, 1];
 
-const features = (
-  geoData as unknown as { features: GeoFeature[] }
-).features.filter((feature) => Boolean(feature.properties?.name));
-
 function flattenPoints(geometry: { type: string; coordinates: unknown }): number[][] {
   const points: number[][] = [];
   const walk = (item: unknown): void => {
@@ -47,7 +41,7 @@ function flattenPoints(geometry: { type: string; coordinates: unknown }): number
   return points;
 }
 
-function computeProjection() {
+function computeProjection(features: GeoFeature[]) {
   const points = features.flatMap((feature) => flattenPoints(feature.geometry));
   const minLon = Math.min(...points.map((p) => p[0]));
   const maxLon = Math.max(...points.map((p) => p[0]));
@@ -69,9 +63,10 @@ function computeProjection() {
   };
 }
 
-const { project } = computeProjection();
-
-function pathD(geometry: { type: string; coordinates: unknown }): string {
+function pathD(
+  geometry: { type: string; coordinates: unknown },
+  project: (lon: number, lat: number) => [number, number],
+): string {
   const ringD = (ring: number[][]): string => {
     if (!Array.isArray(ring) || ring.length === 0) return "";
     return (
@@ -108,12 +103,40 @@ export function ChinaMap({
   others?: RegionsOther;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
+  // 地图 GeoJSON 体积较大（省级边界数据），组件挂载时按需异步加载，
+  // 避免把它打进数据统计面板所在的分包，拖慢管理后台首次加载。
+  const [regions, setRegions] = useState<{ name: string; d: string }[]>([]);
   const [hover, setHover] = useState<{
     name: string;
     value: number;
     x: number;
     y: number;
   } | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    void import("../../assets/maps/china.json")
+      .then((mod) => {
+        if (cancelled) return;
+        const geoData = mod.default as unknown as { features: GeoFeature[] };
+        const features = geoData.features.filter((feature) =>
+          Boolean(feature.properties?.name),
+        );
+        const { project } = computeProjection(features);
+        setRegions(
+          features.map((feature) => ({
+            name: feature.properties.name ?? "",
+            d: pathD(feature.geometry, project),
+          })),
+        );
+      })
+      .catch(() => {
+        // 地图数据加载失败时保留空地图与下方明细表，不阻断统计页其余内容
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const valueByName = useMemo(
     () => new Map(data.map((item) => [item.name, item.value])),
@@ -168,14 +191,14 @@ export function ChinaMap({
         aria-label="中国登录来源地域分布图"
         className="block w-full"
       >
-        {features.map((feature) => {
-          const name = feature.properties.name ?? "";
+        {regions.map((region) => {
+          const name = region.name;
           const value = valueByName.get(name) ?? 0;
           const opacity = opacityFor(value);
           return (
             <path
               key={name}
-              d={pathD(feature.geometry)}
+              d={region.d}
               data-name={name}
               data-value={String(value)}
               fill="var(--portal-primary)"
