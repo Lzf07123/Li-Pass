@@ -1,0 +1,185 @@
+/* React Bits MagicBento 主题适配版：深色产品展示卡 + 主色光效，
+   光色经 --glow-color（RGB 三元组）与 --glow-* 变量由组件驱动。 */
+.magic-bento {
+  --glow-color: 3, 105, 161;
+  --bento-card-bg: #0f172a;
+  --bento-card-border: rgba(255, 255, 255, 0.08);
+  --bento-fg: #e2e8f0;
+  --bento-muted: #94a3b8;
+  --bento-label: #38bdf8;
+  position: relative;
+  user-select: none;
+}
+
+.dark .magic-bento {
+  --glow-color: 56, 189, 248;
+  --bento-card-bg: #111a2c;
+}
+
+.card-grid {
+  display: grid;
+  gap: 10px;
+  width: 100%;
+}
+
+.magic-bento-card {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  position: relative;
+  min-height: 176px;
+  width: 100%;
+  padding: 1.1rem;
+  border-radius: 18px;
+  border: 1px solid var(--bento-card-border);
+  background: var(--bento-card-bg);
+  overflow: hidden;
+  transition: transform 0.3s var(--ease-out), box-shadow 0.3s var(--ease-out);
+
+  --glow-x: 50%;
+  --glow-y: 50%;
+  --glow-intensity: 0;
+  --glow-radius: 200px;
+}
+
+.magic-bento-card:hover {
+  transform: translateY(-2px);
+  box-shadow:
+    0 4px 20px rgba(2, 6, 23, 0.3),
+    0 0 30px rgba(var(--glow-color), 0.2);
+}
+
+.magic-bento-card__header,
+.magic-bento-card__content {
+  display: flex;
+  position: relative;
+  z-index: 2;
+}
+
+.magic-bento-card__header {
+  justify-content: flex-start;
+}
+
+.magic-bento-card__content {
+  flex-direction: column;
+}
+
+.magic-bento-card__label {
+  display: inline-flex;
+  padding: 4px 10px;
+  border-radius: 9999px;
+  background: rgba(56, 189, 248, 0.12);
+  color: var(--bento-label);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.2;
+}
+
+.magic-bento-card__title {
+  margin: 0 0 0.35rem;
+  color: var(--bento-fg);
+  font-size: 17px;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.magic-bento-card__title--emphasize {
+  font-size: 30px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  font-variant-numeric: tabular-nums;
+}
+
+.magic-bento-card__description {
+  margin: 0;
+  color: var(--bento-muted);
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.magic-bento-card--text-autohide .magic-bento-card__title,
+.magic-bento-card--text-autohide .magic-bento-card__description {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.magic-bento-card--text-autohide .magic-bento-card__title {
+  -webkit-line-clamp: 1;
+  line-clamp: 1;
+}
+
+.magic-bento-card--text-autohide .magic-bento-card__description {
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+}
+
+@media (max-width: 599px) {
+  .card-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .magic-bento-card:first-child {
+    grid-column: auto;
+  }
+}
+
+@media (min-width: 600px) {
+  .card-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .magic-bento-card:first-child {
+    grid-column: span 2;
+  }
+}
+
+/* 边框辉光：跟随光标的径向渐变描边（mask 抠出边框环） */
+.magic-bento-card--border-glow::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  padding: 6px;
+  background: radial-gradient(
+    var(--glow-radius) circle at var(--glow-x) var(--glow-y),
+    rgba(var(--glow-color), calc(var(--glow-intensity) * 0.8)) 0%,
+    rgba(var(--glow-color), calc(var(--glow-intensity) * 0.4)) 30%,
+    transparent 60%
+  );
+  border-radius: inherit;
+  -webkit-mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  mask-composite: exclude;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.particle-container {
+  position: relative;
+  overflow: hidden;
+}
+
+.particle::before {
+  content: "";
+  position: absolute;
+  top: -2px;
+  left: -2px;
+  right: -2px;
+  bottom: -2px;
+  background: rgba(var(--glow-color), 0.2);
+  border-radius: 50%;
+  z-index: -1;
+}
+
+.global-spotlight {
+  mix-blend-mode: screen;
+  will-change: transform, opacity;
+  z-index: 200 !important;
+  pointer-events: none;
+}

@@ -100,6 +100,13 @@ WCAG AA（正文 ≥ 4.5:1）。深色模式使用去饱和浅色调变体，而
 - 交互：hover / 键盘聚焦时圆环从胶囊底部中心放大覆盖整颗胶囊，旧文案上滑、主色前景文案从下方滑入（进入 300ms / 离开 200ms）；活动标签固定为主色背景 + 主色前景。`prefers-reduced-motion` 下瞬切。
 - 保留 ScrollTabs 的横向滑动、边缘渐隐与深链居中能力。
 
+### Bento 展示网格（`MagicBento` / `.magic-bento-card`）
+
+- 位置：`frontend/src/components/bits/MagicBento.tsx` + `MagicBento.css`，后台「数据统计」概览卡片使用；基于 gsap，移植 React Bits MagicBento。
+- 结构：`.magic-bento` 内为 `.card-grid.bento-section`，卡片为深色表面（浅色 `#0F172A` / 深色 `#111A2C`）；首卡跨两列，`emphasize` 项数值加粗放大（tabular-nums）。
+- 交互：全局光标聚光（`.global-spotlight`）、悬停粒子星点、边框辉光（`--glow-*` 变量）、3D 倾斜与磁性吸附；光色默认取明暗主题的主色 RGB 值，`glowColor`（RGB 三元组字符串）可覆盖。
+- 移动端（<768px）与 `prefers-reduced-motion` 下自动禁用动画，仅保留静态卡片。
+
 ### 徽章 / 提示条 / 弹窗 / Toast
 
 - `.badge-*`：`rounded-full` 的语义状态徽章（success/warning/danger/muted/primary）。
@@ -148,7 +155,7 @@ WCAG AA（正文 ≥ 4.5:1）。深色模式使用去饱和浅色调变体，而
 - **认证/引导页（登录、注册、邀请注册、找回/重置密码、邮箱验证、授权确认）：** `AuthShell`
   —— 居中单卡片（`max-w-md`）、极光背景（`AuroraBackground`）、顶部品牌 + 标语、底部备案信息。
 - **已登录页（用户中心、管理后台）：** `AppHeader`（品牌 + 主题切换 + 操作按钮）+ 内容区 + `SiteFooter`。
-- **管理后台：** 顶部胶囊标签页切换（`PillTabs`）。
+- **管理后台：** 顶部胶囊标签页切换（`PillTabs`）；「数据统计」概览为深色 Bento 网格（`MagicBento`）。
 - **深色模式：** `useTheme` 读取 `localStorage("portal-theme")`，首帧渲染前在 `index.html` 内联脚本应用 `html.dark`。
 
 ---

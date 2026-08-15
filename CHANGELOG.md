@@ -26,6 +26,7 @@
 
 ### 行为变更
 
+- 管理后台「数据统计」概览卡片改为 React Bits MagicBento 风格的深色 Bento 网格（新组件 `MagicBento`）：首卡跨两列、数值加粗放大，支持光标跟随聚光、悬停粒子星点、边框辉光、3D 倾斜与磁性吸附；光色默认跟随明暗主题的品牌主色（可用 `glowColor` 覆盖为 RGB 三元组），移动端与 `prefers-reduced-motion` 下自动关闭动画、仅保留静态卡片。
 - 管理后台顶部标签由按钮组改为 React Bits PillNav 风格的胶囊标签（新组件 `PillTabs`）：hover / 键盘聚焦时主色圆环自胶囊底部中心展开、旧文案上滑、主色前景文案从下方滑入，活动标签固定为主色胶囊；保留原 `ScrollTabs` 的横向滑动、边缘渐隐与深链居中能力，渐隐起始色新增 `fadeColor` 参数以贴合轨道背景，`prefers-reduced-motion` 下动画瞬切。
 - 认证页与用户中心接入 React Bits 风格的 `StrokeText` 描边绘制标题（gsap 依赖）：页面标题按字符描边后从左向右擦入填充，描边/填充色走 `--portal-primary`/`--portal-fg` 令牌自动跟随明暗主题，`prefers-reduced-motion` 下直接呈现最终态；`ScrollTrigger` 仅在 `trigger="scroll"` 时按需加载。视觉层同步微调：极光背景色相加入青/紫低透明度点缀、认证卡新增蓝→青→紫渐变描边（`.card-signature`）、主按钮改为「主色→主色悬停」纵向渐变并在 hover 时下移渐变与抬升阴影，浅深主题分别调色。
 - 品牌名统一为 **Li&Pass**：前端品牌配置、页面标题/文案、邮件主题与模板、TOTP issuer、User-Agent、Compose/环境变量示例与全部文档同步更新。

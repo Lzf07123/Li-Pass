@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from "react";
 import { adminStatsApi } from "../api/client";
 import type { AdminStats } from "../api/types";
 import { AsyncButton } from "../components/AsyncButton";
+import { MagicBento } from "../components/bits/MagicBento";
 import { ChinaMap } from "../components/charts/ChinaMap";
 import { LineChart } from "../components/charts/LineChart";
 import { useAsyncAction } from "../hooks/useAsyncAction";
@@ -25,24 +26,6 @@ const numberFormat = new Intl.NumberFormat("zh-CN");
 
 function formatTime(iso: string): string {
   return new Date(iso).toLocaleString("zh-CN", { hour12: false });
-}
-
-function StatCard({
-  title,
-  value,
-  hint,
-}: {
-  title: string;
-  value: string;
-  hint?: string;
-}) {
-  return (
-    <div className="card p-5">
-      <p className="text-sm text-muted">{title}</p>
-      <p className="mt-2 text-2xl font-semibold text-foreground">{value}</p>
-      {hint ? <p className="mt-1 text-xs text-muted">{hint}</p> : null}
-    </div>
-  );
 }
 
 export function AdminStatsPanel() {
@@ -175,16 +158,18 @@ export function AdminStatsPanel() {
 
       {stats ? (
         <div className="space-y-4">
-          <div className="grid grid-cols-2 gap-4 md:grid-cols-3">
-            {overviewCards.map((card) => (
-              <StatCard
-                key={card.title}
-                title={card.title}
-                value={card.value}
-                hint={card.hint}
-              />
-            ))}
-          </div>
+          <MagicBento
+            items={overviewCards.map((card) => ({
+              label: card.title,
+              title: card.value,
+              description: card.hint ?? "",
+              emphasize: true,
+            }))}
+            textAutoHide={false}
+            enableTilt
+            particleCount={6}
+            spotlightRadius={260}
+          />
 
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
             <div className="card p-5 lg:col-span-2">
