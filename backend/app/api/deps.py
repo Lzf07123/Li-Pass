@@ -93,3 +93,25 @@ def get_optional_user(request: Request, db: Session = Depends(get_db)) -> User |
         return get_current_user(request, db)
     except HTTPException:
         return None
+
+
+def get_optional_session(
+    request: Request, db: Session = Depends(get_db)
+) -> SessionModel | None:
+    """OIDC end-session 等端点需要区分“无会话”与“会话失效”之外的场景。"""
+    try:
+        return get_current_session(request, db)
+    except HTTPException:
+        return None
+
+
+def clear_session_cookie(response) -> None:
+    """删除门户会话 Cookie；属性必须与设置时一致（Secure/SameSite/HttpOnly），
+    否则 HTTPS 生产环境浏览器可能不认可删除指令。"""
+    settings = get_settings()
+    response.delete_cookie(
+        settings.session_cookie_name,
+        secure=settings.session_cookie_secure,
+        httponly=True,
+        samesite=settings.session_cookie_samesite,
+    )

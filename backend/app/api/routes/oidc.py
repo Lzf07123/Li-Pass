@@ -4,12 +4,28 @@ from datetime import datetime, timezone
 from urllib.parse import quote
 
 import jwt as pyjwt
-from fastapi import APIRouter, Depends, Form, Header, HTTPException, Query, Request, status
+from fastapi import (
+    APIRouter,
+    BackgroundTasks,
+    Depends,
+    Form,
+    Header,
+    HTTPException,
+    Query,
+    Request,
+    Response,
+    status,
+)
 from fastapi.responses import RedirectResponse
 from sqlalchemy import select, update
 from sqlalchemy.orm import Session
 
-from app.api.deps import get_current_session, get_optional_user
+from app.api.deps import (
+    clear_session_cookie,
+    get_current_session,
+    get_optional_session,
+    get_optional_user,
+)
 from app.core.config import get_settings
 from app.core.db import get_db
 from app.models.authorization_code import AuthorizationCode
@@ -36,6 +52,14 @@ from app.services.oidc import (
     verify_pkce,
 )
 from app.services.pending_requests import PendingAuthRequest, get_pending_request_store
+from app.services.federated_logout import (
+    collect_logout_targets,
+    dispatch_backchannel_logout,
+)
+from app.services.logout_requests import (
+    PendingLogoutRequest,
+    get_logout_request_store,
+)
 
 router = APIRouter(tags=["oidc"])
 
@@ -169,6 +193,145 @@ def discovery() -> dict:
         "id_token_signing_alg_values_supported": ["RS256"],
         "scopes_supported": ["openid", "profile", "email"],
         "code_challenge_methods_supported": ["S256"],
+        "end_session_endpoint": f"{base}/oauth2/end-session",
+        "backchannel_logout_supported": True,
+        "frontchannel_logout_supported": False,
+    }
+
+
+def _append_state(uri: str | None, state: str | None) -> str | None:
+    if not uri:
+        return uri
+    if not state:
+        return uri
+    separator = "&" if "?" in uri else "?"
+    return f"{uri}{separator}state={quote(state, safe='')}"
+
+
+def _resolve_logout_client(
+    db: Session, client_id: str | None, id_token_hint: str | None
+) -> OAuthClient | None:
+    if client_id:
+        return db.scalar(
+            select(OAuthClient).where(OAuthClient.client_id == client_id)
+        )
+    if id_token_hint:
+        try:
+            claims = decode_token(id_token_hint)
+        except pyjwt.PyJWTError:
+            return None
+        audience = claims.get("aud")
+        if isinstance(audience, str):
+            return db.scalar(
+                select(OAuthClient).where(OAuthClient.client_id == audience)
+            )
+    return None
+
+
+@router.get("/oauth2/end-session")
+def end_session(
+    request: Request,
+    id_token_hint: str | None = Query(None),
+    post_logout_redirect_uri: str | None = Query(None),
+    state: str | None = Query(None),
+    client_id: str | None = Query(None),
+    db: Session = Depends(get_db),
+):
+    """OIDC RP-Initiated Logout：校验回跳白名单后进入确认页。"""
+    frontend = get_settings().frontend_base_url
+    client = _resolve_logout_client(db, client_id, id_token_hint)
+    if post_logout_redirect_uri and (
+        client is None
+        or post_logout_redirect_uri not in client.post_logout_redirect_uris
+    ):
+        return RedirectResponse(
+            f"{frontend}/?error=invalid_logout_redirect", status_code=302
+        )
+    target = _append_state(post_logout_redirect_uri, state) or f"{frontend}/"
+    session = get_optional_session(request, db)
+    if session is None:
+        # 规范要求：即便 IdP 没有会话，也应正常回跳而不是报错。
+        return RedirectResponse(target, status_code=302)
+    pending = PendingLogoutRequest(
+        client_id=client.client_id if client else "",
+        post_logout_redirect_uri=post_logout_redirect_uri,
+        state=state,
+        sid=str(session.id),
+        sub=str(session.user_id),
+        client_name=client.name if client else "",
+    )
+    request_id = get_logout_request_store().create(pending)
+    return RedirectResponse(
+        f"{frontend}/logout/confirm?request_id={request_id}", status_code=302
+    )
+
+
+def _get_pending_logout_or_404(request_id: str) -> PendingLogoutRequest:
+    pending = get_logout_request_store().get(request_id)
+    if pending is None:
+        raise HTTPException(
+            status.HTTP_404_NOT_FOUND, "登出请求不存在或已过期"
+        )
+    return pending
+
+
+@router.get("/api/v1/oauth/logout-requests/{request_id}")
+def logout_request_info(request_id: str) -> dict:
+    """确认页展示用；公开只读，避免会话已失效时页面无法回跳。"""
+    pending = _get_pending_logout_or_404(request_id)
+    return {"client_name": pending.client_name}
+
+
+@router.post("/api/v1/oauth/logout-requests/{request_id}/confirm")
+def confirm_logout_request(
+    request_id: str,
+    request: Request,
+    response: Response,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db),
+):
+    session = get_current_session(request, db)
+    pending = _get_pending_logout_or_404(request_id)
+    settings = get_settings()
+    session.revoked_at = datetime.now(timezone.utc)
+    db.commit()
+    targets = collect_logout_targets(db, [session.id])
+    if targets:
+        background_tasks.add_task(dispatch_backchannel_logout, targets)
+    log_audit(
+        db,
+        "user",
+        str(session.user_id),
+        "oidc_end_session",
+        category="oidc",
+        target_type="oauth_client",
+        target_id=pending.client_id or None,
+        ip=request.client.host if request.client else None,
+        user_agent=request.headers.get("user-agent"),
+        detail={"sid": pending.sid, "backchannel_targets": len(targets)},
+    )
+    get_logout_request_store().delete(request_id)
+    clear_session_cookie(response)
+    return {
+        "redirect_url": _append_state(
+            pending.post_logout_redirect_uri, pending.state
+        )
+        or f"{settings.frontend_base_url}/"
+    }
+
+
+@router.post("/api/v1/oauth/logout-requests/{request_id}/cancel")
+def cancel_logout_request(
+    request_id: str,
+    db: Session = Depends(get_db),
+) -> dict:
+    pending = _get_pending_logout_or_404(request_id)
+    get_logout_request_store().delete(request_id)
+    return {
+        "redirect_url": _append_state(
+            pending.post_logout_redirect_uri, pending.state
+        )
+        or f"{get_settings().frontend_base_url}/"
     }
 
 
