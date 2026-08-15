@@ -6,6 +6,7 @@ import { AsyncButton } from "../components/AsyncButton";
 import { ConfirmDialog } from "../components/ConfirmDialog";
 import { Modal } from "../components/Modal";
 import { PasswordInput } from "../components/PasswordInput";
+import { PasswordStrength } from "../components/PasswordStrength";
 import { StepUpNotice } from "../components/StepUpNotice";
 import { StepUp2faForm } from "../components/StepUp2faForm";
 import { useAsyncAction } from "../hooks/useAsyncAction";
@@ -1025,6 +1026,7 @@ export function AdminUsersPanel({ currentAdminId }: { currentAdminId: string }) 
               required
             />
           </label>
+          <PasswordStrength password={createPassword} />
           <p className="text-xs text-muted">
             管理员代建账号视为已完成邮箱验证，创建后即可登录；请通过安全渠道把初始密码告知用户。
           </p>

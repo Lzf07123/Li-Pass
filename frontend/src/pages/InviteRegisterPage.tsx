@@ -6,6 +6,7 @@ import { AsyncButton } from "../components/AsyncButton";
 import { AuthShell } from "../components/AuthShell";
 import { Notice } from "../components/Notice";
 import { PasswordInput } from "../components/PasswordInput";
+import { PasswordStrength } from "../components/PasswordStrength";
 import { useAsyncAction } from "../hooks/useAsyncAction";
 import { useToast } from "../hooks/useToast";
 
@@ -86,6 +87,7 @@ export function InviteRegisterPage() {
             required
           />
         </label>
+        <PasswordStrength password={password} />
         <label className="block">
           <span className="label">确认密码</span>
           <PasswordInput

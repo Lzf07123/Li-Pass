@@ -17,6 +17,7 @@ import { ConfirmDialog } from "../components/ConfirmDialog";
 import { FloatingBackground } from "../components/FloatingBackground";
 import { Modal } from "../components/Modal";
 import { PasswordInput } from "../components/PasswordInput";
+import { PasswordStrength } from "../components/PasswordStrength";
 import { SiteFooter } from "../components/SiteFooter";
 import { StepUpNotice } from "../components/StepUpNotice";
 import { StepUp2faForm } from "../components/StepUp2faForm";
@@ -620,6 +621,7 @@ export function DashboardPage() {
                 autoComplete="new-password"
                 required
               />
+              <PasswordStrength password={newPassword} />
               <AsyncButton
                 type="submit"
                 status={changePasswordAction.status}

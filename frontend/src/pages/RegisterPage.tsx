@@ -7,6 +7,7 @@ import { AsyncButton } from "../components/AsyncButton";
 import { AuthShell } from "../components/AuthShell";
 import { Notice } from "../components/Notice";
 import { PasswordInput } from "../components/PasswordInput";
+import { PasswordStrength } from "../components/PasswordStrength";
 import { useAsyncAction } from "../hooks/useAsyncAction";
 import { useToast } from "../hooks/useToast";
 import { APP_NAME } from "../lib/brand";
@@ -111,6 +112,7 @@ export function RegisterPage() {
               required
             />
           </label>
+          <PasswordStrength password={password} />
           <p className="mt-1.5 text-xs text-muted">
             建议使用 8 位以上，并混合大小写字母、数字和符号。
           </p>
