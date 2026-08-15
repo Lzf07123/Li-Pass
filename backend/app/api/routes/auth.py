@@ -57,6 +57,7 @@ from app.services.federated_logout import (
     build_logout_funnel,
     collect_logout_targets_for_user,
     dispatch_backchannel_logout,
+    revoke_user_links,
 )
 from app.services.rate_limit import get_rate_limiter
 from app.services.site_settings import (
@@ -808,9 +809,10 @@ def logout(
                 user_agent=request.headers.get("user-agent"),
             )
             targets = collect_logout_targets_for_user(db, session.user_id)
+            funnel_uris = _funnel_uris(db, session.id)
             if targets:
                 background_tasks.add_task(dispatch_backchannel_logout, targets)
-            funnel_uris = _funnel_uris(db, session.id)
+            revoke_user_links(db, session.user_id)
     clear_session_cookie(response)
     redirect_to = (
         build_logout_funnel(

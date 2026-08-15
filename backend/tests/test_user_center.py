@@ -2,6 +2,8 @@ from sqlalchemy import select
 
 from app.models.audit_log import AuditLog
 from app.models.oauth_client import OAuthClient
+from app.models.oidc_client_session import OIDCClientSession
+from app.models.session import Session as SessionModel
 from app.models.user import User
 from app.models.user_consent import UserConsent
 from app.security.passwords import verify_password
@@ -141,3 +143,29 @@ def test_apps_plaza_revoke_consent(client, captured_email, db_session) -> None:
     response = client.get("/oauth2/authorize", params=authorize_params())
     assert response.status_code == 302
     assert "/consent?request_id=" in response.headers["location"]
+
+
+def test_apps_plaza_reports_active_sessions(
+    client, captured_email, db_session
+) -> None:
+    client_model = create_client(
+        db_session, logout_uri="http://localhost:3001/logout"
+    )
+    register_and_login(client, captured_email)
+    user = db_session.scalar(select(User))
+    portal = db_session.scalar(select(SessionModel))
+    db_session.add(
+        UserConsent(
+            user_id=user.id, client_id=client_model.id, scopes=["openid"]
+        )
+    )
+    db_session.commit()
+
+    assert client.get("/api/v1/apps").json()[0]["active_sessions"] == 0
+    db_session.add(
+        OIDCClientSession(
+            session_id=portal.id, client_id=client_model.id, user_id=user.id
+        )
+    )
+    db_session.commit()
+    assert client.get("/api/v1/apps").json()[0]["active_sessions"] == 1

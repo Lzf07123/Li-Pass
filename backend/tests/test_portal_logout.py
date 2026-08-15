@@ -80,6 +80,13 @@ def test_portal_logout_dispatches_backchannel_for_linked_clients(
     assert len(calls) == 1
     assert calls[0][0].client_id == "cli_bc"
     assert resp.json()["redirect_to"] is None
+    db_session.expire_all()
+    link = db_session.scalar(
+        select(OIDCClientSession).where(
+            OIDCClientSession.client_id == oauth_client.id,
+        )
+    )
+    assert link is not None and link.revoked_at is not None
 
 
 def test_portal_logout_dispatches_backchannel_across_sessions(

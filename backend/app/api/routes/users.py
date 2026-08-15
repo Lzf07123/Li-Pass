@@ -50,6 +50,7 @@ from app.services.federated_logout import (
     collect_logout_targets,
     collect_logout_targets_for_user_client,
     dispatch_backchannel_logout,
+    revoke_session_links,
 )
 from app.services.otps import create_otp, verify_otp
 from app.services.rate_limit import get_rate_limiter
@@ -410,6 +411,7 @@ def revoke_session(
     targets = collect_logout_targets(db, [session.id])
     if targets:
         background_tasks.add_task(dispatch_backchannel_logout, targets)
+    revoke_session_links(db, [session.id])
     log_audit(
         db,
         "user",
@@ -471,6 +473,7 @@ def revoke_all_sessions(
     targets = collect_logout_targets(db, list(target_ids))
     if targets:
         background_tasks.add_task(dispatch_backchannel_logout, targets)
+    revoke_session_links(db, list(target_ids))
     log_audit(
         db,
         "user",
@@ -579,6 +582,22 @@ def list_apps(
         )
     ).all()
     blocked_client_ids = {block.client_id for block in blocks}
+    now = datetime.now(timezone.utc)
+    link_rows = db.execute(
+        select(
+            OIDCClientSession.client_id,
+            func.count(OIDCClientSession.id),
+        )
+        .join(SessionModel, OIDCClientSession.session_id == SessionModel.id)
+        .where(
+            OIDCClientSession.user_id == user.id,
+            OIDCClientSession.revoked_at.is_(None),
+            SessionModel.revoked_at.is_(None),
+            SessionModel.expires_at > now,
+        )
+        .group_by(OIDCClientSession.client_id)
+    ).all()
+    active_counts = dict(link_rows)
     result = []
     for client in clients:
         if client.id in blocked_client_ids:
@@ -590,6 +609,7 @@ def list_apps(
                 "description": client.description,
                 "logo_url": client.logo_url,
                 "home_url": client.home_url,
+                "active_sessions": active_counts.get(client.id, 0),
             }
         )
     return result

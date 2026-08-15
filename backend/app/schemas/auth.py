@@ -133,6 +133,7 @@ class AppOut(BaseModel):
     description: str
     logo_url: str | None
     home_url: str | None
+    active_sessions: int = 0
 
 
 class TwoFaTotpEnable(BaseModel):

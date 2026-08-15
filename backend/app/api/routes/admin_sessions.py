@@ -26,6 +26,7 @@ from app.services.device_info import describe_session_device
 from app.services.federated_logout import (
     collect_logout_targets,
     dispatch_backchannel_logout,
+    revoke_session_links,
 )
 from app.services.geoip import describe_ip
 from app.services.rate_limit import get_rate_limiter
@@ -185,6 +186,7 @@ def batch_revoke_sessions(
     )
     if targets:
         background_tasks.add_task(dispatch_backchannel_logout, targets)
+    revoke_session_links(db, [session.id for session, _ in revoked])
     skipped = len(ids) - len(revoked)
     log_audit(
         db,
@@ -252,6 +254,7 @@ def revoke_all_sessions(
     targets = collect_logout_targets(db, list(target_ids))
     if targets:
         background_tasks.add_task(dispatch_backchannel_logout, targets)
+    revoke_session_links(db, list(target_ids))
     log_audit(
         db,
         "admin",
@@ -294,6 +297,7 @@ def revoke_session(
     targets = collect_logout_targets(db, [session.id])
     if targets:
         background_tasks.add_task(dispatch_backchannel_logout, targets)
+    revoke_session_links(db, [session.id])
     log_audit(
         db,
         "admin",

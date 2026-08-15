@@ -5,10 +5,11 @@ import logging
 import socket
 import uuid
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from urllib.parse import quote, urlparse
 
 import httpx
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
@@ -184,6 +185,38 @@ def collect_logout_targets_for_user(
         )
         for link, client in rows
     ]
+
+
+def revoke_session_links(db: Session, session_ids: list[uuid.UUID]) -> int:
+    """吊销若干门户会话对应的客户端登录链接（回程通知已派发后调用）。"""
+    if not session_ids:
+        return 0
+    result = db.execute(
+        update(OIDCClientSession)
+        .where(
+            OIDCClientSession.session_id.in_(session_ids),
+            OIDCClientSession.revoked_at.is_(None),
+        )
+        .values(revoked_at=datetime.now(timezone.utc))
+        .execution_options(synchronize_session=False)
+    )
+    db.commit()
+    return result.rowcount or 0
+
+
+def revoke_user_links(db: Session, user_id: uuid.UUID) -> int:
+    """吊销某用户的全部客户端登录链接（门户登出已按用户通知所有授权）。"""
+    result = db.execute(
+        update(OIDCClientSession)
+        .where(
+            OIDCClientSession.user_id == user_id,
+            OIDCClientSession.revoked_at.is_(None),
+        )
+        .values(revoked_at=datetime.now(timezone.utc))
+        .execution_options(synchronize_session=False)
+    )
+    db.commit()
+    return result.rowcount or 0
 
 
 def dispatch_backchannel_logout(

@@ -1,4 +1,5 @@
 from urllib.parse import parse_qs, urlparse
+from datetime import datetime, timezone
 
 from sqlalchemy import select
 
@@ -81,6 +82,30 @@ def test_id_token_contains_sid_and_records_client_session(
     assert link is not None
     assert link.sid == claims["sid"]
     assert link.client_id is not None
+
+
+def test_reexchange_revives_revoked_client_session_link(
+    client, captured_email, db_session
+) -> None:
+    code = get_code(client, captured_email, db_session)
+    assert exchange(client, code).status_code == 200
+    link = db_session.scalar(select(OIDCClientSession))
+    assert link is not None
+    link.revoked_at = datetime.now(timezone.utc)
+    db_session.commit()
+
+    # 已有授权同意：再次 authorize 直接跳回回调，换取新授权码。
+    response = client.get(
+        "/oauth2/authorize",
+        params=authorize_params({"scope": "openid profile email"}),
+    )
+    assert response.status_code == 302
+    code2 = parse_qs(urlparse(response.headers["location"]).query)["code"][0]
+    assert exchange(client, code2).status_code == 200
+    db_session.expire_all()
+    revived = db_session.scalar(select(OIDCClientSession))
+    assert revived is not None
+    assert revived.revoked_at is None
 
 
 def test_code_is_single_use(client, captured_email, db_session) -> None:

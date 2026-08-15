@@ -430,6 +430,10 @@ def token(
                 # 同一 (session, client) 并发换码时可能同时插入：唯一约束
                 # 兜底，回滚后继续发令牌，不影响本次授权。
                 db.rollback()
+        elif link.revoked_at is not None:
+            # 重新授权：激活此前因会话下线而吊销的登录链接。
+            link.revoked_at = None
+            db.commit()
 
     settings = get_settings()
     return {
