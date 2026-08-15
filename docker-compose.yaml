@@ -200,7 +200,7 @@ services:
 
   # 单域名网关：http://<域名>/ → 前端，/api、/oauth2 等 → 后端，/demo → 演示站
   gateway:
-    image: nginx:1.27-alpine
+    image: ${IMAGE_REGISTRY:-}nginx:1.27-alpine
     restart: unless-stopped
     security_opt:
       - no-new-privileges:true

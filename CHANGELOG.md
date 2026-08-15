@@ -55,6 +55,7 @@
 
 ### 运维工具
 
+- 补齐网关 `nginx:1.27-alpine` 的 `IMAGE_REGISTRY` 前缀：现在编排内全部镜像（PostgreSQL/Redis/nginx 与三个自建服务，以及三个 Dockerfile 的基础镜像）都可用同一个镜像站前缀统一替换加速。
 - 备份脚本输出文件名前缀由 `portal-` 统一为 `lipass-`（脚本依赖 Compose 服务名，随项目改名无需其它改动）。
 - 补齐身份降级脚本 `scripts/demote_admin.py`：`python -m scripts.demote_admin <邮箱>` 把管理员降级为普通用户（已是普通用户则幂等跳过；拒绝降级最后一名管理员，防止失去后台入口），与 `make_admin` 对称。
 - 前端 npm 源切换为国内镜像 `registry.npmmirror.com`（项目级 `.npmrc`，Docker 构建与本地安装均生效；USTC 的 npm 镜像已停服并重定向至该源）。

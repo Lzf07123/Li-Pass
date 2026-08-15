@@ -454,9 +454,9 @@ sudo chmod +x /etc/letsencrypt/renewal-hooks/deploy/reload-nginx.sh
 
 ## 容器镜像版本固定
 
-`docker-compose.yaml` 的所有镜像地址统一由一个环境变量 `IMAGE_REGISTRY` 控制（默认留空 = 官方 Docker Hub）。它会同时作用于：
+`docker-compose.yaml` 的全部镜像地址（含基础设施镜像与自建服务镜像）统一由一个环境变量 `IMAGE_REGISTRY` 控制（默认留空 = 官方 Docker Hub），三个 Dockerfile 的基础镜像也通过同名构建参数替换。它会同时作用于：
 
-- 基础设施镜像：`postgres:16-alpine`、`redis:7-alpine`
+- 基础设施镜像：`postgres:16-alpine`、`redis:7-alpine`、网关 `nginx:1.27-alpine`
 - 自建服务镜像：`lipass-backend:local`、`lipass-frontend:local`、`lipass-demo-site:local`（同时作为 `docker compose build` 的标签）
 - 构建基础镜像：`python:3.12-slim`、`node:22-alpine`（前端依赖要求 Node ≥22.14）、`nginx:1.27-alpine`（作为构建参数传入 Dockerfile）。国内构建全面走中科大镜像：后端与演示站 `apt-get update` 通过 `APT_MIRROR`（默认 `http://mirrors.ustc.edu.cn/debian`，海外改回 `http://deb.debian.org/debian`），`pip install` 通过 `PIP_INDEX_URL`（默认 `https://mirrors.ustc.edu.cn/pypi/simple`，海外改回 `https://pypi.org/simple`）；前端 `npm ci` 通过项目 `.npmrc` 使用 `registry.npmmirror.com`（USTC npm 镜像已停服并重定向至此，海外可临时覆盖回 npmjs）。
 
