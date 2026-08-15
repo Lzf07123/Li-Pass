@@ -29,6 +29,8 @@ class Settings(BaseSettings):
     session_ttl_days: int = 30
     session_default_ttl_days: int = 1
     session_idle_days: int = 7
+    # 登录可信设备：勾选「信任此设备」后该设备 7 天内登录免二次验证（仅登录环节）。
+    trusted_device_ttl_days: int = 7
     cors_origins: list[str] = ["http://localhost:5173"]
     allowed_hosts: list[str] = ["localhost", "127.0.0.1", "testserver"]
     email_backend: str = "console"
@@ -129,6 +131,8 @@ class Settings(BaseSettings):
             )
         if self.session_cookie_samesite not in ("lax", "strict", "none"):
             raise ValueError("SESSION_COOKIE_SAMESITE 必须为 lax、strict 或 none")
+        if not 1 <= self.trusted_device_ttl_days <= 365:
+            raise ValueError("TRUSTED_DEVICE_TTL_DAYS 必须在 1–365 之间")
         if self.email_backend not in ("console", "smtp"):
             raise ValueError("EMAIL_BACKEND 必须为 console 或 smtp")
         if not (1 <= self.smtp_port <= 65535):
