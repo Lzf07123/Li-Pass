@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { CSSProperties, ReactNode } from "react";
 import { gsap } from "gsap";
+import { Link } from "react-router-dom";
 
 import { useTheme } from "../../hooks/useTheme";
 import "./MagicBento.css";
@@ -17,6 +18,12 @@ export type MagicBentoItem = {
   description: string;
   /** 数值/主文案加粗放大（适合统计数字） */
   emphasize?: boolean;
+  /** 标签前的图标（SVG 节点） */
+  icon?: ReactNode;
+  /** 卡片底部的扩展内容（如迷你趋势图、进度条） */
+  footer?: ReactNode;
+  /** 内部路由地址：传入后整卡渲染为可点击链接 */
+  href?: string;
 };
 
 export type MagicBentoProps = {
@@ -90,6 +97,7 @@ type ParticleCardProps = {
   enableTilt?: boolean;
   clickEffect?: boolean;
   enableMagnetism?: boolean;
+  href?: string;
 };
 
 function ParticleCard({
@@ -102,8 +110,9 @@ function ParticleCard({
   enableTilt = false,
   clickEffect = false,
   enableMagnetism = false,
+  href,
 }: ParticleCardProps) {
-  const cardRef = useRef<HTMLDivElement | null>(null);
+  const cardRef = useRef<HTMLElement | null>(null);
   const particlesRef = useRef<HTMLDivElement[]>([]);
   const timeoutsRef = useRef<ReturnType<typeof setTimeout>[]>([]);
   const isHoveredRef = useRef(false);
@@ -322,12 +331,31 @@ function ParticleCard({
     glowColor,
   ]);
 
+  const cardClassName = `${className} particle-container`.trim();
+  const cardStyle = {
+    ...style,
+    position: "relative",
+    overflow: "hidden",
+  } as CSSProperties;
+  const refCallback = (node: HTMLElement | null) => {
+    cardRef.current = node;
+  };
+
+  if (href) {
+    return (
+      <Link
+        to={href}
+        ref={refCallback}
+        className={cardClassName}
+        style={cardStyle}
+      >
+        {children}
+      </Link>
+    );
+  }
+
   return (
-    <div
-      ref={cardRef}
-      className={`${className} particle-container`.trim()}
-      style={{ ...style, position: "relative", overflow: "hidden" }}
-    >
+    <div ref={refCallback} className={cardClassName} style={cardStyle}>
       {children}
     </div>
   );
@@ -561,6 +589,11 @@ export function MagicBento({
           const content = (
             <>
               <div className="magic-bento-card__header">
+                {card.icon && (
+                  <span className="magic-bento-card__icon" aria-hidden="true">
+                    {card.icon}
+                  </span>
+                )}
                 <div className="magic-bento-card__label">{card.label}</div>
               </div>
               <div className="magic-bento-card__content">
@@ -574,6 +607,9 @@ export function MagicBento({
                 <p className="magic-bento-card__description">
                   {card.description}
                 </p>
+                {card.footer && (
+                  <div className="magic-bento-card__footer">{card.footer}</div>
+                )}
               </div>
             </>
           );
@@ -590,82 +626,99 @@ export function MagicBento({
                 enableTilt={enableTilt}
                 clickEffect={clickEffect}
                 enableMagnetism={enableMagnetism}
+                href={card.href}
               >
                 {content}
               </ParticleCard>
             );
           }
 
+          const refCallback = (el: HTMLElement | null) => {
+            if (!el) return;
+
+            const handleMouseMove = (event: MouseEvent) => {
+              if (shouldDisableAnimations) return;
+
+              const rect = el.getBoundingClientRect();
+              const x = event.clientX - rect.left;
+              const y = event.clientY - rect.top;
+              const centerX = rect.width / 2;
+              const centerY = rect.height / 2;
+
+              if (enableTilt) {
+                const rotateX = ((y - centerY) / centerY) * -10;
+                const rotateY = ((x - centerX) / centerX) * 10;
+                gsap.to(el, {
+                  rotateX,
+                  rotateY,
+                  duration: 0.1,
+                  ease: "power2.out",
+                  transformPerspective: 1000,
+                });
+              }
+
+              if (enableMagnetism) {
+                const magnetX = (x - centerX) * 0.05;
+                const magnetY = (y - centerY) * 0.05;
+                gsap.to(el, {
+                  x: magnetX,
+                  y: magnetY,
+                  duration: 0.3,
+                  ease: "power2.out",
+                });
+              }
+            };
+
+            const handleMouseLeave = () => {
+              if (shouldDisableAnimations) return;
+
+              if (enableTilt) {
+                gsap.to(el, {
+                  rotateX: 0,
+                  rotateY: 0,
+                  duration: 0.3,
+                  ease: "power2.out",
+                });
+              }
+              if (enableMagnetism) {
+                gsap.to(el, {
+                  x: 0,
+                  y: 0,
+                  duration: 0.3,
+                  ease: "power2.out",
+                });
+              }
+            };
+
+            el.addEventListener("mousemove", handleMouseMove);
+            el.addEventListener("mouseleave", handleMouseLeave);
+
+            return () => {
+              el.removeEventListener("mousemove", handleMouseMove);
+              el.removeEventListener("mouseleave", handleMouseLeave);
+            };
+          };
+
+          if (card.href) {
+            return (
+              <Link
+                key={index}
+                to={card.href}
+                ref={refCallback}
+                className={baseClassName}
+                style={cardStyle}
+              >
+                {content}
+              </Link>
+            );
+          }
+
           return (
             <div
               key={index}
+              ref={refCallback}
               className={baseClassName}
               style={cardStyle}
-              ref={(el) => {
-                if (!el) return;
-
-                const handleMouseMove = (event: MouseEvent) => {
-                  if (shouldDisableAnimations) return;
-
-                  const rect = el.getBoundingClientRect();
-                  const x = event.clientX - rect.left;
-                  const y = event.clientY - rect.top;
-                  const centerX = rect.width / 2;
-                  const centerY = rect.height / 2;
-
-                  if (enableTilt) {
-                    const rotateX = ((y - centerY) / centerY) * -10;
-                    const rotateY = ((x - centerX) / centerX) * 10;
-                    gsap.to(el, {
-                      rotateX,
-                      rotateY,
-                      duration: 0.1,
-                      ease: "power2.out",
-                      transformPerspective: 1000,
-                    });
-                  }
-
-                  if (enableMagnetism) {
-                    const magnetX = (x - centerX) * 0.05;
-                    const magnetY = (y - centerY) * 0.05;
-                    gsap.to(el, {
-                      x: magnetX,
-                      y: magnetY,
-                      duration: 0.3,
-                      ease: "power2.out",
-                    });
-                  }
-                };
-
-                const handleMouseLeave = () => {
-                  if (shouldDisableAnimations) return;
-
-                  if (enableTilt) {
-                    gsap.to(el, {
-                      rotateX: 0,
-                      rotateY: 0,
-                      duration: 0.3,
-                      ease: "power2.out",
-                    });
-                  }
-                  if (enableMagnetism) {
-                    gsap.to(el, {
-                      x: 0,
-                      y: 0,
-                      duration: 0.3,
-                      ease: "power2.out",
-                    });
-                  }
-                };
-
-                el.addEventListener("mousemove", handleMouseMove);
-                el.addEventListener("mouseleave", handleMouseLeave);
-
-                return () => {
-                  el.removeEventListener("mousemove", handleMouseMove);
-                  el.removeEventListener("mouseleave", handleMouseLeave);
-                };
-              }}
             >
               {content}
             </div>

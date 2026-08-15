@@ -103,7 +103,7 @@ WCAG AA（正文 ≥ 4.5:1）。深色模式使用去饱和浅色调变体，而
 ### Bento 展示网格（`MagicBento` / `.magic-bento-card`）
 
 - 位置：`frontend/src/components/bits/MagicBento.tsx` + `MagicBento.css`，后台「数据统计」概览卡片使用；基于 gsap，移植 React Bits MagicBento。
-- 结构：`.magic-bento` 内为 `.card-grid.bento-section`，卡片为深色表面（浅色 `#0F172A` / 深色 `#111A2C`）；默认首卡跨两列，`emphasize` 项数值加粗放大（tabular-nums）；`compact` 模式为等宽 3 列、单卡高 112px，适合嵌入页面顶部概览区。
+- 结构：`.magic-bento` 内为 `.card-grid.bento-section`，卡片为深色表面（浅色 `#0F172A` / 深色 `#111A2C`）；默认首卡跨两列，`emphasize` 项数值加粗放大（tabular-nums）；项支持 `icon`（标签前图标）、`footer`（底部扩展内容，如迷你趋势线/进度条）与 `href`（整卡渲染为路由链接）；`compact` 模式为等宽 3 列、单卡高 144px，适合嵌入页面顶部概览区。
 - 交互：全局光标聚光（`.global-spotlight`）、悬停粒子星点、边框辉光（`--glow-*` 变量）、3D 倾斜与磁性吸附；光色默认取明暗主题的主色 RGB 值，`glowColor`（RGB 三元组字符串）可覆盖。
 - 移动端（<768px）与 `prefers-reduced-motion` 下自动禁用动画，仅保留静态卡片。
 

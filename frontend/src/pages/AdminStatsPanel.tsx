@@ -4,6 +4,7 @@ import { adminStatsApi } from "../api/client";
 import type { AdminStats } from "../api/types";
 import { AsyncButton } from "../components/AsyncButton";
 import { MagicBento } from "../components/bits/MagicBento";
+import { LineIcon } from "../components/bits/LineIcon";
 import { ChinaMap } from "../components/charts/ChinaMap";
 import { LineChart } from "../components/charts/LineChart";
 import { useAsyncAction } from "../hooks/useAsyncAction";
@@ -26,6 +27,72 @@ const numberFormat = new Intl.NumberFormat("zh-CN");
 
 function formatTime(iso: string): string {
   return new Date(iso).toLocaleString("zh-CN", { hour12: false });
+}
+
+function safeRatio(part: number, total: number): number {
+  return total > 0 ? part / total : 0;
+}
+
+function percentOf(part: number, total: number): string {
+  return `${(safeRatio(part, total) * 100).toFixed(1)}%`;
+}
+
+function StatProgress({ ratio }: { ratio: number }) {
+  const percent = Math.round(Math.min(1, Math.max(0, ratio)) * 100);
+  return (
+    <div
+      aria-hidden="true"
+      className="mt-0.5 h-1 w-full overflow-hidden rounded-full"
+      style={{ backgroundColor: "rgba(255, 255, 255, 0.12)" }}
+    >
+      <div
+        className="h-full rounded-full transition-[width] duration-500"
+        style={{
+          width: `${percent}%`,
+          backgroundColor: "var(--bento-label, #38bdf8)",
+        }}
+      />
+    </div>
+  );
+}
+
+function StatSparkline({ values }: { values: number[] }) {
+  if (values.length < 2) return null;
+  const width = 160;
+  const height = 32;
+  const min = Math.min(...values);
+  const max = Math.max(...values);
+  const range = max - min || 1;
+  const step = width / (values.length - 1);
+  const points = values.map((value, index) => [
+    index * step,
+    height - 4 - ((value - min) / range) * (height - 10),
+  ]);
+  const line = points
+    .map(
+      ([x, y], index) =>
+        `${index === 0 ? "M" : "L"}${x.toFixed(1)},${y.toFixed(1)}`,
+    )
+    .join(" ");
+  const area = `${line} L${width},${height} L0,${height} Z`;
+  return (
+    <svg
+      viewBox={`0 0 ${width} ${height}`}
+      className="mt-0.5 h-6 w-full"
+      preserveAspectRatio="none"
+      aria-hidden="true"
+    >
+      <path d={area} fill="rgba(56, 189, 248, 0.14)" />
+      <path
+        d={line}
+        fill="none"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        style={{ stroke: "var(--bento-label, #38bdf8)" }}
+      />
+    </svg>
+  );
 }
 
 export function AdminStatsPanel() {
@@ -78,35 +145,82 @@ export function AdminStatsPanel() {
     : [];
 
   const overviewCards = stats
-    ? [
+    ? (() => {
+        const totalUsers = stats.overview.total_users;
+        const registrations = stats.daily.reduce(
+          (sum, point) => sum + point.registrations,
+          0,
+        );
+        const dailyLogins =
+          stats.daily.length > 0
+            ? stats.daily.reduce((sum, point) => sum + point.logins, 0) /
+              stats.daily.length
+            : 0;
+        return [
         {
           title: "账号总数",
-          value: numberFormat.format(stats.overview.total_users),
+          value: numberFormat.format(totalUsers),
           hint: `启用 ${numberFormat.format(stats.overview.active_users)} · 禁用 ${numberFormat.format(stats.overview.disabled_users)}`,
+          icon: <LineIcon name="users" className="h-3.5 w-3.5" />,
+          href: "/admin/users",
+          footer: (
+            <StatProgress
+              ratio={safeRatio(stats.overview.active_users, totalUsers)}
+            />
+          ),
         },
         {
           title: "管理员",
           value: numberFormat.format(stats.overview.admins),
+          hint: `占账号总数 ${percentOf(stats.overview.admins, totalUsers)}`,
+          icon: <LineIcon name="shield" className="h-3.5 w-3.5" />,
+          href: "/admin/users",
         },
         {
           title: "已验证邮箱",
           value: numberFormat.format(stats.overview.verified_users),
+          hint: `验证率 ${percentOf(stats.overview.verified_users, totalUsers)} · 未验证 ${numberFormat.format(Math.max(0, totalUsers - stats.overview.verified_users))}`,
+          icon: <LineIcon name="mail" className="h-3.5 w-3.5" />,
+          href: "/admin/users",
+          footer: (
+            <StatProgress
+              ratio={safeRatio(stats.overview.verified_users, totalUsers)}
+            />
+          ),
         },
         {
           title: "在线会话",
           value: numberFormat.format(stats.overview.online_sessions),
+          hint: "当前活跃的登录会话",
+          icon: <LineIcon name="monitor" className="h-3.5 w-3.5" />,
+          href: "/admin/sessions",
         },
         {
           title: "累计登录次数",
           value: numberFormat.format(stats.overview.total_logins),
+          hint: `近 ${days} 天日均 ${numberFormat.format(Math.round(dailyLogins))} 次`,
+          icon: <LineIcon name="trend" className="h-3.5 w-3.5" />,
+          href: "/admin/audit",
+          footer: (
+            <StatSparkline
+              values={stats.daily.map((point) => point.logins)}
+            />
+          ),
         },
         {
           title: `新增注册（${days} 天）`,
-          value: numberFormat.format(
-            stats.daily.reduce((sum, point) => sum + point.registrations, 0),
+          value: numberFormat.format(registrations),
+          hint: `近 ${days} 天日均 ${(registrations / days).toFixed(1)} 人`,
+          icon: <LineIcon name="user" className="h-3.5 w-3.5" />,
+          href: "/admin/users",
+          footer: (
+            <StatSparkline
+              values={stats.daily.map((point) => point.registrations)}
+            />
           ),
         },
-      ]
+        ];
+      })()
     : [];
 
   const totalSessions = stats
@@ -164,6 +278,9 @@ export function AdminStatsPanel() {
               title: card.value,
               description: card.hint ?? "",
               emphasize: true,
+              icon: card.icon,
+              footer: card.footer,
+              href: card.href,
             }))}
             textAutoHide={false}
             enableTilt

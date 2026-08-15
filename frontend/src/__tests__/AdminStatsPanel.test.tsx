@@ -64,6 +64,23 @@ describe("AdminStatsPanel", () => {
     await waitFor(() => expect(screen.getByText("1,024")).toBeInTheDocument());
     expect(screen.getByText("128")).toBeInTheDocument();
     expect(screen.getByText("启用 126 · 禁用 2")).toBeInTheDocument();
+    expect(screen.getByText("占账号总数 2.3%")).toBeInTheDocument();
+    expect(screen.getByText("验证率 93.8% · 未验证 8")).toBeInTheDocument();
+    expect(screen.getByText("当前活跃的登录会话")).toBeInTheDocument();
+    expect(screen.getByText("近 30 天日均 6 次")).toBeInTheDocument();
+    expect(screen.getByText("近 30 天日均 0.0 人")).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: /^账号总数/ }),
+    ).toHaveAttribute("href", "/admin/users");
+    expect(
+      screen.getByRole("link", { name: /^管理员/ }),
+    ).toHaveAttribute("href", "/admin/users");
+    expect(
+      screen.getByRole("link", { name: /^在线会话/ }),
+    ).toHaveAttribute("href", "/admin/sessions");
+    expect(
+      screen.getByRole("link", { name: /^累计登录次数/ }),
+    ).toHaveAttribute("href", "/admin/audit");
     expect(screen.getByText("共 9 个在线会话")).toBeInTheDocument();
     expect(screen.getByText("密码")).toBeInTheDocument();
     expect(screen.getByText("邮箱验证码")).toBeInTheDocument();

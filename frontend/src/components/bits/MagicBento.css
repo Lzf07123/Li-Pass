@@ -33,6 +33,8 @@
   border-radius: 18px;
   border: 1px solid var(--bento-card-border);
   background: var(--bento-card-bg);
+  color: inherit;
+  text-decoration: none;
   overflow: hidden;
   transition: transform 0.3s var(--ease-out), box-shadow 0.3s var(--ease-out);
 
@@ -57,11 +59,18 @@
 }
 
 .magic-bento-card__header {
+  align-items: center;
+  gap: 0.5rem;
   justify-content: flex-start;
 }
 
 .magic-bento-card__content {
   flex-direction: column;
+}
+
+.magic-bento-card__icon {
+  display: inline-flex;
+  color: var(--bento-label);
 }
 
 .magic-bento-card__label {
@@ -95,6 +104,10 @@
   color: var(--bento-muted);
   font-size: 13px;
   line-height: 1.55;
+}
+
+.magic-bento-card__footer {
+  margin-top: 0.7rem;
 }
 
 .magic-bento-card--text-autohide .magic-bento-card__title,
@@ -153,7 +166,7 @@
 
 /* 紧凑模式：等宽 3 列、单卡更矮，用于页面顶部概览而不挤压下方内容 */
 .magic-bento--compact .magic-bento-card {
-  min-height: 112px;
+  min-height: 144px;
   padding: 0.9rem 1rem;
 }
 

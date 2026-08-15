@@ -1,4 +1,5 @@
 import { render, screen } from "@testing-library/react";
+import { MemoryRouter } from "react-router-dom";
 import { describe, expect, it } from "vitest";
 
 import { MagicBento } from "../components/bits/MagicBento";
@@ -53,6 +54,51 @@ describe("MagicBento", () => {
 
     expect(document.querySelector(".magic-bento")).toHaveClass(
       "magic-bento--compact",
+    );
+  });
+
+  it("渲染卡片图标与页脚扩展内容", () => {
+    render(
+      <MagicBento
+        enableSpotlight={false}
+        items={[
+          {
+            label: "在线会话",
+            title: "42",
+            description: "当前活跃的登录会话",
+            emphasize: true,
+            icon: <svg data-testid="stat-icon" />,
+            footer: <div data-testid="stat-footer">迷你趋势图</div>,
+          },
+        ]}
+      />,
+    );
+
+    expect(screen.getByTestId("stat-icon")).toBeInTheDocument();
+    expect(screen.getByTestId("stat-footer")).toHaveTextContent("迷你趋势图");
+  });
+
+  it("href 项渲染为路由链接", () => {
+    render(
+      <MemoryRouter>
+        <MagicBento
+          enableSpotlight={false}
+          items={[
+            {
+              label: "在线会话",
+              title: "42",
+              description: "当前活跃的登录会话",
+              emphasize: true,
+              href: "/admin/sessions",
+            },
+          ]}
+        />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByRole("link")).toHaveAttribute(
+      "href",
+      "/admin/sessions",
     );
   });
 });
