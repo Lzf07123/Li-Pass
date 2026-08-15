@@ -155,7 +155,7 @@ docker compose exec backend python -m scripts.seed_demo_client
 
 - 设计文档：[docs/superpowers/specs/2026-08-12-unified-login-portal-design.md](docs/superpowers/specs/2026-08-12-unified-login-portal-design.md)
 - 部署与运维：[docs/deployment.md](docs/deployment.md)
-- OIDC 对接指南：[docs/oidc-integration.md](docs/oidc-integration.md)
+- OIDC 对接指南（含对接方必选/可选接口契约与接入验收清单）：[docs/oidc-integration.md](docs/oidc-integration.md)
 - 更新日志：[CHANGELOG.md](CHANGELOG.md)
 
 ## 设计文档

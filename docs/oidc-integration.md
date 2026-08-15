@@ -2,6 +2,8 @@
 
 Li&Pass 是一个符合 OIDC/OAuth2 授权码流程的身份提供商（IdP）。授权网站按本文档接入后，用户即可“注册一次、登录所有已授权网站”。
 
+接入前先核对 [§2 对接方接口契约](#2-对接方接口契约必选-可选)（哪些接口必选、哪些可选），再按 [§5 注册客户端](#5-注册客户端) 登记地址，随后按 §3 完成授权码闭环。缺失必选接口或行为不符的接入不予验收。
+
 ## 1. 标准端点
 
 假设门户 issuer 为 `https://auth.example.com`。本地示例：
@@ -20,9 +22,98 @@ Li&Pass 是一个符合 OIDC/OAuth2 授权码流程的身份提供商（IdP）�
 
 支持范围：`openid`、`profile`、`email`；仅支持 `response_type=code` 与 PKCE `S256`。
 
-## 2. 授权码 + PKCE 流程（公开客户端）
+## 2. 对接方接口契约（必选 / 可选）
 
-### 2.1 生成 PKCE
+本节是接入的**硬性契约**。任何网站接入 Li&Pass 都必须实现「必选」接口，并按需提供「可选」接口；管理员创建应用时填写的地址即本节接口。缺失或行为不符的接入**不予验收**，门户在授权与登出时也会按本节校验和调用。
+
+### 2.1 接口总览
+
+| 优先级 | 接口（在你的网站上） | 调用方向 | 门户应用配置 | 说明 |
+| --- | --- | --- | --- | --- |
+| **必选** | 授权回调接口（`redirect_uri`） | 门户 → 浏览器 → 你的网站 | 「回调地址」 | 接收授权码并完成登录，见 §2.2 |
+| **可选（推荐）** | 回程登出接口（`backchannel_logout_uri`） | 门户服务器 → 你的服务器 | 「回程登出地址」 | 接收 `logout_token` 下线，见 §2.3.1 |
+| **可选（与回程二选一）** | 登出地址（`logout_uri`） | 门户 → 浏览器 → 你的网站 | 「登出地址」 | 浏览器串跳清本地会话，见 §2.3.2 |
+| **可选（使用 RP 发起登出则必填）** | 登出回跳页（`post_logout_redirect_uri`） | 门户 → 浏览器 | 「登出回跳白名单」 | SSO 登出后的落地页，见 §2.3.3 |
+
+硬性要求：
+
+- **必选接口缺失，或行为不符（如不校验 `state`、把 `error` 当成功处理），不允许上线接入。**
+- **登出通道至少二选一**：实现回程登出（推荐，服务器间可靠），或提供登出地址走浏览器串跳。两者都没有时，门户登出无法触达你的网站，视为接入不完整。
+- 所有回调/回跳地址必须**精确匹配**白名单（逐字符一致，不做前缀或通配匹配）。
+
+### 2.2 必选：授权回调接口
+
+在「回调地址」登记一个 HTTPS（本地开发可用 HTTP）GET 端点，门户在两种情况下经浏览器跳回：
+
+成功：
+
+```text
+GET https://your-site.example/callback?code=AUTHORIZATION_CODE&state=RANDOM_STATE
+```
+
+用户拒绝授权，或账号被该网站封禁：
+
+```text
+GET https://your-site.example/callback?error=access_denied&state=RANDOM_STATE
+# 被网站封禁时额外携带：
+# error_description=account_blocked
+```
+
+该端点必须做到：
+
+- 校验 `state` 与发起时一致；不一致立即中止，不得继续登录流程。
+- 收到 `error` 时按失败处理并向用户说明（`account_blocked` 表示账号被该网站封禁），**不得当成登录成功**。
+- 拿到 `code` 后立即用 `code + code_verifier`（机密客户端加 `client_secret`）POST 换令牌；授权码只能使用一次、10 分钟有效，换码失败即作废并重新发起。
+- 校验 `id_token`：按 `kid` 从 JWKS 选钥做 RS256 验签；`iss` 等于发现文档 issuer；`aud` 等于自身 `client_id`；`nonce` 一致；`iat`/`exp` 有效。`access_token` 的 `aud` 是 userinfo 端点，**不要**按 `client_id` 校验（见 §3.5）。
+- 用 `access_token` 调 userinfo 建立本地会话，并按 `(sub, sid)` 绑定门户会话标识（`sid` 在 `id_token` 中），供回程登出精确定位下线。
+- 本端点只处理授权码，不得接收用户密码等敏感信息。
+
+### 2.3 可选：登出通道
+
+门户侧登出（用户退出门户、管理员强制下线、取消授权、RP 发起登出确认）需要通知你的网站下线。**至少实现下列一种**，推荐 §2.3.1 回程登出；未实现回程时门户用 §2.3.2 浏览器串跳兜底。
+
+#### 2.3.1 回程登出接口（推荐）
+
+在「回程登出地址」登记一个服务器间 POST 端点：
+
+- 请求：`POST application/x-www-form-urlencoded`，字段 `logout_token`（JWT，示例见 §8.3）。
+- 地址约束：生产环境必须 `https` 且不得指向回环/私网/链路本地地址（门户强制校验）。
+- 必须校验：JWKS `kid` 选钥验签；`iss` 等于 issuer；`aud` 等于自身 `client_id`；`iat`/`exp` 在 120 秒新鲜窗口内；维护 `jti` 已见缓存防重放；`events` 含 `http://schemas.openid.net/event/backchannel-logout`。
+- 必须动作：终止本地与 `(sub, sid)` 匹配的会话；处理成功返回 2xx。
+- 送达语义：门户对失败会有限重试，但仍为“尽力而为”，不得假设一定送达；本地会话必须另有自己的过期机制。
+
+#### 2.3.2 登出地址（浏览器串跳）
+
+未配置回程地址时，门户登出会经浏览器串跳到你登记的「登出地址」：
+
+```text
+GET https://your-site.example/logout?next=<下一目标或门户登录页的 URL 编码值>
+```
+
+必须：清掉本地会话后 302 到 `next`；只允许相对路径或自己的域名，拒绝 `//` 开头的外部协议重定向。
+
+#### 2.3.3 登出回跳页
+
+若你的网站发起 RP 发起登出（`end-session`，见 §8.2），需在「登出回跳白名单」登记一个站内页面作为登出后的落地页。门户登出完成后原样回跳并附带 `state`，页面校验 `state` 后展示登出完成。仅使用门户侧登出、不发起 RP 登出的网站可以不填。
+
+### 2.4 接入验收清单
+
+申请上线前逐项自检，全部满足方可申请：
+
+- [ ] 回调地址已登记，且与代码实际使用值**逐字符一致**（含协议、路径与端口）
+- [ ] 回调端点校验 `state`；`error=access_denied`（含 `account_blocked`）按失败处理
+- [ ] 换令牌带 PKCE `code_verifier`（机密客户端另带 `client_secret`）；授权码一次性使用
+- [ ] `id_token` 校验完整（验签 / `kid` 选钥 / `iss` / `aud` / `nonce` / `iat` / `exp`）；`access_token` 仅用于 userinfo，且不按 `client_id` 校验其 `aud`
+- [ ] 本地会话绑定 `(sub, sid)`（`sid` 取自 `id_token`）
+- [ ] 登出通道二选一：已实现回程登出，或已提供登出地址（浏览器串跳）
+- [ ] 回程登出（如选）：验签、`iss`/`aud`、120 秒新鲜窗口、`jti` 防重放、`events` 检查、按 `(sub, sid)` 下线、成功返回 2xx；生产 https 且公网可达
+- [ ] 登出地址（如选）：清本地会话后仅跳转相对路径/自有域名，拒绝 `//`
+- [ ] 使用 RP 发起登出时，已登记登出回跳白名单（精确匹配）
+- [ ] 使用网站黑名单时：授权跳回 `access_denied`、换令牌与 userinfo 返回 403，均按失败处理
+
+## 3. 授权码 + PKCE 流程（公开客户端）
+
+### 3.1 生成 PKCE
 
 ```python
 import base64
@@ -35,7 +126,7 @@ challenge = base64.urlsafe_b64encode(
 ).rstrip(b"=").decode()
 ```
 
-### 2.2 跳转授权页
+### 3.2 跳转授权页
 
 ```text
 GET {issuer}/oauth2/authorize?response_type=code
@@ -70,7 +161,7 @@ https://auth.example.com/verify-email?email=user%40example.com&next=https%3A%2F%
 
 用户完成邮箱验证后会自动回到原授权流程（`state` 与 PKCE 参数经 `next` 保留），随后按常规流程跳回 `redirect_uri`。未验证邮箱的用户仍可登录门户本身，只是不能完成含 `email` scope 的授权；不请求 `email` scope 的授权不受此限制。
 
-### 2.3 换令牌
+### 3.3 换令牌
 
 公开客户端：
 
@@ -98,7 +189,7 @@ curl -X POST {issuer}/oauth2/token \
 
 `access_token` 15 分钟有效，`id_token` 5 分钟有效；当前不提供刷新令牌。
 
-### 2.4 获取用户信息
+### 3.4 获取用户信息
 
 ```bash
 curl {issuer}/oauth2/userinfo -H "Authorization: Bearer ACCESS_TOKEN"
@@ -117,7 +208,7 @@ curl {issuer}/oauth2/userinfo -H "Authorization: Bearer ACCESS_TOKEN"
 
 claims 按授权 scope 裁剪：`email` scope 才返回 `email` / `email_verified`，`profile` scope 才返回 `nickname` / `name` / `picture`。`picture` 为用户头像的绝对 URL（未设置头像时不返回）。
 
-### 2.5 令牌校验（audience 与密钥轮换）
+### 3.5 令牌校验（audience 与密钥轮换）
 
 两类令牌的 `aud` 语义不同，接入方校验时注意区分：
 
@@ -128,7 +219,7 @@ claims 按授权 scope 裁剪：`email` scope 才返回 `email` / `email_verifie
 
 `iss` 均为 `https://auth.example.com`，签名算法为 RS256。JWKS（`/oauth2/jwks`）在密钥轮换期间会同时发布多把公钥（每把带唯一 `kid`），应按 token 头部的 `kid` 选对应公钥，而不是缓存单把公钥。
 
-## 3. 示例代码
+## 4. 示例代码
 
 ### Python（requests）
 
@@ -137,7 +228,7 @@ claims 按授权 scope 裁剪：`email` scope 才返回 `email` / `email_verifie
 ```python
 import requests
 
-# 1. 跳转 authorize（见 2.2），回调拿到 code 后：
+# 1. 跳转 authorize（见 3.2），回调拿到 code 后：
 token = requests.post(
     f"{issuer}/oauth2/token",
     data={
@@ -178,12 +269,19 @@ const user = await fetch(`${issuer}/oauth2/userinfo`, {
 }).then((r) => r.json());
 ```
 
-## 4. 注册客户端
+## 5. 注册客户端
 
 管理员登录门户后在 **授权网站管理**（`/admin/clients`）创建应用，填写：
 
-- 名称、回调地址（每行一个）、首页地址（应用广场“进入”链接）、登出地址（取消授权时跳转）
-- 公开客户端（仅 PKCE）或机密客户端（生成 `client_secret`，只显示一次）
+| 表单字段 | 对应接口 | 要求 |
+| --- | --- | --- |
+| 名称 | — | 必填；用于应用广场与授权/登出确认页展示 |
+| 回调地址（每行一个） | 授权回调接口（§2.2） | **必填**；精确匹配，与代码使用值逐字符一致 |
+| 首页地址 | 应用广场“进入”链接 | 选填 |
+| 登出地址 | 登出地址（§2.3.2） | 选填；与「回程登出地址」至少二选一；取消授权时也会跳转该地址清会话 |
+| 登出回跳白名单（每行一个） | 登出回跳页（§2.3.3） | 使用 RP 发起登出（§8.2）时必填 |
+| 回程登出地址 | 回程登出接口（§2.3.1） | 选填（推荐）；生产必须 https 且公网可达 |
+| 客户端类型 | — | 必选其一：公开客户端（仅 PKCE）或机密客户端（生成 `client_secret`，只显示一次） |
 
 也可用管理 API：`POST /api/v1/admin/clients`。
 
@@ -194,7 +292,7 @@ docker compose exec backend python -m scripts.seed_demo_client   # 创建 demo-s
 docker compose exec backend python -m scripts.make_admin <邮箱>  # 提升管理员
 ```
 
-## 5. 网站自助黑名单
+## 6. 网站自助黑名单
 
 机密客户端可用 HTTP Basic（`client_id:client_secret`）管理自己的黑名单：
 
@@ -216,7 +314,7 @@ curl -u CLIENT_ID:CLIENT_SECRET -X DELETE \
 
 > 换令牌与 userinfo 命中黑名单时返回的是 HTTP 403 + 中文提示（如“该账号已被此网站限制访问”），不是 OAuth 错误码；授权跳转阶段才使用标准 `access_denied` 错误。
 
-## 6. 常见错误
+## 7. 常见错误
 
 | 错误 | 含义 |
 | --- | --- |
@@ -229,9 +327,9 @@ curl -u CLIENT_ID:CLIENT_SECRET -X DELETE \
 | `invalid_client` | client_id/secret 错误 |
 | `invalid_token` | access token 无效或过期 |
 
-## 7. 登出与联邦登出
+## 8. 登出与联邦登出
 
-### 7.1 两种登出语义（先分清）
+### 8.1 两种登出语义（先分清）
 
 「退出登录」在 SSO 场景下有**两种截然不同的语义**，接入方与用户动手前先写清楚：
 
@@ -244,13 +342,13 @@ curl -u CLIENT_ID:CLIENT_SECRET -X DELETE \
 
 门户支持三种登出通道，接入方按自身技术栈任选组合：
 
-1. **RP 发起登出（RP-Initiated Logout）**：仅用于「登出 SSO」，见 §7.2。
+1. **RP 发起登出（RP-Initiated Logout）**：仅用于「登出 SSO」，见 §8.2。
 2. **回程登出（Back-Channel Logout）**：用户从门户（或管理员强制下线）退出时，IdP 服务器间 POST `logout_token` 通知你下线。
 3. **浏览器串跳漏斗**：未实现回程通道的网站，门户登出时把各网站的 `logout_uri` 串成一条 `?next=` 链，由浏览器依次跳转清会话。
 
 发现文档中的 `end_session_endpoint`、`backchannel_logout_supported: true`、`frontchannel_logout_supported: false` 描述了门户的支持情况。**门户不实现 front-channel iframe 登出**（第三方 Cookie 已被主流浏览器禁用），请勿依赖该机制。
 
-### 7.2 RP 发起登出
+### 8.2 RP 发起登出
 
 管理员在应用配置中填写「登出回跳白名单」（精确匹配，不做前缀匹配）后，网站这样发起：
 
@@ -279,7 +377,7 @@ https://your-site.example/?state=RANDOM_STATE
 - 即便门户当前没有会话（例如已超时），也会直接 302 回跳，而不是报错。
 - 校验 `state` 与发起时一致，防止跨站请求伪造。
 
-### 7.3 回程登出（Back-Channel Logout）
+### 8.3 回程登出（Back-Channel Logout）
 
 管理员在应用配置中填写「回程登出地址」（生产环境必须 https 且不得指向回环/私网地址）。用户在门户登出、RP 发起登出确认、管理员强制下线或取消授权时，门户会向该地址 POST `application/x-www-form-urlencoded` 的 `logout_token`：
 
@@ -307,7 +405,7 @@ https://your-site.example/?state=RANDOM_STATE
 - 终止本地与 `(sub, sid)` 匹配的会话；id_token 中的 `sid` 即门户会话标识，登录时请按 `(sub, sid)` 绑定本地会话。
 - 处理成功返回 2xx；门户对失败会有限重试，但仍以“尽力而为”为准，不能假设一定送达。
 
-### 7.4 浏览器串跳漏斗（无回程通道的网站）
+### 8.4 浏览器串跳漏斗（无回程通道的网站）
 
 如果你只配置了「登出地址」（`logout_uri`）而没有回程地址，门户登出时会向浏览器返回形如：
 
@@ -317,7 +415,7 @@ https://your-site.example/logout?next=<下一个目标或门户登录页的 URL 
 
 你的 `logout_uri` 端点应：清掉本地会话，随后 302 到 `next`；出于安全，只允许相对路径或自己的域名，拒绝 `//` 开头的外部协议重定向。
 
-## 8. acr 声明
+## 9. acr 声明
 
 `id_token` 携带 `acr`：
 
@@ -329,9 +427,11 @@ https://your-site.example/logout?next=<下一个目标或门户登录页的 URL 
 
 需要强认证的网站可校验该声明，拒绝 1fa 会话。
 
-## 9. 安全要求
+## 10. 安全要求
 
+- 必须实现 [§2 接口契约](#2-对接方接口契约必选-可选) 的全部必选项，并逐项通过 §2.4 接入验收清单；必选接口缺失或行为不符不予上线。
 - 必须校验 `state` 与 `nonce`。
 - 公开客户端必须使用 PKCE；机密客户端在服务端保管 secret。
 - `redirect_uri` 必须精确匹配门户白名单。
 - 授权码只能使用一次，10 分钟有效。
+- 登出通道至少二选一（回程登出或登出地址），否则门户登出无法触达你的网站。
