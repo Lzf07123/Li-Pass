@@ -24,6 +24,8 @@ export interface ClientOut {
   logo_url: string | null;
   home_url: string | null;
   logout_uri: string | null;
+  post_logout_redirect_uris: string[];
+  backchannel_logout_uri: string | null;
   redirect_uris: string[];
   scopes: string[];
   require_consent_every_time: boolean;
@@ -38,6 +40,8 @@ export interface ClientCreate {
   logo_url?: string | null;
   home_url?: string | null;
   logout_uri?: string | null;
+  post_logout_redirect_uris?: string[];
+  backchannel_logout_uri?: string | null;
   redirect_uris: string[];
   scopes?: string[];
   require_consent_every_time?: boolean;
@@ -50,6 +54,8 @@ export interface ClientUpdate {
   logo_url?: string | null;
   home_url?: string | null;
   logout_uri?: string | null;
+  post_logout_redirect_uris?: string[];
+  backchannel_logout_uri?: string | null;
   redirect_uris?: string[];
   scopes?: string[];
   require_consent_every_time?: boolean;

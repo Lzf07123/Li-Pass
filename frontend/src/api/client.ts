@@ -103,7 +103,10 @@ export const authApi = {
         email_retry_after_seconds?: number;
       }
     >("/api/v1/auth/login", { method: "POST", body: JSON.stringify(data) }),
-  logout: () => api<void>("/api/v1/auth/logout", { method: "POST" }),
+  logout: () =>
+    api<{ redirect_to: string | null }>("/api/v1/auth/logout", {
+      method: "POST",
+    }),
   me: () => api<UserOut>("/api/v1/me"),
   requestPasswordReset: (data: { email: string }) =>
     api<{ message: string }>("/api/v1/auth/password/reset", {
@@ -127,6 +130,21 @@ export const consentApi = {
     api<{ redirect_url: string }>(`/api/v1/consent/${requestId}/deny`, {
       method: "POST",
     }),
+};
+
+export const oauthApi = {
+  logoutRequestInfo: (requestId: string) =>
+    api<{ client_name: string }>(`/api/v1/oauth/logout-requests/${requestId}`),
+  confirmLogoutRequest: (requestId: string) =>
+    api<{ redirect_url: string }>(
+      `/api/v1/oauth/logout-requests/${requestId}/confirm`,
+      { method: "POST" }
+    ),
+  cancelLogoutRequest: (requestId: string) =>
+    api<{ redirect_url: string }>(
+      `/api/v1/oauth/logout-requests/${requestId}/cancel`,
+      { method: "POST" }
+    ),
 };
 
 export const adminClientsApi = {

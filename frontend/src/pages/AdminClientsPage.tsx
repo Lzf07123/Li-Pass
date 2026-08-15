@@ -16,6 +16,8 @@ export function AdminClientsPage() {
   const [name, setName] = useState("");
   const [homeUrl, setHomeUrl] = useState("");
   const [logoutUri, setLogoutUri] = useState("");
+  const [postLogoutRedirectUris, setPostLogoutRedirectUris] = useState("");
+  const [backchannelLogoutUri, setBackchannelLogoutUri] = useState("");
   const [redirectUris, setRedirectUris] = useState("");
   // 默认机密客户端：服务端 OIDC 对接需要 client_id + client_secret；
   // 仅纯前端 SPA（PKCE）才需要勾选“公开客户端”。
@@ -58,6 +60,8 @@ export function AdminClientsPage() {
       name: string;
       homeUrl: string;
       logoutUri: string;
+      postLogoutRedirectUris: string[];
+      backchannelLogoutUri: string;
       redirectUris: string[];
       isPublic: boolean;
     }) => {
@@ -65,6 +69,8 @@ export function AdminClientsPage() {
         name: payload.name,
         home_url: payload.homeUrl || null,
         logout_uri: payload.logoutUri || null,
+        post_logout_redirect_uris: payload.postLogoutRedirectUris,
+        backchannel_logout_uri: payload.backchannelLogoutUri || null,
         redirect_uris: payload.redirectUris,
         public: payload.isPublic,
       });
@@ -77,6 +83,8 @@ export function AdminClientsPage() {
       setName("");
       setHomeUrl("");
       setLogoutUri("");
+      setPostLogoutRedirectUris("");
+      setBackchannelLogoutUri("");
       setRedirectUris("");
     },
     {
@@ -91,6 +99,11 @@ export function AdminClientsPage() {
       name,
       homeUrl,
       logoutUri,
+      postLogoutRedirectUris: postLogoutRedirectUris
+        .split("\n")
+        .map((item) => item.trim())
+        .filter(Boolean),
+      backchannelLogoutUri,
       redirectUris: redirectUris
         .split("\n")
         .map((item) => item.trim())
@@ -166,7 +179,11 @@ export function AdminClientsPage() {
 
   function startEdit(client: ClientOut) {
     setEditingId(client.id);
-    setEditDraft({ ...client });
+    setEditDraft({
+      ...client,
+      post_logout_redirect_uris: client.post_logout_redirect_uris ?? [],
+      backchannel_logout_uri: client.backchannel_logout_uri ?? null,
+    });
   }
 
   function cancelEdit() {
@@ -186,6 +203,8 @@ export function AdminClientsPage() {
         logo_url: draft.logo_url || null,
         home_url: draft.home_url || null,
         logout_uri: draft.logout_uri || null,
+        post_logout_redirect_uris: draft.post_logout_redirect_uris,
+        backchannel_logout_uri: draft.backchannel_logout_uri || null,
         redirect_uris: draft.redirect_uris,
         scopes: draft.scopes,
         require_consent_every_time: draft.require_consent_every_time,
@@ -323,6 +342,24 @@ export function AdminClientsPage() {
             onChange={(e) => setLogoutUri(e.target.value)}
             className="input"
             placeholder="https://your-site.example/logout"
+          />
+        </label>
+        <label className="block">
+          <span className="label">登出回跳白名单（每行一个，RP 发起登出后允许回跳的地址）</span>
+          <textarea
+            value={postLogoutRedirectUris}
+            onChange={(e) => setPostLogoutRedirectUris(e.target.value)}
+            className="input min-h-20 resize-y"
+            placeholder={"https://your-site.example/\nhttps://your-site.example/after-logout"}
+          />
+        </label>
+        <label className="block">
+          <span className="label">回程登出地址（服务器间通知，可选）</span>
+          <input
+            value={backchannelLogoutUri}
+            onChange={(e) => setBackchannelLogoutUri(e.target.value)}
+            className="input"
+            placeholder="https://your-site.example/backchannel-logout"
           />
         </label>
         <label className="flex cursor-pointer items-center gap-2 text-sm text-foreground">
@@ -486,6 +523,33 @@ export function AdminClientsPage() {
                       })
                     }
                     className="input min-h-20 resize-y"
+                  />
+                </label>
+                <label className="block text-sm">
+                  <span className="label">登出回跳白名单（每行一个）</span>
+                  <textarea
+                    value={editDraft.post_logout_redirect_uris.join("\n")}
+                    onChange={(e) =>
+                      updateDraft({
+                        post_logout_redirect_uris: e.target.value
+                          .split("\n")
+                          .map((item) => item.trim())
+                          .filter(Boolean),
+                      })
+                    }
+                    className="input min-h-20 resize-y"
+                  />
+                </label>
+                <label className="block text-sm">
+                  <span className="label">回程登出地址（服务器间通知）</span>
+                  <input
+                    value={editDraft.backchannel_logout_uri ?? ""}
+                    onChange={(e) =>
+                      updateDraft({
+                        backchannel_logout_uri: e.target.value || null,
+                      })
+                    }
+                    className="input"
                   />
                 </label>
                 <label className="block text-sm">

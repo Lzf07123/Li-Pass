@@ -35,6 +35,11 @@ const VerifyEmailPage = lazy(() =>
 const ConsentPage = lazy(() =>
   import("./pages/ConsentPage").then((m) => ({ default: m.ConsentPage }))
 );
+const LogoutConfirmPage = lazy(() =>
+  import("./pages/LogoutConfirmPage").then((m) => ({
+    default: m.LogoutConfirmPage,
+  }))
+);
 const AdminPage = lazy(() =>
   import("./pages/AdminPage").then((m) => ({ default: m.AdminPage }))
 );
@@ -53,6 +58,7 @@ const AUTH_ROUTES = new Set([
   "/reset-password",
   "/verify-email",
   "/consent",
+  "/logout/confirm",
 ]);
 
 function PageFallback() {
@@ -89,6 +95,7 @@ export function AppRoutes() {
           <Route path="/reset-password" element={<GuestOnly><ResetPasswordPage /></GuestOnly>} />
           <Route path="/verify-email" element={<VerifyEmailPage />} />
           <Route path="/consent" element={<ConsentPage />} />
+          <Route path="/logout/confirm" element={<LogoutConfirmPage />} />
           <Route path="/admin" element={<Navigate to="/admin/users" replace />} />
           <Route path="/admin/:tab" element={<AdminPage />} />
           <Route path="/messages" element={<MessagesPage />} />

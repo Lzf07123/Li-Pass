@@ -262,8 +262,8 @@ export function DashboardPage() {
   }
 
   async function logout() {
-    await authApi.logout();
-    navigate("/login");
+    const result = await authApi.logout();
+    window.location.assign(result.redirect_to ?? "/login");
   }
 
   async function toggleEmailTwofa() {
