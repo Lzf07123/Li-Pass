@@ -48,6 +48,9 @@ class Settings(BaseSettings):
     oauth_access_token_ttl_minutes: int = 15
     oauth_id_token_ttl_minutes: int = 5
     oauth_code_ttl_minutes: int = 10
+    logout_token_ttl_seconds: int = 120
+    backchannel_logout_timeout_seconds: float = 5.0
+    backchannel_logout_max_retries: int = 2
     pending_request_store: str = "memory"
     encryption_key_path: str = "encryption.key"
     twofa_store: str = "memory"
@@ -126,6 +129,12 @@ class Settings(BaseSettings):
             raise ValueError("SMTP_RETRY_DELAY_SECONDS 必须 ≥0")
         if self.ip2region_http_timeout_seconds < 5:
             raise ValueError("IP2REGION_HTTP_TIMEOUT_SECONDS 必须 ≥5")
+        if not 30 <= self.logout_token_ttl_seconds <= 600:
+            raise ValueError("LOGOUT_TOKEN_TTL_SECONDS 必须在 30–600 之间")
+        if not 1 <= self.backchannel_logout_timeout_seconds <= 30:
+            raise ValueError("BACKCHANNEL_LOGOUT_TIMEOUT_SECONDS 必须在 1–30 之间")
+        if not 0 <= self.backchannel_logout_max_retries <= 5:
+            raise ValueError("BACKCHANNEL_LOGOUT_MAX_RETRIES 必须在 0–5 之间")
         if not 1 <= self.ip2region_update_interval_hours <= 8760:
             raise ValueError("IP2REGION_UPDATE_INTERVAL_HOURS 必须在 1–8760 之间")
         if self.ip2region_update_rate_limit < 1:

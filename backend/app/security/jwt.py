@@ -1,5 +1,6 @@
 import base64
 import time
+import uuid
 from datetime import datetime, timedelta, timezone
 from functools import lru_cache
 from pathlib import Path
@@ -165,6 +166,27 @@ def create_id_token(
         picture = absolute_avatar_url(settings, getattr(user, "avatar_url", None))
         if picture:
             payload["picture"] = picture
+    return _encode(payload)
+
+
+def issue_logout_token(sub: str, sid: str, client_id: str) -> str:
+    """签发 OIDC Back-Channel Logout 登出令牌。
+
+    aud 必须等于目标 client_id；exp 使用短新鲜窗口；jti 供接收方做重放
+    防护（OP 侧不落库，由 RP 维护已见 jti 缓存）。
+    """
+    settings = get_settings()
+    now = _now()
+    payload = {
+        "iss": settings.jwt_issuer,
+        "aud": client_id,
+        "sub": sub,
+        "sid": sid,
+        "iat": now,
+        "exp": now + timedelta(seconds=settings.logout_token_ttl_seconds),
+        "jti": str(uuid.uuid4()),
+        "events": {"http://schemas.openid.net/event/backchannel-logout": {}},
+    }
     return _encode(payload)
 
 
