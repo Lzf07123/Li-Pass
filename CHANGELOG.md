@@ -58,6 +58,7 @@
 
 ### 缺陷修复
 
+- OIDC 授权请求带 `email` scope 且用户邮箱未验证时，跳转验证邮箱页会丢失原授权请求：验证完成后用户停留在验证页，只能手动「去登录」，无法自动跳回应用。现后端在跳转中附带 `next`（编码后的原授权请求），验证成功后前端自动回到授权流程并按常规链路跳回 `redirect_uri`；同时登录页「注册新账号」与注册页跳转登录页也透传 `next`，注册新账号后同样能回到应用。
 - 设备信息解析误把 Chromium Client Hints 的 GREASE token 当作浏览器名：新版 Chrome 的 `sec-ch-ua` 使用 `Not=A?Brand` 变体，旧黑名单只覆盖 `Not A;Brand`/`Not)A;Brand`/`Not_A Brand`，导致设备管理与会话监控显示「macOS · Not=A?Brand」。现改为按 GREASE token 的结构匹配（`Not?A?Brand`，中间为非字母数字字符）过滤；读取侧对历史已写入的脏名称优先按原始 UA 重建，无 UA 时剔除 GREASE 片段，用户中心与管理后台同步修复。
 - 网关演示站动态上游解析的 `proxy_pass` 带变量时其 URI 部分会整体替换原始路径，`/demo/login`、`POST /demo/logout` 等子路径被透传成 `/`（404/405）；已改用 `rewrite` 显式剥离 `/demo` 前缀后不带 URI 转发。
 - 联邦登出迁移 `7f2a9d3c8e1b` 的 downgrade 在 PostgreSQL 上失败：`authorization_codes.session_id` 外键未命名导致无法生成 `DROP CONSTRAINT`；已命名外键并在真实 PostgreSQL 上验证 downgrade/upgrade 往返。
