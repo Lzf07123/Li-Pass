@@ -168,3 +168,38 @@ def test_consent_revoke_without_logout_channels_returns_false(
         "logout_uri": None,
         "backchannel_notified": False,
     }
+
+
+def test_consent_revoke_dispatches_even_when_portal_session_revoked(
+    client, db_session, captured_email, monkeypatch
+) -> None:
+    """门户会话已退出/被撤销后取消授权，仍应通知配置了回程地址的网站。"""
+    register_and_login(client, captured_email)
+    user = db_session.scalar(select(User))
+    stale = create_session(db_session, user)
+    stale.revoked_at = datetime.now(timezone.utc)
+    db_session.commit()
+    oauth_client = create_client(
+        db_session,
+        client_id="cli_bc",
+        redirect_uris=["http://x/cb"],
+        backchannel_logout_uri="https://x/backchannel",
+    )
+    db_session.add(
+        UserConsent(
+            user_id=user.id, client_id=oauth_client.id, scopes=["openid"]
+        )
+    )
+    db_session.commit()
+    link(db_session, user, oauth_client, stale)
+
+    calls: list[list] = []
+    monkeypatch.setattr(
+        "app.api.routes.users.dispatch_backchannel_logout",
+        lambda targets: calls.append(targets) or {},
+    )
+    resp = client.delete("/api/v1/apps/cli_bc")
+    assert resp.status_code == 200
+    assert resp.json()["backchannel_notified"] is True
+    assert len(calls) == 1
+    assert calls[0][0].sid == str(stale.id)

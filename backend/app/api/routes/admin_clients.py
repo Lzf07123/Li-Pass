@@ -20,6 +20,7 @@ from app.schemas.oauth import (
 from app.security.tokens import generate_client_id, generate_client_secret, hash_token
 from app.services.blocks import add_block, list_blocks, remove_block
 from app.services.audit import log_audit
+from app.services.federated_logout import assert_safe_backchannel_url
 from app.services.stepup import authorize_stepup
 
 router = APIRouter(
@@ -45,6 +46,11 @@ def create_client(
 ) -> dict:
     client_secret = None
     client_secret_hash = None
+    if payload.backchannel_logout_uri:
+        try:
+            assert_safe_backchannel_url(payload.backchannel_logout_uri)
+        except ValueError as exc:
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, str(exc))
     if not payload.public:
         client_secret = generate_client_secret()
         client_secret_hash = hash_token(client_secret)
@@ -102,6 +108,11 @@ def update_client(
         raise HTTPException(status.HTTP_404_NOT_FOUND, "应用不存在")
     for field, value in payload.model_dump(exclude_unset=True).items():
         setattr(client, field, value)
+    if client.backchannel_logout_uri:
+        try:
+            assert_safe_backchannel_url(client.backchannel_logout_uri)
+        except ValueError as exc:
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, str(exc))
     db.commit()
     db.refresh(client)
     log_audit(

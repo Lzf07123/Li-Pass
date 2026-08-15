@@ -14,7 +14,6 @@ from sqlalchemy.orm import Session
 from app.core.config import get_settings
 from app.models.oauth_client import OAuthClient
 from app.models.oidc_client_session import OIDCClientSession
-from app.models.session import Session as SessionModel
 from app.security.jwt import issue_logout_token
 
 logger = logging.getLogger(__name__)
@@ -38,6 +37,11 @@ def _assert_public_host(host: str) -> None:
     """
     if get_settings().environment != "production":
         return
+    host = host.rstrip(".").lower()
+    try:
+        host = host.encode("idna").decode("ascii")
+    except UnicodeError as exc:
+        raise ValueError(f"回程地址域名非法: {host}") from exc
     try:
         literal = ipaddress.ip_address(host)
     except ValueError:
@@ -53,14 +57,19 @@ def _assert_public_host(host: str) -> None:
 
 
 def assert_safe_backchannel_url(url: str) -> None:
-    """校验 backchannel_logout_uri：仅 http/https（生产强制 https），
-    且生产环境目标不得为回环/私网地址。"""
+    """校验 backchannel_logout_uri：仅 http/https（生产强制 https + 443），
+    不得携带用户名/密码，且生产环境目标不得为回环/私网地址。"""
     settings = get_settings()
     parsed = urlparse(url)
     if parsed.scheme not in ("http", "https") or not parsed.netloc:
         raise ValueError("回程地址必须是 http/https 地址")
-    if settings.environment == "production" and parsed.scheme != "https":
-        raise ValueError("生产环境回程地址必须使用 https")
+    if parsed.username or parsed.password:
+        raise ValueError("回程地址不允许携带用户名或密码")
+    if settings.environment == "production":
+        if parsed.scheme != "https":
+            raise ValueError("生产环境回程地址必须使用 https")
+        if parsed.port not in (None, 443):
+            raise ValueError("生产环境回程地址必须使用 443 端口")
     host = parsed.hostname
     if not host:
         raise ValueError("回程地址缺少主机名")
@@ -119,16 +128,18 @@ def collect_logout_targets(
 def collect_logout_targets_for_user_client(
     db: Session, user_id: uuid.UUID, client_id: uuid.UUID
 ) -> list[LogoutTarget]:
-    """取消授权时按 用户×客户端 收集：仅限仍活跃的门户会话。"""
+    """取消授权时按 用户×客户端 收集全部未撤销链接。
+
+    不要求门户会话仍活跃：即使门户会话已退出/被撤销，RP 本地会话仍可能
+    存活（它绑定的是历史 sid），取消授权时同样要通知下线。
+    """
     rows = db.execute(
         select(OIDCClientSession, OAuthClient)
         .join(OAuthClient, OIDCClientSession.client_id == OAuthClient.id)
-        .join(SessionModel, OIDCClientSession.session_id == SessionModel.id)
         .where(
             OIDCClientSession.user_id == user_id,
             OIDCClientSession.client_id == client_id,
             OIDCClientSession.revoked_at.is_(None),
-            SessionModel.revoked_at.is_(None),
             OAuthClient.is_active.is_(True),
             OAuthClient.backchannel_logout_uri.is_not(None),
             OAuthClient.backchannel_logout_uri != "",
