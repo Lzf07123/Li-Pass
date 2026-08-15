@@ -2,7 +2,7 @@ from sqlalchemy import select
 
 from app.models.user import User, UserRole
 from app.security.passwords import hash_password
-from tests.helpers import register_and_login
+from tests.helpers import login_with_email_2fa, register_and_login
 
 
 def test_login_rate_limit(client, captured_email) -> None:
@@ -50,9 +50,9 @@ def test_admin_reset_twofa(client, db_session, captured_email) -> None:
         json={"current_password": "password123"},
     )
     assert response.status_code == 200
-    # 2FA 重置会撤销全部会话，需要重新登录后再查状态。
-    client.post(
-        "/api/v1/auth/login",
-        json={"email": "a@example.com", "password": "password123"},
+    # 2FA 重置会撤销全部会话，需要重新登录后再查状态；
+    # 强制 2FA 下重置恢复默认邮箱验证码（登录兜底也保证该不变式）。
+    login_with_email_2fa(
+        client, captured_email, "a@example.com", "password123"
     )
-    assert client.get("/api/v1/me/2fa/status").json()["email_otp_enabled"] is False
+    assert client.get("/api/v1/me/2fa/status").json()["email_otp_enabled"] is True

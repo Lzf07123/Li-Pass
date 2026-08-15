@@ -24,13 +24,16 @@ export function VerifyEmailPage() {
   const submitAction = useAsyncAction(
     async (email: string, code: string) => {
       const result = await authApi.verifyEmail({ email, code });
-      toast.success(result.message, {
-        duration: 8000,
-        action: {
-          label: "去登录",
-          onClick: () => navigate("/login"),
+      toast.success(
+        `${result.message}，已默认开启邮箱二次验证，登录时需要输入邮箱验证码`,
+        {
+          duration: 8000,
+          action: {
+            label: "去登录",
+            onClick: () => navigate("/login"),
+          },
         },
-      });
+      );
     },
     {
       onError: (err) =>

@@ -7,7 +7,7 @@ from sqlalchemy import select
 from app.core.config import get_settings
 from app.models.recovery_code import RecoveryCode
 from app.models.session import Session as SessionModel
-from tests.helpers import register_and_login
+from tests.helpers import login_with_email_2fa, register_and_login
 
 
 def test_avatar_url_rejects_path_traversal(client, captured_email) -> None:
@@ -43,9 +43,8 @@ def test_password_reset_revokes_sessions(client, captured_email) -> None:
     code = captured_email.messages[-1][2]
     client.post("/api/v1/auth/email/verify", json={"email": "a@example.com", "code": code})
     assert client.get("/api/v1/me").status_code == 401
-    client.post(
-        "/api/v1/auth/login",
-        json={"email": "a@example.com", "password": "password123"},
+    login_with_email_2fa(
+        client, captured_email, "a@example.com", "password123"
     )
     assert client.get("/api/v1/me").status_code == 200
 

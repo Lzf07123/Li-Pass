@@ -5,6 +5,8 @@ from tests.helpers import register_and_login
 
 def test_email_2fa_enable_disable(client, captured_email) -> None:
     register_and_login(client, captured_email)
+    # 验证邮箱后已默认开启邮箱验证码。
+    assert client.get("/api/v1/me/2fa/status").json()["email_otp_enabled"] is True
     # 开启/关闭都必须提供当前密码或处于 step-up 窗口内
     response = client.post("/api/v1/me/2fa/email/enable", json={})
     assert response.status_code == 403
@@ -22,12 +24,14 @@ def test_email_2fa_enable_disable(client, captured_email) -> None:
         ).status_code
         == 400
     )
+    # 强制 2FA：邮箱验证码是唯一方案时不允许关闭。
     response = client.post(
         "/api/v1/me/2fa/email/disable",
         json={"current_password": "password123"},
     )
-    assert response.status_code == 200
-    assert client.get("/api/v1/me/2fa/status").json()["email_otp_enabled"] is False
+    assert response.status_code == 400
+    assert "至少保留一种二次验证方式" in response.json()["detail"]
+    assert client.get("/api/v1/me/2fa/status").json()["email_otp_enabled"] is True
 
 
 def test_totp_setup_enable_and_recovery(client, captured_email) -> None:

@@ -4,6 +4,7 @@ from sqlalchemy import select
 
 from app.models.session import Session as SessionModel
 from app.models.user import User, UserStatus
+from tests.helpers import login_with_email_2fa
 
 
 def _as_utc(dt: datetime) -> datetime:
@@ -24,9 +25,8 @@ def register_and_verify(client, captured_email) -> None:
 def test_login_logout_flow(client, captured_email) -> None:
     register_and_verify(client, captured_email)
 
-    response = client.post(
-        "/api/v1/auth/login",
-        json={"email": "a@example.com", "password": "password123"},
+    response = login_with_email_2fa(
+        client, captured_email, "a@example.com", "password123"
     )
     assert response.status_code == 200
     assert "lipass_session" in response.cookies
@@ -43,21 +43,19 @@ def test_login_remember_me_controls_cookie_and_ttl(
 ) -> None:
     register_and_verify(client, captured_email)
 
-    default = client.post(
-        "/api/v1/auth/login",
-        json={"email": "a@example.com", "password": "password123"},
+    default = login_with_email_2fa(
+        client, captured_email, "a@example.com", "password123"
     )
     assert default.status_code == 200
     assert "Max-Age=" not in default.headers["set-cookie"]
     client.post("/api/v1/auth/logout")
 
-    remembered = client.post(
-        "/api/v1/auth/login",
-        json={
-            "email": "a@example.com",
-            "password": "password123",
-            "remember_me": True,
-        },
+    remembered = login_with_email_2fa(
+        client,
+        captured_email,
+        "a@example.com",
+        "password123",
+        remember_me=True,
     )
     assert remembered.status_code == 200
     assert "Max-Age=2592000" in remembered.headers["set-cookie"]
@@ -73,9 +71,8 @@ def test_login_remember_me_controls_cookie_and_ttl(
 
 def test_logout_deletes_cookie_with_matching_attributes(client, captured_email) -> None:
     register_and_verify(client, captured_email)
-    login = client.post(
-        "/api/v1/auth/login",
-        json={"email": "a@example.com", "password": "password123"},
+    login = login_with_email_2fa(
+        client, captured_email, "a@example.com", "password123"
     )
     assert "lipass_session" in login.cookies
     assert "HttpOnly" in login.headers["set-cookie"]
@@ -94,9 +91,8 @@ def test_legacy_portal_session_cookie_still_authenticates(
     client, captured_email
 ) -> None:
     register_and_verify(client, captured_email)
-    login = client.post(
-        "/api/v1/auth/login",
-        json={"email": "a@example.com", "password": "password123"},
+    login = login_with_email_2fa(
+        client, captured_email, "a@example.com", "password123"
     )
     assert login.status_code == 200
     token = login.cookies.get("lipass_session")
@@ -150,10 +146,12 @@ def test_unverified_user_can_login_but_flagged(client, captured_email) -> None:
 
 def test_session_idle_timeout_revokes(client, db_session, captured_email) -> None:
     register_and_verify(client, captured_email)
-    assert client.post(
-        "/api/v1/auth/login",
-        json={"email": "a@example.com", "password": "password123"},
-    ).status_code == 200
+    assert (
+        login_with_email_2fa(
+            client, captured_email, "a@example.com", "password123"
+        ).status_code
+        == 200
+    )
     assert client.get("/api/v1/me").status_code == 200
 
     session = db_session.scalar(select(SessionModel))

@@ -724,15 +724,30 @@ export function DashboardPage() {
               <div>
                 <p className="font-medium text-foreground">邮箱二次验证</p>
                 <p className="mt-0.5 text-sm text-muted">
-                  {twofa?.email_otp_enabled ? "已开启" : "未开启"}
+                  {twofa?.email_otp_enabled ? "已开启（默认方案）" : "未开启"}
                 </p>
+                {twofa?.email_otp_enabled && !twofa?.totp_enabled && (
+                  <p className="mt-0.5 text-xs text-muted">
+                    至少保留一种二次验证方式；如需关闭请先开启 TOTP 认证器
+                  </p>
+                )}
               </div>
               <AsyncButton
                 type="button"
+                aria-label={
+                  twofa?.email_otp_enabled
+                    ? "关闭邮箱二次验证"
+                    : "开启邮箱二次验证"
+                }
                 status={twofaBusy === "email" ? "pending" : "idle"}
                 onClick={toggleEmailTwofa}
                 className={`btn ${twofa?.email_otp_enabled ? "btn-secondary" : "btn-primary"}`}
-                disabled={twofa === null || twofaBusy !== null}
+                disabled={
+                  twofa === null ||
+                  twofaBusy !== null ||
+                  (twofa?.email_otp_enabled === true &&
+                    !twofa?.totp_enabled)
+                }
               >
                 {twofa?.email_otp_enabled ? "关闭" : "开启"}
               </AsyncButton>
@@ -746,14 +761,24 @@ export function DashboardPage() {
                     ? `已开启（剩余恢复码 ${twofa.recovery_codes_remaining}）`
                     : "未开启"}
                 </p>
+                {twofa?.totp_enabled && !twofa?.email_otp_enabled && (
+                  <p className="mt-0.5 text-xs text-muted">
+                    至少保留一种二次验证方式；如需关闭请先开启邮箱验证码
+                  </p>
+                )}
               </div>
               {twofa?.totp_enabled ? (
                 <AsyncButton
                   type="button"
+                  aria-label="关闭 TOTP 认证器"
                   status={twofaBusy === "totp-disable" ? "pending" : "idle"}
                   onClick={disableTotp}
                   className="btn btn-danger"
-                  disabled={twofa === null || twofaBusy !== null}
+                  disabled={
+                    twofa === null ||
+                    twofaBusy !== null ||
+                    !twofa?.email_otp_enabled
+                  }
                 >
                   关闭
                 </AsyncButton>

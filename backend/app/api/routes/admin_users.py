@@ -196,6 +196,8 @@ def create_user(
         status=payload.status or UserStatus.active,
         # 管理员代建账号视为已完成邮箱验证；邀请注册则必须由受邀者激活。
         email_verified_at=datetime.now(timezone.utc),
+        # 强制 2FA：代建账号直接启用邮箱验证码作为默认第二方案。
+        email_otp_enabled=True,
     )
     db.add(user)
     db.commit()
@@ -698,7 +700,9 @@ def reset_twofa(
         session.revoked_at = now
     user.totp_secret_encrypted = None
     user.totp_enabled_at = None
-    user.email_otp_enabled = False
+    # 强制 2FA：管理端重置不把账号清成 1FA，
+    # 而是恢复默认邮箱验证码方案（TOTP 与恢复码全部清空）。
+    user.email_otp_enabled = True
     codes = db.scalars(
         select(RecoveryCode).where(RecoveryCode.user_id == user.id)
     ).all()

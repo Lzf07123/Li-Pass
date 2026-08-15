@@ -5,7 +5,7 @@ from sqlalchemy import select
 from app.core.config import Settings
 from app.models.audit_log import AuditLog
 from app.models.session import Session as SessionModel
-from tests.helpers import register_and_login
+from tests.helpers import login_with_email_2fa, register_and_login
 
 
 def test_stepup_endpoints_require_login(client) -> None:
@@ -166,9 +166,8 @@ def test_stepup_window_is_per_session(
 
     # 登录产生第二个会话：新会话不得继承第一个会话的复核窗口。
     assert (
-        client.post(
-            "/api/v1/auth/login",
-            json={"email": "a@example.com", "password": "password123"},
+        login_with_email_2fa(
+            client, captured_email, "a@example.com", "password123"
         ).status_code
         == 200
     )

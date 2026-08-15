@@ -22,8 +22,11 @@ def test_twofa_enable_disable_without_password_in_window(
 
     assert client.post("/api/v1/me/2fa/email/enable", json={}).status_code == 200
     assert client.get("/api/v1/me/2fa/status").json()["email_otp_enabled"] is True
-    assert client.post("/api/v1/me/2fa/email/disable", json={}).status_code == 200
-    assert client.get("/api/v1/me/2fa/status").json()["email_otp_enabled"] is False
+    # 窗口内免密码复核仍生效；但强制 2FA 下最后一种方案不可关闭。
+    response = client.post("/api/v1/me/2fa/email/disable", json={})
+    assert response.status_code == 400
+    assert "至少保留一种二次验证方式" in response.json()["detail"]
+    assert client.get("/api/v1/me/2fa/status").json()["email_otp_enabled"] is True
 
 
 def test_change_password_without_current_password_in_window(

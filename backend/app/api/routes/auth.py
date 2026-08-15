@@ -237,6 +237,8 @@ def verify_email(
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "验证码无效或已过期")
 
     user.email_verified_at = datetime.now(timezone.utc)
+    # 强制 2FA：验证邮箱后直接启用邮箱验证码作为默认第二方案。
+    user.email_otp_enabled = True
     db.commit()
     log_audit(
         db,
@@ -246,7 +248,7 @@ def verify_email(
         category="auth",
         target_type="user",
         target_id=str(user.id),
-        detail={"email": email},
+        detail={"email": email, "2fa_email_auto_enabled": True},
     )
     return {"message": "邮箱已验证"}
 
@@ -356,6 +358,8 @@ def register_by_invite(
         nickname=payload.nickname,
         password_hash=hash_password(payload.password),
         email_verified_at=now,
+        # 邀请注册即完成邮箱验证，强制 2FA 下默认启用邮箱验证码。
+        email_otp_enabled=True,
     )
     db.add(user)
     try:
@@ -460,6 +464,26 @@ def login(
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "邮箱或密码错误")
     get_rate_limiter().reset("login", f"{user.email}:{ip}")
     get_rate_limiter().reset("login_email", user.email)
+
+    # 登录兜底：已验证邮箱却没有任何 2FA 方案（如迁移遗漏的历史账号），
+    # 强制启用邮箱验证码后再进入挑战，保证「至少一种 2FA」不变式。
+    if (
+        user.email_verified_at is not None
+        and not user.email_otp_enabled
+        and user.totp_secret_encrypted is None
+    ):
+        user.email_otp_enabled = True
+        db.commit()
+        log_audit(
+            db,
+            "user",
+            str(user.id),
+            "2fa_email_auto_enabled",
+            category="2fa",
+            ip=ip,
+            user_agent=user_agent,
+            detail={"reason": "login_fallback"},
+        )
 
     methods = []
     if user.email_otp_enabled:
