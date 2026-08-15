@@ -1,4 +1,4 @@
-name: account-service
+name: lipass
 
 services:
   # 编排内 PostgreSQL：仅在 bundle profile 下启动（默认 `--profile bundle`）。
@@ -64,7 +64,7 @@ services:
       start_period: 5s
 
   backend:
-    image: ${IMAGE_REGISTRY:-}account-service-backend:local
+    image: ${IMAGE_REGISTRY:-}lipass-backend:local
     build:
       context: ./backend
       args:
@@ -83,7 +83,7 @@ services:
       CORS_ORIGINS: "${CORS_ORIGINS:-[\"http://localhost\"]}"
       ALLOWED_HOSTS: "${ALLOWED_HOSTS:-[\"localhost\",\"127.0.0.1\",\"backend\"]}"
       ENVIRONMENT: ${ENVIRONMENT:-development}
-      SESSION_COOKIE_NAME: ${SESSION_COOKIE_NAME:-portal_session}
+      SESSION_COOKIE_NAME: ${SESSION_COOKIE_NAME:-lipass_session}
       SESSION_TTL_DAYS: ${SESSION_TTL_DAYS:-30}
       SESSION_DEFAULT_TTL_DAYS: ${SESSION_DEFAULT_TTL_DAYS:-1}
       SESSION_IDLE_DAYS: ${SESSION_IDLE_DAYS:-7}
@@ -173,7 +173,7 @@ services:
       start_period: 15s
 
   frontend:
-    image: ${IMAGE_REGISTRY:-}account-service-frontend:local
+    image: ${IMAGE_REGISTRY:-}lipass-frontend:local
     build:
       context: ./frontend
       args:
@@ -233,7 +233,7 @@ services:
   # 默认 `docker compose up -d` 不会启动它，避免示例应用混入生产栈。
   demo-site:
     profiles: ["demo"]
-    image: ${IMAGE_REGISTRY:-}account-service-demo-site:local
+    image: ${IMAGE_REGISTRY:-}lipass-demo-site:local
     build:
       context: ./examples/demo-site
       args:
@@ -280,7 +280,7 @@ volumes:
 
 networks:
   default:
-    name: account-service-net
+    name: lipass-net
     ipam:
       config:
         # 固定子网：网关固定在 172.30.0.10，后端只信任该 IP 追加的 X-Forwarded-For。

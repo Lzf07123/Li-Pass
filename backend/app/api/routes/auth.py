@@ -15,7 +15,7 @@ from sqlalchemy import select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app.core.config import get_settings
+from app.core.config import LEGACY_SESSION_COOKIE_NAME, get_settings
 from app.core.db import get_db
 from app.api.deps import clear_session_cookie
 from app.models.account_invite import AccountInvite
@@ -682,7 +682,9 @@ def logout(
     background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
 ) -> dict:
-    token = request.cookies.get(settings.session_cookie_name)
+    token = request.cookies.get(settings.session_cookie_name) or request.cookies.get(
+        LEGACY_SESSION_COOKIE_NAME
+    )
     targets: list = []
     funnel_uris: list[str] = []
     if token:

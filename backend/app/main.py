@@ -26,7 +26,7 @@ from app.api.routes import messages as messages_routes
 from app.api.routes import oidc as oidc_routes
 from app.api.routes import users as user_routes
 from app.api.routes import twofa as twofa_routes
-from app.core.config import get_settings
+from app.core.config import LEGACY_SESSION_COOKIE_NAME, get_settings
 from app.core.db import get_db
 from app.core.redis import get_redis_client
 from app.services.avatar_cleanup import cleanup_orphan_avatars
@@ -157,7 +157,11 @@ def create_app() -> FastAPI:
         """
         if request.method in {"POST", "PUT", "PATCH", "DELETE"}:
             origin = request.headers.get("origin")
-            if origin and request.cookies.get(settings.session_cookie_name):
+            has_session_cookie = (
+                request.cookies.get(settings.session_cookie_name)
+                or request.cookies.get(LEGACY_SESSION_COOKIE_NAME)
+            )
+            if origin and has_session_cookie:
                 if origin.rstrip("/") not in _allowed_origins:
                     return JSONResponse(
                         status_code=403, content={"detail": "跨站请求被拒绝"}

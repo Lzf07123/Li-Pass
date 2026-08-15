@@ -29,7 +29,7 @@ def test_login_logout_flow(client, captured_email) -> None:
         json={"email": "a@example.com", "password": "password123"},
     )
     assert response.status_code == 200
-    assert "portal_session" in response.cookies
+    assert "lipass_session" in response.cookies
 
     assert client.get("/api/v1/me").status_code == 200
     logout = client.post("/api/v1/auth/logout")
@@ -77,17 +77,39 @@ def test_logout_deletes_cookie_with_matching_attributes(client, captured_email) 
         "/api/v1/auth/login",
         json={"email": "a@example.com", "password": "password123"},
     )
-    assert "portal_session" in login.cookies
+    assert "lipass_session" in login.cookies
     assert "HttpOnly" in login.headers["set-cookie"]
     assert "SameSite=lax" in login.headers["set-cookie"]
 
     logout = client.post("/api/v1/auth/logout")
     assert logout.status_code == 200
     delete_header = logout.headers["set-cookie"]
-    assert "portal_session=" in delete_header
+    assert "lipass_session=" in delete_header
     assert "Max-Age=0" in delete_header
     assert "HttpOnly" in delete_header
     assert "SameSite=lax" in delete_header
+
+
+def test_legacy_portal_session_cookie_still_authenticates(
+    client, captured_email
+) -> None:
+    register_and_verify(client, captured_email)
+    login = client.post(
+        "/api/v1/auth/login",
+        json={"email": "a@example.com", "password": "password123"},
+    )
+    assert login.status_code == 200
+    token = login.cookies.get("lipass_session")
+    assert token
+    client.cookies.clear()
+    client.cookies.set("portal_session", token)
+    assert client.get("/api/v1/me").status_code == 200
+    logout = client.post("/api/v1/auth/logout")
+    assert logout.status_code == 200
+    delete_headers = logout.headers.get_list("set-cookie")
+    assert any("lipass_session=" in h for h in delete_headers)
+    assert any("portal_session=" in h for h in delete_headers)
+    assert client.get("/api/v1/me").status_code == 401
 
 
 def test_login_wrong_password(client, captured_email) -> None:

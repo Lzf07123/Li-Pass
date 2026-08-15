@@ -305,8 +305,11 @@ https://your-site.example/logout?next=<下一个目标或门户登录页的 URL 
 
 `id_token` 携带 `acr`：
 
-- `urn:portal-oss:acr:1fa`：仅密码登录
-- `urn:portal-oss:acr:2fa`：经过邮箱验证码 / TOTP / 恢复码二次验证
+- `urn:lipass:acr:1fa`：仅密码登录
+- `urn:lipass:acr:2fa`：经过邮箱验证码 / TOTP / 恢复码二次验证
+
+> 品牌改名前的历史令牌在过期前仍携带 `urn:portal-oss:acr:1fa/2fa`；
+> 升级期间按“两套值等价”校验，窗口过后只保留 `urn:lipass:acr:*`。
 
 需要强认证的网站可校验该声明，拒绝 1fa 会话。
 

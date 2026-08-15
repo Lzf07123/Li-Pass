@@ -31,7 +31,7 @@
 ## 项目结构
 
 ```
-account-service/
+lipass/
 ├── backend/                 # FastAPI 认证服务
 │   ├── app/
 │   │   ├── api/             # REST API 与 OIDC 端点（routes/oidc.py）

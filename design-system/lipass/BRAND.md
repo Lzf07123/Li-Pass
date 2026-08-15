@@ -344,8 +344,8 @@ window.addEventListener("scroll", () => {
 
 | 层级 | 文件 | 职责 |
 | --- | --- | --- |
-| 品牌意图 | `design-system/portal-oss/BRAND.md`（本文件） | 定位、原则、视觉方向、氛围动效标准 |
-| 实现速览 | `design-system/portal-oss/MASTER.md` | 令牌、组件、页面模式的落地快照 |
+| 品牌意图 | `design-system/lipass/BRAND.md`（本文件） | 定位、原则、视觉方向、氛围动效标准 |
+| 实现速览 | `design-system/lipass/MASTER.md` | 令牌、组件、页面模式的落地快照 |
 | 代码事实 | `frontend/src/index.css` | 颜色/阴影/动效令牌的唯一出处 |
 | 品牌资产 | `frontend/src/lib/brand.ts` + `public/` | 名称、slogan、Logo、备案的唯一出处 |
 

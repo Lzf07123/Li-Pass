@@ -438,9 +438,9 @@ def token(
             client.client_id,
             record.nonce,
             record.scope,
-            "urn:portal-oss:acr:2fa"
+            "urn:lipass:acr:2fa"
             if record.auth_method in ("email_otp", "totp", "recovery")
-            else "urn:portal-oss:acr:1fa",
+            else "urn:lipass:acr:1fa",
             sid=str(record.session_id) if record.session_id else None,
         ),
     }

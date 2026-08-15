@@ -5,6 +5,10 @@ from urllib.parse import urlparse
 from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+# 品牌改名过渡期保留的旧会话 Cookie 名：旧浏览器里尚未过期的会话继续可验证，
+# 直到自然过期；新会话一律签发 lipass_session。
+LEGACY_SESSION_COOKIE_NAME = "portal_session"
+
 # .env 固定相对 config.py 解析（backend/.env），与进程工作目录解耦：
 # 从仓库根或任意目录启动/测试时，不会误加载根目录的部署 .env。
 ENV_FILE = str(Path(__file__).resolve().parents[2] / ".env")
@@ -19,7 +23,7 @@ class Settings(BaseSettings):
     environment: str = "development"
     database_url: str = "postgresql+psycopg://portal:portal@localhost:5432/portal"
     redis_url: str = "redis://localhost:6379/0"
-    session_cookie_name: str = "portal_session"
+    session_cookie_name: str = "lipass_session"
     session_cookie_secure: bool = False
     session_cookie_samesite: str = "lax"
     session_ttl_days: int = 30

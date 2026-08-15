@@ -1,6 +1,6 @@
 # 里程碑 1：项目骨架与基础账号体系 Implementation Plan
 
-> **状态：已完成（2026-08-12）** —— 最终实现与行为以仓库代码为准；项目品牌名为 **Li&Pass**（Compose 等技术标识仍为 `portal-oss`），部署形态最终包含内置 `gateway`（nginx）单域名网关。部署/运维见 [docs/deployment.md](../../deployment.md)，OIDC 对接见 [docs/oidc-integration.md](../../oidc-integration.md)。本文件为历史实施计划，不替代当前文档。
+> **状态：已完成（2026-08-12）** —— 最终实现与行为以仓库代码为准；项目品牌名为 **Li&Pass**（Compose 等技术标识仍为 `lipass`），部署形态最终包含内置 `gateway`（nginx）单域名网关。部署/运维见 [docs/deployment.md](../../deployment.md)，OIDC 对接见 [docs/oidc-integration.md](../../oidc-integration.md)。本文件为历史实施计划，不替代当前文档。
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
@@ -106,7 +106,7 @@ class Settings(BaseSettings):
     environment: str = "development"
     database_url: str = "postgresql+psycopg://portal:portal@localhost:5432/portal"
     redis_url: str = "redis://localhost:6379/0"
-    session_cookie_name: str = "portal_session"
+    session_cookie_name: str = "lipass_session"
     session_cookie_secure: bool = False
     session_cookie_samesite: str = "lax"
     session_ttl_days: int = 30
@@ -1060,7 +1060,7 @@ git commit -m "feat: 实现注册、邮箱激活与当前用户接口"
 
 **Interfaces:**
 - Consumes: Task 4 的 `POST /api/v1/auth/login`、`POST /api/v1/auth/logout`、`GET /api/v1/me`。
-- Produces: 门户会话 Cookie `portal_session`；登录/退出行为契约（见测试）。
+- Produces: 门户会话 Cookie `lipass_session`；登录/退出行为契约（见测试）。
 
 - [ ] **Step 1: 编写失败测试**
 
@@ -1089,7 +1089,7 @@ def test_login_logout_flow(client, captured_email) -> None:
         json={"email": "a@example.com", "password": "password123"},
     )
     assert response.status_code == 200
-    assert "portal_session" in response.cookies
+    assert "lipass_session" in response.cookies
 
     assert client.get("/api/v1/me").status_code == 200
     assert client.post("/api/v1/auth/logout").status_code == 204
@@ -1135,7 +1135,7 @@ def test_unverified_user_can_login_but_flagged(client, captured_email) -> None:
 
 Run: `cd backend && .venv/bin/python -m pytest tests/test_auth_login.py -v`
 
-Expected: FAIL（`portal_session` 未设置或断言失败）。
+Expected: FAIL（`lipass_session` 未设置或断言失败）。
 
 - [ ] **Step 3: 实现登录与退出路由**
 

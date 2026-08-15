@@ -12,8 +12,11 @@ from cryptography.hazmat.primitives.asymmetric import rsa
 from app.core.config import get_settings
 from app.security.crypto import atomic_write_bytes, read_key_bytes_with_retry
 
-# 单文件模式（历史部署）使用的固定 kid；目录模式下 kid 取自文件名。
-LEGACY_KID = "portal-rs256-1"
+# 单文件模式使用的固定 kid；目录模式下 kid 取自文件名。
+LEGACY_KID = "lipass-rs256-1"
+# 品牌改名前的历史 kid：同密钥签发的旧令牌在过期前仍应可验证，
+# JWKS 同时发布两个 kid 指向同一把公钥。
+DEPRECATED_KID = "portal-rs256-1"
 
 
 def _generate_private_key() -> object:
@@ -83,7 +86,7 @@ def _verification_key(settings, kid: str | None) -> object:
         if kid is None or kid not in keys:
             raise jwt.InvalidKeyError(f"未知 kid: {kid}")
         return keys[kid][1]
-    if kid is not None and kid != LEGACY_KID:
+    if kid not in (LEGACY_KID, DEPRECATED_KID):
         raise jwt.InvalidKeyError(f"未知 kid: {kid}")
     return _load_key_pair(settings.jwt_private_key_path)[1]
 
@@ -138,7 +141,7 @@ def create_id_token(
     client_id: str,
     nonce: str | None,
     scope: str,
-    acr: str = "urn:portal-oss:acr:1fa",
+    acr: str = "urn:lipass:acr:1fa",
     sid: str | None = None,
 ) -> str:
     settings = get_settings()
@@ -210,7 +213,12 @@ def public_jwks() -> dict:
         keys = _load_key_dir(settings.jwt_keys_dir)
         return {"keys": [_jwk(kid, public_key) for kid, (_, public_key) in sorted(keys.items())]}
     _, public_key = _load_key_pair(settings.jwt_private_key_path)
-    return {"keys": [_jwk(LEGACY_KID, public_key)]}
+    return {
+        "keys": [
+            _jwk(LEGACY_KID, public_key),
+            _jwk(DEPRECATED_KID, public_key),
+        ]
+    }
 
 
 def _jwk(kid: str, public_key) -> dict:

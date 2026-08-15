@@ -36,7 +36,7 @@
 采用单仓库、前后端分离结构，前端和后端可独立开发、独立部署。
 
 ```
-portal-oss/
+lipass/
 ├── backend/                 # FastAPI 认证服务
 │   ├── app/
 │   │   ├── api/             # REST API 与 OIDC 端点（routes/oidc.py）
@@ -424,8 +424,8 @@ erDiagram
 
 | 层级 | 文件 | 职责 |
 | --- | --- | --- |
-| 品牌意图 | `design-system/portal-oss/BRAND.md` | 品牌定位、设计原则、视觉方向、氛围动效标准 |
-| 落地规格 | `design-system/portal-oss/MASTER.md` | 令牌、组件、页面模式的实现快照 |
+| 品牌意图 | `design-system/lipass/BRAND.md` | 品牌定位、设计原则、视觉方向、氛围动效标准 |
+| 落地规格 | `design-system/lipass/MASTER.md` | 令牌、组件、页面模式的实现快照 |
 | 代码事实 | `frontend/src/index.css` + `frontend/src/lib/brand.ts` | 颜色/阴影/动效令牌、品牌文案与资源 |
 
 冲突时以代码事实为准，但必须同步回写 MASTER.md 与 BRAND.md，防止文档漂移。

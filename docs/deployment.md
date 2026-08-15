@@ -13,7 +13,7 @@ Li&Pass 使用 Docker Compose 部署。仓库内置 `gateway`（nginx）作为**
 后端 → PostgreSQL 16（数据）+ Redis 7（挑战/限流/待授权请求）
 后端密钥卷：/app/keys（JWT 私钥 + Fernet 加密密钥）
 后端上传卷：/app/uploads（用户头像）
-命名卷（compose 项目固定为 `account-service`，卷名前缀 `account-service_`）：
+命名卷（compose 项目固定为 `lipass`，卷名前缀 `lipass_`）：
 `postgres-data-prod`、`redis-data-prod`、`backend-keys`、`backend-uploads`
 ```
 
@@ -204,7 +204,7 @@ SMTP_RETRY_DELAY_SECONDS=1
 - **必须备份该卷**：
 
 ```bash
-docker run --rm -v account-service_backend-keys:/keys -v "$PWD":/backup alpine \
+docker run --rm -v lipass_backend-keys:/keys -v "$PWD":/backup alpine \
   tar czf /backup/backend-keys.tar.gz -C /keys .
 ```
 
@@ -214,17 +214,17 @@ docker run --rm -v account-service_backend-keys:/keys -v "$PWD":/backup alpine \
 
 ### JWT 签名密钥轮换
 
-单文件模式使用固定 kid `portal-rs256-1`。需要轮换时切换到目录模式：
+单文件模式使用固定 kid `lipass-rs256-1`。需要轮换时切换到目录模式：
 
-1. 把现有私钥重命名为 `portal-rs256-1.pem` 放入密钥目录（如 `/app/keys/jwt/`，仍位于 `backend-keys` 卷内），配置 `JWT_KEYS_DIR=/app/keys/jwt`。
+1. 把现有私钥重命名为 `lipass-rs256-1.pem` 放入密钥目录（如 `/app/keys/jwt/`，仍位于 `backend-keys` 卷内），配置 `JWT_KEYS_DIR=/app/keys/jwt`。
 2. 在 backend 容器内生成下一把密钥：
 
    ```bash
    docker compose exec backend python -m scripts.rotate_jwt_key
    ```
 
-   脚本生成 `portal-rs256-2.pem`（依次递增）并打印发布步骤。
-3. 设置 `JWT_ACTIVE_KID=portal-rs256-2` 并滚动重启 backend。新进程用新 kid 签名；JWKS 端点会同时发布目录内全部公钥，旧 kid 签发的 token 仍可验证。
+   脚本生成 `lipass-rs256-2.pem`（依次递增，历史 `portal-rs256-*.pem` 也参与编号避免撞号）并打印发布步骤。
+3. 设置 `JWT_ACTIVE_KID=lipass-rs256-2` 并滚动重启 backend。新进程用新 kid 签名；JWKS 端点会同时发布目录内全部公钥，旧 kid 签发的 token 仍可验证。
 4. 等待超过 access token 最长有效期（15 分钟，建议 1 小时）后，删除目录内旧 `*.pem` 文件并再次滚动重启。`JWT_ACTIVE_KID` 必须始终指向目录中存在的密钥。
 
 注意事项：密钥目录在进程内按路径缓存，新增/删除密钥后必须重启进程生效；不要在多个 worker 进程同时跑轮换脚本（`atomic_write` 的独占创建会保证只生成一次，但应避免并发执行）。
@@ -251,7 +251,7 @@ gunzip -c portal-20260101-120000.sql.gz | \
 建议配置定时任务（cron/云备份）并定期演练恢复。用户头像存储在 `backend-uploads` 卷，同样需要备份：
 
 ```bash
-docker run --rm -v account-service_backend-uploads:/uploads -v "$PWD":/backup alpine \
+docker run --rm -v lipass_backend-uploads:/uploads -v "$PWD":/backup alpine \
   tar czf /backup/backend-uploads.tar.gz -C /uploads .
 ```
 
@@ -297,17 +297,43 @@ docker compose --profile bundle exec backend alembic downgrade -1
 
 | 服务 | 数据内容 | 存储位置 | 重建容器后 |
 | --- | --- | --- | --- |
-| PostgreSQL | 用户/会话/OAuth/审计/授权记录 | `account-service_postgres-data-prod`（`/var/lib/postgresql/data`） | 数据保留 |
-| Redis | 验证码、2FA 挑战、待授权请求、限流计数 | `account-service_redis-data-prod`（`/data`，RDB + AOF） | 数据保留（短 TTL 数据本就过期） |
-| 后端 | JWT 私钥、Fernet 加密密钥 | `account-service_backend-keys`（`/app/keys`） | 密钥保留 |
-| 后端 | 用户头像 | `account-service_backend-uploads`（`/app/uploads`） | 头像保留 |
-| 后端 | ip2region 离线库（含运行期更新结果） | `account-service_backend-data`（`/app/data`） | 保留（首次挂载自动带入镜像内置数据） |
+| PostgreSQL | 用户/会话/OAuth/审计/授权记录 | `lipass_postgres-data-prod`（`/var/lib/postgresql/data`） | 数据保留 |
+| Redis | 验证码、2FA 挑战、待授权请求、限流计数 | `lipass_redis-data-prod`（`/data`，RDB + AOF） | 数据保留（短 TTL 数据本就过期） |
+| 后端 | JWT 私钥、Fernet 加密密钥 | `lipass_backend-keys`（`/app/keys`） | 密钥保留 |
+| 后端 | 用户头像 | `lipass_backend-uploads`（`/app/uploads`） | 头像保留 |
+| 后端 | ip2region 离线库（含运行期更新结果） | `lipass_backend-data`（`/app/data`） | 保留（首次挂载自动带入镜像内置数据） |
 | 前端 nginx | 无（仅静态构建产物） | 容器层 | 重建后由镜像重新提供 |
 | 示例授权网站 | 无 | 容器层 | 重建后恢复默认 |
 
 Redis 已通过 `--appendonly yes` 显式开启 AOF（可用 `REDIS_APPENDONLY=no` 关闭）。验证码/挑战/限流本身是短生命周期数据，即使丢失也只是要求用户重试，**唯一不可再生的数据是 PostgreSQL 与后端密钥卷**。
 
 ⚠️ 停止容器不会删数据，但 **`docker compose down -v` 会删除全部命名卷**（数据库、密钥、头像一次性清空且难以恢复）。删除卷前务必先备份并确认。
+
+## 标识迁移（LinPass/portal → Li&Pass/lipass）
+
+品牌与技术标识统一改名后的映射与兼容策略（旧值在过渡期继续可验证，不会让既有会话或已发令牌立即失效）：
+
+| 类型 | 旧标识 | 新标识 | 兼容策略 |
+| --- | --- | --- | --- |
+| 会话 Cookie | `portal_session` | `lipass_session` | 后端同时接受两个名字；新会话签发新名，登出同时删除两个名字；旧 Cookie 自然过期后自动退出 |
+| JWT kid（单文件模式） | `portal-rs256-1` | `lipass-rs256-1` | JWKS 同时发布两个 kid 指向同一公钥；旧 kid 令牌到期前仍可验证；新签名一律用新 kid |
+| acr 声明 | `urn:portal-oss:acr:1fa/2fa` | `urn:lipass:acr:1fa/2fa` | 接入方在升级期按“两套值等价”校验；旧令牌最长 15 分钟即过期 |
+| Compose 项目/镜像 | `account-service`、`account-service-*-:local` | `lipass`、`lipass-*-:local` | 纯部署层命名，重新构建镜像即可 |
+| Compose 网络 | `account-service-net` | `lipass-net` | 随 `docker compose up` 自动重建 |
+| 命名卷 | `account-service_*` | `lipass_*` | 卷名变化，升级前需迁移数据（见下） |
+
+从旧版 compose 升级时，数据卷不会自动跟到新名字，先迁移再拉起新栈：
+
+```bash
+# 停止旧栈后复制数据卷（示例：PostgreSQL 主数据卷）
+docker volume create lipass_postgres-data-prod
+docker run --rm \
+  -v account-service_postgres-data-prod:/from:ro \
+  -v lipass_postgres-data-prod:/to \
+  alpine sh -c 'cp -a /from/. /to/'
+```
+
+`backend-keys`（JWT 私钥）与 `backend-uploads`（头像）同理；Redis 数据为短 TTL 缓存，可不迁移。
 
 ## HTTPS 与反向代理
 
@@ -428,7 +454,7 @@ sudo chmod +x /etc/letsencrypt/renewal-hooks/deploy/reload-nginx.sh
 `docker-compose.yaml` 的所有镜像地址统一由一个环境变量 `IMAGE_REGISTRY` 控制（默认留空 = 官方 Docker Hub）。它会同时作用于：
 
 - 基础设施镜像：`postgres:16-alpine`、`redis:7-alpine`
-- 自建服务镜像：`account-service-backend:local`、`account-service-frontend:local`、`account-service-demo-site:local`（同时作为 `docker compose build` 的标签）
+- 自建服务镜像：`lipass-backend:local`、`lipass-frontend:local`、`lipass-demo-site:local`（同时作为 `docker compose build` 的标签）
 - 构建基础镜像：`python:3.12-slim`、`node:22-alpine`（前端依赖要求 Node ≥22.14）、`nginx:1.27-alpine`（作为构建参数传入 Dockerfile）。国内构建全面走中科大镜像：后端与演示站 `apt-get update` 通过 `APT_MIRROR`（默认 `http://mirrors.ustc.edu.cn/debian`，海外改回 `http://deb.debian.org/debian`），`pip install` 通过 `PIP_INDEX_URL`（默认 `https://mirrors.ustc.edu.cn/pypi/simple`，海外改回 `https://pypi.org/simple`）；前端 `npm ci` 通过项目 `.npmrc` 使用 `registry.npmmirror.com`（USTC npm 镜像已停服并重定向至此，海外可临时覆盖回 npmjs）。
 
 私有仓库 / 内网镜像源场景只需在 `.env` 设置一个变量（**必须以 `/` 结尾**）：
@@ -437,7 +463,7 @@ sudo chmod +x /etc/letsencrypt/renewal-hooks/deploy/reload-nginx.sh
   IMAGE_REGISTRY=registry.example.com/
   ```
 
-渲染后的镜像地址示例：`registry.example.com/postgres:16-alpine`、`registry.example.com/account-service-backend:local`。
+渲染后的镜像地址示例：`registry.example.com/postgres:16-alpine`、`registry.example.com/lipass-backend:local`。
 
 本地构建并推送：先构建并推送到私有仓库，生产端设置同一 `IMAGE_REGISTRY` 直接拉取：
 

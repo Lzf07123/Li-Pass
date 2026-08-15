@@ -4,7 +4,7 @@
 - 状态：已实施完成（2026-08-14）
 - 范围：前端品牌氛围动效（`frontend/src`）
 - 技术栈：React 19 + TypeScript + 原生 Canvas 2D，无第三方依赖
-- 关联文档：[品牌 UI 设计报告](../../../design-system/portal-oss/BRAND.md)（品牌意图，第 4 章）、[设计系统快照](../../../design-system/portal-oss/MASTER.md)（落地规格）
+- 关联文档：[品牌 UI 设计报告](../../../design-system/lipass/BRAND.md)（品牌意图，第 4 章）、[设计系统快照](../../../design-system/lipass/MASTER.md)（落地规格）
 
 ## 1. 目标
 
@@ -83,7 +83,7 @@ useFloatingBackground(canvasRef, {
 
 - `npm run test`：22 个测试文件共 55 用例通过，其中 `FloatingBackground.test.tsx` 8 个用例覆盖：形状绘制与循环推进、透明画布、`theme="auto"` 跟随 `html.dark`、`calm` 减速减半、`scrollWind` 滚动提速、移动端限量、减弱动效静态帧、卸载清理。
 - `npm run lint`（oxlint）与 `npm run build`（tsc + vite）通过。
-- 待补：浏览器可用的截图对比（`design-system/portal-oss/preview/` 现有预览图为 2026-08-12 旧版，需在氛围层落地后重新生成）。
+- 待补：浏览器可用的截图对比（`design-system/lipass/preview/` 现有预览图为 2026-08-12 旧版，需在氛围层落地后重新生成）。
 
 ## 8. 后续统一风格约束
 

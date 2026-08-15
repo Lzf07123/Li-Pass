@@ -1,6 +1,6 @@
 # 里程碑 5：生产部署与对接文档 Implementation Plan
 
-> **状态：已完成（2026-08-12）** —— 最终实现与行为以仓库代码为准；项目品牌名为 **Li&Pass**（`urn:portal-oss:acr:*` 与 Compose 卷/镜像名仍为代码中的固定技术标识）。部署/运维见 [docs/deployment.md](../../deployment.md)，OIDC 对接见 [docs/oidc-integration.md](../../oidc-integration.md)。本文件为历史实施计划，不替代当前文档。
+> **状态：已完成（2026-08-12）** —— 最终实现与行为以仓库代码为准；项目品牌名为 **Li&Pass**（`urn:lipass:acr:*` 与 Compose 卷/镜像名仍为代码中的固定技术标识）。部署/运维见 [docs/deployment.md](../../deployment.md)，OIDC 对接见 [docs/oidc-integration.md](../../oidc-integration.md)。本文件为历史实施计划，不替代当前文档。
 > 注：部署形态最终合并为单一 `docker-compose.yaml`（不再使用计划中的 `docker-compose.prod.yml` / `.env.prod`），并新增内置 `gateway`（nginx）单域名网关作为唯一对外入口。
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
@@ -210,7 +210,7 @@ git commit -m "docs: 部署与运维文档"
 - Python 示例（requests，与 `examples/demo-site/app.py` 一致）与 Node 示例（fetch）。
 - 机密客户端说明：`client_secret` 只显示一次；可调 `/oauth2/client/blocks` 自助黑名单（Basic 鉴权）。
 - 错误码：`invalid_request/invalid_scope/unauthorized_client/invalid_redirect_uri/access_denied`（含 `error_description=account_blocked`）、`invalid_grant`、`invalid_client`、`invalid_token`。
-- `acr` 声明：`urn:portal-oss:acr:1fa` / `urn:portal-oss:acr:2fa`，需要强认证的网站可据此要求。
+- `acr` 声明：`urn:lipass:acr:1fa` / `urn:lipass:acr:2fa`，需要强认证的网站可据此要求。
 
 完成并提交：
 

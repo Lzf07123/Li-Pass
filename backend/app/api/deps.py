@@ -4,7 +4,7 @@ from fastapi import Depends, HTTPException, Request, status
 from sqlalchemy import select, update
 from sqlalchemy.orm import Session
 
-from app.core.config import get_settings
+from app.core.config import LEGACY_SESSION_COOKIE_NAME, get_settings
 from app.core.db import get_db
 from app.models.session import Session as SessionModel
 from app.models.user import User, UserRole, UserStatus
@@ -34,7 +34,9 @@ def _load_identity(request: Request, db: Session) -> tuple[SessionModel, User]:
         return cached
 
     settings = get_settings()
-    token = request.cookies.get(settings.session_cookie_name)
+    token = request.cookies.get(settings.session_cookie_name) or request.cookies.get(
+        LEGACY_SESSION_COOKIE_NAME
+    )
     if not token:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Not authenticated")
 
@@ -107,11 +109,12 @@ def get_optional_session(
 
 def clear_session_cookie(response) -> None:
     """删除门户会话 Cookie；属性必须与设置时一致（Secure/SameSite/HttpOnly），
-    否则 HTTPS 生产环境浏览器可能不认可删除指令。"""
+   否则 HTTPS 生产环境浏览器可能不认可删除指令。"""
     settings = get_settings()
-    response.delete_cookie(
-        settings.session_cookie_name,
-        secure=settings.session_cookie_secure,
-        httponly=True,
-        samesite=settings.session_cookie_samesite,
-    )
+    for name in (settings.session_cookie_name, LEGACY_SESSION_COOKIE_NAME):
+        response.delete_cookie(
+            name,
+            secure=settings.session_cookie_secure,
+            httponly=True,
+            samesite=settings.session_cookie_samesite,
+        )

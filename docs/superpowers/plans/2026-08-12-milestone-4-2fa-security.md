@@ -618,7 +618,7 @@ def test_email_2fa_login_flow(client, captured_email) -> None:
     assert body["requires_2fa"] is True
     challenge_id = body["challenge_id"]
     assert "email_otp" in body["methods"]
-    assert "portal_session" not in response.cookies
+    assert "lipass_session" not in response.cookies
 
     code = captured_email.messages[-1][2]
     response = client.post(
@@ -626,7 +626,7 @@ def test_email_2fa_login_flow(client, captured_email) -> None:
         json={"challenge_id": challenge_id, "method": "email_otp", "code": code},
     )
     assert response.status_code == 200
-    assert "portal_session" in response.cookies
+    assert "lipass_session" in response.cookies
 
 
 def test_totp_login_flow(client, captured_email) -> None:
@@ -648,7 +648,7 @@ def test_totp_login_flow(client, captured_email) -> None:
         json={"challenge_id": challenge_id, "method": "totp", "code": pyotp.TOTP(secret).now()},
     )
     assert response.status_code == 200
-    assert "portal_session" in response.cookies
+    assert "lipass_session" in response.cookies
 
 
 def test_recovery_code_login(client, captured_email) -> None:
@@ -670,7 +670,7 @@ def test_recovery_code_login(client, captured_email) -> None:
         json={"challenge_id": challenge_id, "method": "recovery", "code": recovery},
     )
     assert response.status_code == 200
-    assert "portal_session" in response.cookies
+    assert "lipass_session" in response.cookies
 
 
 def test_2fa_verify_attempts_lock(client, captured_email) -> None:
@@ -760,7 +760,7 @@ return serialize_user(user)
 
 `_create_session_and_cookie` 从原 login 逻辑提取（创建 Session、写 Cookie、更新 last_login）。
 
-acr：`AuthorizationCode` 增加 `auth_method`（默认 `"password"`）；`create_authorization_code(..., auth_method="password")`；authorize 自动放行与 approve 用 `get_current_session(request, db).auth_method`；token 端点 `create_id_token(..., acr="urn:portal-oss:acr:2fa" if record.auth_method in ("email_otp","totp","recovery") else "urn:portal-oss:acr:1fa")`；`create_id_token` 增加 `acr` 参数并写入 payload。
+acr：`AuthorizationCode` 增加 `auth_method`（默认 `"password"`）；`create_authorization_code(..., auth_method="password")`；authorize 自动放行与 approve 用 `get_current_session(request, db).auth_method`；token 端点 `create_id_token(..., acr="urn:lipass:acr:2fa" if record.auth_method in ("email_otp","totp","recovery") else "urn:lipass:acr:1fa")`；`create_id_token` 增加 `acr` 参数并写入 payload。
 
 - [ ] **Step 4: 运行测试确认通过并提交**
 

@@ -57,7 +57,7 @@ def test_client_logout_fields_defaults(db_session) -> None:
     assert client.backchannel_logout_uri is None
 
 
-def test_oidc_client_session_tracks_portal_session(db_session) -> None:
+def test_oidc_client_session_tracks_lipass_session(db_session) -> None:
     user = User(email="u@example.com", password_hash="x", nickname="U")
     client = OAuthClient(client_id="cli_x", name="X", redirect_uris=["http://x/cb"])
     db_session.add_all([user, client])

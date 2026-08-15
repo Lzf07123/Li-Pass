@@ -4,7 +4,7 @@
 
 前提：
 1. 已配置 JWT_KEYS_DIR（如 /app/keys/jwt），目录中每个 *.pem 的文件名即 kid；
-2. 迁移单文件模式时，把原 jwt_private.pem 重命名为 portal-rs256-1.pem
+2. 迁移单文件模式时，把原 jwt_private.pem 重命名为 lipass-rs256-1.pem
    放入该目录，保证旧 token 的 kid 继续可验证。
 
 脚本只生成新密钥、不修改运行态；按打印的步骤滚动更新 JWT_ACTIVE_KID 并重启，
@@ -21,17 +21,22 @@ from cryptography.hazmat.primitives.asymmetric import rsa
 from app.core.config import get_settings
 from app.security.crypto import atomic_write_bytes
 
-KID_PATTERN = re.compile(r"^portal-rs256-(\d+)\.pem$")
+KID_PATTERN = re.compile(r"^lipass-rs256-(\d+)\.pem$")
+# 品牌改名前的历史文件（portal-rs256-*.pem）继续参与编号，避免新密钥
+# 与其撞号；旧文件可继续用其文件名作 kid 验证历史 token。
+LEGACY_KID_PATTERN = re.compile(r"^portal-rs256-(\d+)\.pem$")
 
 
 def next_kid(keys_dir: Path) -> str:
-    """在现有 portal-rs256-*.pem 之上取下一个连续编号，默认从 2 开始。"""
-    existing = [
-        int(match.group(1))
-        for pem in keys_dir.glob("*.pem")
-        if (match := KID_PATTERN.match(pem.name)) is not None
-    ]
-    return f"portal-rs256-{max(existing, default=1) + 1}"
+    """在现有 lipass-rs256-*/portal-rs256-* 文件之上取下一个连续编号。"""
+    existing: list[int] = []
+    for pem in keys_dir.glob("*.pem"):
+        for pattern in (KID_PATTERN, LEGACY_KID_PATTERN):
+            match = pattern.match(pem.name)
+            if match is not None:
+                existing.append(int(match.group(1)))
+                break
+    return f"lipass-rs256-{max(existing, default=1) + 1}"
 
 
 def main() -> int:
@@ -40,7 +45,7 @@ def main() -> int:
         print("未配置 JWT_KEYS_DIR，无法生成轮换密钥。", file=sys.stderr)
         print(
             "请先设置 JWT_KEYS_DIR（如 /app/keys/jwt），并把现有 "
-            "jwt_private.pem 重命名为 portal-rs256-1.pem 放入该目录后重试。",
+            "jwt_private.pem 重命名为 lipass-rs256-1.pem 放入该目录后重试。",
             file=sys.stderr,
         )
         return 1

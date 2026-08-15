@@ -46,7 +46,7 @@ def test_id_token_has_nonce_and_acr() -> None:
     token = create_id_token(FakeUser(), "cli_demo", "nonce-123", "openid")
     claims = decode_token(token, audience="cli_demo")
     assert claims["nonce"] == "nonce-123"
-    assert claims["acr"] == "urn:portal-oss:acr:1fa"
+    assert claims["acr"] == "urn:lipass:acr:1fa"
     # 仅授权 openid 时不应泄露 email/nickname。
     assert "email" not in claims
     assert "nickname" not in claims
@@ -67,9 +67,36 @@ def test_id_token_claims_follow_scope() -> None:
 
 def test_jwks_contains_rs256_key() -> None:
     jwks = public_jwks()
-    assert jwks["keys"][0]["alg"] == "RS256"
-    assert jwks["keys"][0]["kty"] == "RSA"
-    assert jwks["keys"][0]["kid"] == "portal-rs256-1"
+    assert {key["kid"] for key in jwks["keys"]} == {
+        "lipass-rs256-1",
+        "portal-rs256-1",
+    }
+    assert all(key["alg"] == "RS256" for key in jwks["keys"])
+    assert all(key["kty"] == "RSA" for key in jwks["keys"])
+
+
+def test_legacy_kid_token_still_verifies() -> None:
+    """单文件模式下，历史 kid=portal-rs256-1 的令牌（同密钥签名）仍可验证。"""
+    from app.security import jwt as jwt_module
+
+    settings = get_settings()
+    kid, private_key = jwt_module._signing_key(settings)
+    assert kid == "lipass-rs256-1"
+    now = datetime.now(timezone.utc)
+    legacy_token = pyjwt.encode(
+        {
+            "iss": settings.jwt_issuer,
+            "sub": FakeUser.id,
+            "aud": userinfo_audience(settings),
+            "iat": now,
+            "exp": now + timedelta(minutes=5),
+        },
+        private_key,
+        algorithm="RS256",
+        headers={"kid": "portal-rs256-1"},
+    )
+    claims = decode_token(legacy_token, audience=userinfo_audience(settings))
+    assert claims["sub"] == FakeUser.id
 
 
 def test_absolute_avatar_url_handles_relative_and_external() -> None:
@@ -88,32 +115,32 @@ def test_jwt_multi_kid_rotation(tmp_path, monkeypatch) -> None:
 
     keys_dir = tmp_path / "jwt"
     keys_dir.mkdir()
-    _write_test_key(keys_dir / "portal-rs256-1.pem")
-    _write_test_key(keys_dir / "portal-rs256-2.pem")
+    _write_test_key(keys_dir / "lipass-rs256-1.pem")
+    _write_test_key(keys_dir / "lipass-rs256-2.pem")
     settings = Settings(
         _env_file=None,
         jwt_keys_dir=str(keys_dir),
-        jwt_active_kid="portal-rs256-2",
+        jwt_active_kid="lipass-rs256-2",
     )
     monkeypatch.setattr(jwt_module, "get_settings", lambda: settings)
     jwt_module._load_key_dir.cache_clear()
 
     jwks = public_jwks()
     assert {key["kid"] for key in jwks["keys"]} == {
-        "portal-rs256-1",
-        "portal-rs256-2",
+        "lipass-rs256-1",
+        "lipass-rs256-2",
     }
 
     token = create_access_token(FakeUser(), "cli_demo", "openid")
-    assert pyjwt.get_unverified_header(token)["kid"] == "portal-rs256-2"
+    assert pyjwt.get_unverified_header(token)["kid"] == "lipass-rs256-2"
     claims = decode_token(token, audience=userinfo_audience(settings))
     assert claims["sub"] == FakeUser.id
 
-    # 用旧 kid 签发的 token 在轮换后仍应可验证（JWKS 同时发布全部公钥）。
+    # 用目录内旧 kid 签发的 token 在轮换后仍应可验证（JWKS 同时发布全部公钥）。
     old_settings = Settings(
         _env_file=None,
         jwt_keys_dir=str(keys_dir),
-        jwt_active_kid="portal-rs256-1",
+        jwt_active_kid="lipass-rs256-1",
     )
     monkeypatch.setattr(jwt_module, "get_settings", lambda: old_settings)
     old_token = create_access_token(FakeUser(), "cli_demo", "openid")
@@ -136,7 +163,7 @@ def test_jwt_multi_kid_rotation(tmp_path, monkeypatch) -> None:
         },
         rogue_key,
         algorithm="RS256",
-        headers={"kid": "portal-rs256-9"},
+        headers={"kid": "lipass-rs256-9"},
     )
     with pytest.raises(pyjwt.InvalidKeyError):
         decode_token(forged, audience=userinfo_audience(settings))
@@ -162,7 +189,8 @@ def _write_test_key(path: Path):
 def test_rotate_script_next_kid(tmp_path) -> None:
     from scripts.rotate_jwt_key import next_kid
 
-    (tmp_path / "portal-rs256-1.pem").write_text("x")
-    (tmp_path / "portal-rs256-3.pem").write_text("x")
+    (tmp_path / "lipass-rs256-1.pem").write_text("x")
+    (tmp_path / "lipass-rs256-3.pem").write_text("x")
+    (tmp_path / "portal-rs256-2.pem").write_text("x")
     (tmp_path / "notes.txt").write_text("ignore me")
-    assert next_kid(tmp_path) == "portal-rs256-4"
+    assert next_kid(tmp_path) == "lipass-rs256-4"

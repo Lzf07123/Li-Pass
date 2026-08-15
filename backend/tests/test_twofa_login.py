@@ -25,7 +25,7 @@ def test_email_2fa_login_flow(client, captured_email) -> None:
     assert body["requires_2fa"] is True
     challenge_id = body["challenge_id"]
     assert "email_otp" in body["methods"]
-    assert "portal_session" not in response.cookies
+    assert "lipass_session" not in response.cookies
     # 进入 2FA 界面不自动发邮件，需用户点击“获取验证码”
     assert body["email_sent"] is False
     assert body["email_status"] == "skipped"
@@ -43,7 +43,7 @@ def test_email_2fa_login_flow(client, captured_email) -> None:
         json={"challenge_id": challenge_id, "method": "email_otp", "code": code},
     )
     assert response.status_code == 200
-    assert "portal_session" in response.cookies
+    assert "lipass_session" in response.cookies
 
 
 def test_email_2fa_login_carries_remember_me(client, captured_email) -> None:
@@ -119,7 +119,7 @@ def test_totp_login_flow(client, captured_email) -> None:
         },
     )
     assert response.status_code == 200
-    assert "portal_session" in response.cookies
+    assert "lipass_session" in response.cookies
 
 
 def test_recovery_code_login(client, captured_email) -> None:
@@ -145,7 +145,7 @@ def test_recovery_code_login(client, captured_email) -> None:
         json={"challenge_id": challenge_id, "method": "recovery", "code": recovery},
     )
     assert response.status_code == 200
-    assert "portal_session" in response.cookies
+    assert "lipass_session" in response.cookies
 
 
 def test_2fa_verify_attempts_lock(client, captured_email) -> None:

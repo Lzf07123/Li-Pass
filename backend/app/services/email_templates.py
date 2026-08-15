@@ -1,6 +1,6 @@
 """Li&Pass 品牌风 HTML 邮件模板。
 
-依据 design-system/portal-oss/BRAND.md 的品牌令牌（安全蓝、石板灰、
+依据 design-system/lipass/BRAND.md 的品牌令牌（安全蓝、石板灰、
 克制排版与 Z 形品牌暗线）生成五类邮件的 HTML 版本。所有动态内容
 一律 HTML 转义，正文通过 white-space:pre-line 保留换行。
 """
