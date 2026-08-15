@@ -167,6 +167,7 @@ def test_consent_revoke_without_logout_channels_returns_false(
     assert resp.json() == {
         "logout_uri": None,
         "backchannel_notified": False,
+        "backchannel_configured": False,
     }
 
 
