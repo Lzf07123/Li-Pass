@@ -18,9 +18,42 @@ def register_and_login(client, captured_email) -> None:
     )
     code = captured_email.messages[-1][2]
     client.post("/api/v1/auth/email/verify", json={"email": "a@example.com", "code": code})
-    client.post(
+    login_with_email_2fa(
+        client, captured_email, "a@example.com", "password123"
+    )
+
+
+def login_with_email_2fa(
+    client,
+    captured_email,
+    email: str,
+    password: str,
+    **login_kwargs,
+):
+    """登录并透明地完成邮箱 2FA 挑战（无 2FA 时直接建立会话）。
+
+    强制 2FA 落地后，已验证邮箱的账号登录会返回 requires_2fa；
+    此辅助函数按需发送验证码并完成挑战，保证测试拿到已登录会话。
+    """
+    response = client.post(
         "/api/v1/auth/login",
-        json={"email": "a@example.com", "password": "password123"},
+        json={"email": email, "password": password, **login_kwargs},
+    )
+    if response.status_code != 200 or not response.json().get("requires_2fa"):
+        return response
+    challenge_id = response.json()["challenge_id"]
+    client.post(
+        "/api/v1/auth/2fa/send",
+        json={"challenge_id": challenge_id},
+    )
+    code = captured_email.messages[-1][2]
+    return client.post(
+        "/api/v1/auth/2fa/verify",
+        json={
+            "challenge_id": challenge_id,
+            "method": "email_otp",
+            "code": code,
+        },
     )
 
 
