@@ -70,6 +70,13 @@ def test_user_revoke_session_dispatches_backchannel(
     assert resp.status_code == 204
     assert len(calls) == 1
     assert calls[0][0].sid == str(other_session.id)
+    db_session.expire_all()
+    revoked_link = db_session.scalar(
+        select(OIDCClientSession).where(
+            OIDCClientSession.session_id == other_session.id,
+        )
+    )
+    assert revoked_link.revoked_at is not None
 
 
 def test_admin_batch_revoke_dispatches_backchannel(
@@ -104,6 +111,13 @@ def test_admin_batch_revoke_dispatches_backchannel(
     assert resp.json()["revoked"] == 1
     assert len(calls) == 1
     assert calls[0][0].sid == str(bob_session.id)
+    db_session.expire_all()
+    revoked_link = db_session.scalar(
+        select(OIDCClientSession).where(
+            OIDCClientSession.session_id == bob_session.id,
+        )
+    )
+    assert revoked_link.revoked_at is not None
 
 
 def test_consent_revoke_dispatches_backchannel(

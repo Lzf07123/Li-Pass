@@ -50,6 +50,7 @@ from app.services.federated_logout import (
     collect_logout_targets,
     collect_logout_targets_for_user_client,
     dispatch_backchannel_logout,
+    revoke_session_links,
 )
 from app.services.otps import create_otp, verify_otp
 from app.services.rate_limit import get_rate_limiter
@@ -410,6 +411,7 @@ def revoke_session(
     targets = collect_logout_targets(db, [session.id])
     if targets:
         background_tasks.add_task(dispatch_backchannel_logout, targets)
+    revoke_session_links(db, [session.id])
     log_audit(
         db,
         "user",
@@ -471,6 +473,7 @@ def revoke_all_sessions(
     targets = collect_logout_targets(db, list(target_ids))
     if targets:
         background_tasks.add_task(dispatch_backchannel_logout, targets)
+    revoke_session_links(db, list(target_ids))
     log_audit(
         db,
         "user",
