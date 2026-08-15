@@ -3,7 +3,16 @@ import uuid
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile, status
+from fastapi import (
+    APIRouter,
+    BackgroundTasks,
+    Depends,
+    File,
+    HTTPException,
+    Request,
+    UploadFile,
+    status,
+)
 from sqlalchemy import func, or_, select, update
 from sqlalchemy.orm import Session
 
@@ -32,6 +41,11 @@ from app.services.device_info import describe_session_device
 from app.services.avatar_cleanup import delete_avatar_file
 from app.services.audit import log_audit, mask_phone
 from app.services.email import get_email_service
+from app.services.federated_logout import (
+    collect_logout_targets,
+    collect_logout_targets_for_user_client,
+    dispatch_backchannel_logout,
+)
 from app.services.otps import create_otp, verify_otp
 from app.services.rate_limit import get_rate_limiter
 
@@ -267,6 +281,7 @@ def list_sessions(
 def revoke_session(
     session_id: uuid.UUID,
     request: Request,
+    background_tasks: BackgroundTasks,
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> None:
@@ -278,6 +293,9 @@ def revoke_session(
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "不能退出当前会话")
     session.revoked_at = datetime.now(timezone.utc)
     db.commit()
+    targets = collect_logout_targets(db, [session.id])
+    if targets:
+        background_tasks.add_task(dispatch_backchannel_logout, targets)
     log_audit(
         db,
         "user",
@@ -292,6 +310,7 @@ def revoke_session(
 @router.post("/sessions/revoke-all", response_model=dict)
 def revoke_all_sessions(
     request: Request,
+    background_tasks: BackgroundTasks,
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> dict:
@@ -315,6 +334,13 @@ def revoke_all_sessions(
         .execution_options(synchronize_session=False)
     )
     current = get_current_session(request, db)
+    target_ids = db.scalars(
+        select(SessionModel.id).where(
+            SessionModel.revoked_at.is_(None),
+            SessionModel.user_id == user.id,
+            SessionModel.id != current.id,
+        )
+    ).all()
     result = db.execute(
         update(SessionModel)
         .where(
@@ -327,6 +353,9 @@ def revoke_all_sessions(
     )
     count = result.rowcount or 0
     db.commit()
+    targets = collect_logout_targets(db, list(target_ids))
+    if targets:
+        background_tasks.add_task(dispatch_backchannel_logout, targets)
     log_audit(
         db,
         "user",
@@ -388,6 +417,7 @@ def list_apps(
 @router.delete("/apps/{client_id}")
 def revoke_app(
     client_id: str,
+    background_tasks: BackgroundTasks,
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> None:
@@ -407,6 +437,9 @@ def revoke_app(
         raise HTTPException(status.HTTP_404_NOT_FOUND, "尚未授权该应用")
     db.delete(consent)
     db.commit()
+    targets = collect_logout_targets_for_user_client(db, user.id, client.id)
+    if targets:
+        background_tasks.add_task(dispatch_backchannel_logout, targets)
     log_audit(
         db,
         "user",

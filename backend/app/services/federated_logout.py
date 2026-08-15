@@ -14,6 +14,7 @@ from sqlalchemy.orm import Session
 from app.core.config import get_settings
 from app.models.oauth_client import OAuthClient
 from app.models.oidc_client_session import OIDCClientSession
+from app.models.session import Session as SessionModel
 from app.security.jwt import issue_logout_token
 
 logger = logging.getLogger(__name__)
@@ -98,6 +99,35 @@ def collect_logout_targets(
         .where(
             OIDCClientSession.session_id.in_(session_ids),
             OIDCClientSession.revoked_at.is_(None),
+            OAuthClient.is_active.is_(True),
+            OAuthClient.backchannel_logout_uri.is_not(None),
+            OAuthClient.backchannel_logout_uri != "",
+        )
+    ).all()
+    return [
+        LogoutTarget(
+            uri=client.backchannel_logout_uri,
+            client_id=client.client_id,
+            sid=link.sid,
+            sub=str(link.user_id),
+        )
+        for link, client in rows
+    ]
+
+
+def collect_logout_targets_for_user_client(
+    db: Session, user_id: uuid.UUID, client_id: uuid.UUID
+) -> list[LogoutTarget]:
+    """取消授权时按 用户×客户端 收集：仅限仍活跃的门户会话。"""
+    rows = db.execute(
+        select(OIDCClientSession, OAuthClient)
+        .join(OAuthClient, OIDCClientSession.client_id == OAuthClient.id)
+        .join(SessionModel, OIDCClientSession.session_id == SessionModel.id)
+        .where(
+            OIDCClientSession.user_id == user_id,
+            OIDCClientSession.client_id == client_id,
+            OIDCClientSession.revoked_at.is_(None),
+            SessionModel.revoked_at.is_(None),
             OAuthClient.is_active.is_(True),
             OAuthClient.backchannel_logout_uri.is_not(None),
             OAuthClient.backchannel_logout_uri != "",

@@ -2,7 +2,15 @@ import logging
 import uuid
 from datetime import datetime, timedelta, timezone
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
+from fastapi import (
+    APIRouter,
+    BackgroundTasks,
+    Depends,
+    HTTPException,
+    Query,
+    Request,
+    status,
+)
 from pydantic import BaseModel, Field
 from sqlalchemy import func, or_, select, update
 from sqlalchemy.orm import Session
@@ -15,6 +23,10 @@ from app.models.user import User
 from app.schemas.auth import AdminSessionListOut
 from app.services.audit import log_audit, log_rate_limit_rejected_once
 from app.services.device_info import describe_session_device
+from app.services.federated_logout import (
+    collect_logout_targets,
+    dispatch_backchannel_logout,
+)
 from app.services.geoip import describe_ip
 from app.services.rate_limit import get_rate_limiter
 
@@ -142,6 +154,7 @@ def list_sessions(
 def batch_revoke_sessions(
     payload: AdminBatchRevokeSessions,
     request: Request,
+    background_tasks: BackgroundTasks,
     actor: User = Depends(get_current_admin),
     db: Session = Depends(get_db),
 ) -> dict:
@@ -167,6 +180,11 @@ def batch_revoke_sessions(
         session.revoked_at = datetime.now(timezone.utc)
         revoked.append((session, user))
     db.commit()
+    targets = collect_logout_targets(
+        db, [session.id for session, _ in revoked]
+    )
+    if targets:
+        background_tasks.add_task(dispatch_backchannel_logout, targets)
     skipped = len(ids) - len(revoked)
     log_audit(
         db,
@@ -190,6 +208,7 @@ def batch_revoke_sessions(
 @router.post("/sessions/revoke-all", response_model=dict)
 def revoke_all_sessions(
     request: Request,
+    background_tasks: BackgroundTasks,
     actor: User = Depends(get_current_admin),
     db: Session = Depends(get_db),
 ) -> dict:
@@ -213,6 +232,12 @@ def revoke_all_sessions(
         .execution_options(synchronize_session=False)
     )
     current = get_current_session(request, db)
+    target_ids = db.scalars(
+        select(SessionModel.id).where(
+            SessionModel.revoked_at.is_(None),
+            SessionModel.id != current.id,
+        )
+    ).all()
     result = db.execute(
         update(SessionModel)
         .where(
@@ -224,6 +249,9 @@ def revoke_all_sessions(
     )
     count = result.rowcount or 0
     db.commit()
+    targets = collect_logout_targets(db, list(target_ids))
+    if targets:
+        background_tasks.add_task(dispatch_backchannel_logout, targets)
     log_audit(
         db,
         "admin",
@@ -245,6 +273,7 @@ def revoke_all_sessions(
 def revoke_session(
     session_id: uuid.UUID,
     request: Request,
+    background_tasks: BackgroundTasks,
     actor: User = Depends(get_current_admin),
     db: Session = Depends(get_db),
 ) -> None:
@@ -262,6 +291,9 @@ def revoke_session(
     user = db.get(User, session.user_id)
     session.revoked_at = datetime.now(timezone.utc)
     db.commit()
+    targets = collect_logout_targets(db, [session.id])
+    if targets:
+        background_tasks.add_task(dispatch_backchannel_logout, targets)
     log_audit(
         db,
         "admin",
