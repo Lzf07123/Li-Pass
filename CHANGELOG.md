@@ -21,6 +21,7 @@
 
 ### 安全加固
 
+- 回程登出地址校验加固：拒绝携带用户名/密码的 URL；生产环境除强制 https 外，进一步限定只能使用 443 端口；域名经 IDNA 规范化后再做公网解析校验（防回环/私网/链路本地绕过）。管理员创建/修改授权网站时立即校验「回程登出地址」，非法地址当场返回 400，不再等到登出分发时才跳过。
 - 登录兜底强制 2FA：对「已验证邮箱却没有任何 2FA 方案」的历史账号（迁移遗漏、异常数据），登录时自动启用邮箱验证码并记审计 `2fa_email_auto_enabled`，保证「至少一种 2FA」不变式不被绕过。
 - 敏感操作的密码复核统一收敛到 `app/services/stepup.py`：此前散落各路由的 `current_password` 校验无独立限流，现新增按邮箱+IP 与全局邮箱的双层复核失败限流（默认 5/10 次每 15 分钟），并落 `stepup_verify_success`/`stepup_failed`/`stepup_required` 审计（category=`security`），复核被拒与疑似会话窃取的免密尝试可追踪。
 - 依赖安全审计（pip-audit）：`python-multipart 0.0.20 → 0.0.32`（修复多个 2026 年公告的 multipart 解析 DoS）、`pyotp 2.1.0 → 2.10.0`（移除其携带的有漏洞传递依赖 `future 0.15.2`）；升级后 pip-audit 清零，npm 生产依赖审计 0 漏洞。
@@ -64,6 +65,7 @@
 
 ### 缺陷修复
 
+- 取消授权时回程登出通知此前只覆盖「门户会话仍活跃」的链接：若用户此前已退出门户或门户会话被撤销，即使网站配置了回程登出地址，`backchannel_notified` 仍为 false，前端误报「该网站未配置回程登出」。现取消授权按「用户 × 客户端」收集全部未撤销链接（不再过滤门户会话是否结束），RP 本地会话仍存活时也能收到 `logout_token` 下线。
 - 验证码成功消费不再计入限流：`POST /api/v1/auth/2fa/verify` 与 `POST /api/v1/auth/email/verify` 此前无论成败都累计 `twofa_verify`（按 IP）/`email_verify`（按邮箱）计数，同一来源在窗口内连续成功验证会被误判 429；现成功即撤销本次计数，仅失败尝试累积限流，与 step-up 复核「成功即重置」的既有语义对齐。
 - OIDC 授权请求带 `email` scope 且用户邮箱未验证时，跳转验证邮箱页会丢失原授权请求：验证完成后用户停留在验证页，只能手动「去登录」，无法自动跳回应用。现后端在跳转中附带 `next`（编码后的原授权请求），验证成功后前端自动回到授权流程并按常规链路跳回 `redirect_uri`；同时登录页「注册新账号」与注册页跳转登录页也透传 `next`，注册新账号后同样能回到应用。
 - 设备信息解析误把 Chromium Client Hints 的 GREASE token 当作浏览器名：新版 Chrome 的 `sec-ch-ua` 使用 `Not=A?Brand` 变体，旧黑名单只覆盖 `Not A;Brand`/`Not)A;Brand`/`Not_A Brand`，导致设备管理与会话监控显示「macOS · Not=A?Brand」。现改为按 GREASE token 的结构匹配（`Not?A?Brand`，中间为非字母数字字符）过滤；读取侧对历史已写入的脏名称优先按原始 UA 重建，无 UA 时剔除 GREASE 片段，用户中心与管理后台同步修复。

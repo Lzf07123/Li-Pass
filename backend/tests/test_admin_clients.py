@@ -28,6 +28,76 @@ def test_admin_required(client, db_session) -> None:
     assert response.status_code == 403
 
 
+def test_admin_rejects_unsafe_backchannel_url_on_create(
+    client, db_session, monkeypatch
+) -> None:
+    db_session.add(
+        User(
+            email="a@example.com",
+            password_hash=hash_password("password123"),
+            nickname="A",
+            role=UserRole.admin,
+        )
+    )
+    db_session.commit()
+    login_as(client, "a@example.com")
+
+    class _ProdSettings:
+        environment = "production"
+
+    monkeypatch.setattr("app.schemas.oauth.get_settings", lambda: _ProdSettings())
+    monkeypatch.setattr(
+        "app.services.federated_logout.get_settings", lambda: _ProdSettings()
+    )
+    response = client.post(
+        "/api/v1/admin/clients",
+        json={
+            "name": "Bad",
+            "redirect_uris": ["https://rp.example/cb"],
+            "backchannel_logout_uri": "https://127.0.0.1/logout",
+        },
+    )
+    assert response.status_code == 400
+
+
+def test_admin_rejects_unsafe_backchannel_url_on_update(
+    client, db_session, monkeypatch
+) -> None:
+    db_session.add(
+        User(
+            email="a@example.com",
+            password_hash=hash_password("password123"),
+            nickname="A",
+            role=UserRole.admin,
+        )
+    )
+    db_session.commit()
+    login_as(client, "a@example.com")
+
+    class _ProdSettings:
+        environment = "production"
+
+    monkeypatch.setattr("app.schemas.oauth.get_settings", lambda: _ProdSettings())
+    monkeypatch.setattr(
+        "app.services.federated_logout.get_settings", lambda: _ProdSettings()
+    )
+    created = client.post(
+        "/api/v1/admin/clients",
+        json={
+            "name": "Ok",
+            "redirect_uris": ["https://rp.example/cb"],
+            "backchannel_logout_uri": "https://93.184.216.34/logout",
+        },
+    )
+    assert created.status_code == 200
+    client_id = created.json()["client"]["id"]
+    response = client.patch(
+        f"/api/v1/admin/clients/{client_id}",
+        json={"backchannel_logout_uri": "https://127.0.0.1/logout"},
+    )
+    assert response.status_code == 400
+
+
 def test_admin_create_and_reset_secret(client, db_session) -> None:
     db_session.add(
         User(

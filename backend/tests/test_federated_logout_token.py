@@ -48,5 +48,27 @@ def test_safe_url_allows_public_https_in_production(monkeypatch) -> None:
     assert_safe_backchannel_url("https://93.184.216.34/logout")
 
 
+def test_safe_url_rejects_userinfo() -> None:
+    with pytest.raises(ValueError):
+        assert_safe_backchannel_url("https://user:pass@93.184.216.34/logout")
+
+
+def test_safe_url_rejects_non_443_port_in_production(monkeypatch) -> None:
+    monkeypatch.setattr(
+        "app.services.federated_logout.get_settings",
+        lambda: SimpleNamespace(environment="production"),
+    )
+    with pytest.raises(ValueError):
+        assert_safe_backchannel_url("https://93.184.216.34:8443/logout")
+
+
+def test_safe_url_allows_explicit_443_in_production(monkeypatch) -> None:
+    monkeypatch.setattr(
+        "app.services.federated_logout.get_settings",
+        lambda: SimpleNamespace(environment="production"),
+    )
+    assert_safe_backchannel_url("https://93.184.216.34:443/logout")
+
+
 def test_safe_url_allows_localhost_in_development() -> None:
     assert_safe_backchannel_url("http://localhost:3001/backchannel-logout")
