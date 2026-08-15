@@ -3,10 +3,18 @@
 import ipaddress
 import logging
 import socket
+import uuid
 from dataclasses import dataclass
 from urllib.parse import urlparse
 
+import httpx
+from sqlalchemy import select
+from sqlalchemy.orm import Session
+
 from app.core.config import get_settings
+from app.models.oauth_client import OAuthClient
+from app.models.oidc_client_session import OIDCClientSession
+from app.security.jwt import issue_logout_token
 
 logger = logging.getLogger(__name__)
 
@@ -64,3 +72,80 @@ class LogoutTarget:
     client_id: str
     sid: str
     sub: str
+
+
+def collect_logout_targets(
+    db: Session, session_ids: list[uuid.UUID]
+) -> list[LogoutTarget]:
+    """查询给定门户会话在哪些客户端有活跃登录关系且配置了回程地址。"""
+    if not session_ids:
+        return []
+    rows = db.execute(
+        select(OIDCClientSession, OAuthClient)
+        .join(OAuthClient, OIDCClientSession.client_id == OAuthClient.id)
+        .where(
+            OIDCClientSession.session_id.in_(session_ids),
+            OIDCClientSession.revoked_at.is_(None),
+            OAuthClient.is_active.is_(True),
+            OAuthClient.backchannel_logout_uri.is_not(None),
+            OAuthClient.backchannel_logout_uri != "",
+        )
+    ).all()
+    return [
+        LogoutTarget(
+            uri=client.backchannel_logout_uri,
+            client_id=client.client_id,
+            sid=link.sid,
+            sub=str(link.user_id),
+        )
+        for link, client in rows
+    ]
+
+
+def dispatch_backchannel_logout(
+    targets: list[LogoutTarget], *, transport: httpx.BaseTransport | None = None
+) -> dict[str, bool]:
+    """向各客户端回程端点 POST logout_token；失败按配置重试。
+
+    不抛出异常：单点失败只记录日志并返回 False，由调用方写审计；
+    transport 仅测试注入（httpx.MockTransport），生产为 None。
+    """
+    settings = get_settings()
+    results: dict[str, bool] = {}
+    with httpx.Client(
+        transport=transport,
+        timeout=settings.backchannel_logout_timeout_seconds,
+        follow_redirects=False,
+    ) as http:
+        for target in targets:
+            try:
+                assert_safe_backchannel_url(target.uri)
+            except ValueError:
+                logger.warning("跳过不安全的回程地址: %s", target.uri)
+                results[target.client_id] = False
+                continue
+            token = issue_logout_token(target.sub, target.sid, target.client_id)
+            delivered = False
+            for attempt in range(settings.backchannel_logout_max_retries + 1):
+                try:
+                    response = http.post(
+                        target.uri, data={"logout_token": token}
+                    )
+                except httpx.HTTPError as exc:
+                    logger.warning(
+                        "回程登出请求失败（第 %d 次）: %s %s",
+                        attempt + 1,
+                        target.uri,
+                        exc,
+                    )
+                else:
+                    if 200 <= response.status_code < 300:
+                        delivered = True
+                        break
+                    logger.warning(
+                        "回程登出返回 %d: %s",
+                        response.status_code,
+                        target.uri,
+                    )
+            results[target.client_id] = delivered
+    return results
