@@ -8,6 +8,7 @@ from app.models.audit_log import AuditLog
 from app.models.user import User, UserRole, UserStatus
 from app.security.passwords import hash_password
 from app.services.rate_limit import MemoryRateLimiter
+from tests.helpers import critical_stepup_payload
 
 
 def _login_admin(client, db_session) -> User:
@@ -125,7 +126,12 @@ def test_batch_delete_requires_password_and_protections(
         "/api/v1/admin/users/batch/delete",
         json={
             "user_ids": [str(bob.id), str(carol.id)],
-            "current_password": "wrong",
+            **critical_stepup_payload(
+                client,
+                captured_email,
+                "admin@example.com",
+                password="wrong",
+            ),
         },
     )
     assert wrong.status_code == 400
@@ -134,7 +140,9 @@ def test_batch_delete_requires_password_and_protections(
         "/api/v1/admin/users/batch/delete",
         json={
             "user_ids": [str(admin.id)],
-            "current_password": "password123",
+            **critical_stepup_payload(
+                client, captured_email, "admin@example.com"
+            ),
         },
     )
     assert self_delete.status_code == 400
@@ -143,7 +151,9 @@ def test_batch_delete_requires_password_and_protections(
         "/api/v1/admin/users/batch/delete",
         json={
             "user_ids": [str(other_admin.id)],
-            "current_password": "password123",
+            **critical_stepup_payload(
+                client, captured_email, "admin@example.com"
+            ),
         },
     )
     assert admin_delete.status_code == 403
@@ -152,7 +162,9 @@ def test_batch_delete_requires_password_and_protections(
         "/api/v1/admin/users/batch/delete",
         json={
             "user_ids": [str(bob.id), str(carol.id)],
-            "current_password": "password123",
+            **critical_stepup_payload(
+                client, captured_email, "admin@example.com"
+            ),
         },
     )
     assert ok.status_code == 200

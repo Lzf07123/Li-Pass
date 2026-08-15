@@ -49,7 +49,11 @@ from app.services.federated_logout import (
 )
 from app.services.otps import create_otp, verify_otp
 from app.services.rate_limit import get_rate_limiter
-from app.services.stepup import authorize_stepup, stepup_status
+from app.services.stepup import (
+    authorize_critical_operation,
+    authorize_stepup,
+    stepup_status,
+)
 
 router = APIRouter(prefix="/api/v1", tags=["users"])
 logger = logging.getLogger(__name__)
@@ -102,6 +106,59 @@ def stepup_verify(
     authorize_stepup(request, db, user, session, payload.password)
     result = stepup_status(session)
     return {**result, "message": "身份复核成功"}
+
+
+@router.post("/me/step-up/send")
+def send_stepup_code(
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> dict:
+    """向绑定邮箱发送注销/删除等高危操作复核用的 2FA 验证码。"""
+    settings = get_settings()
+    cooldown_left = get_rate_limiter().remaining(
+        "otp_resend_cooldown", user.email
+    )
+    if cooldown_left > 0:
+        raise HTTPException(
+            status.HTTP_429_TOO_MANY_REQUESTS,
+            f"验证码发送过于频繁，请在 {cooldown_left} 秒后重试",
+        )
+    send_count = get_rate_limiter().hit(
+        "otp_send", user.email, settings.otp_send_window_seconds
+    )
+    if send_count > settings.otp_send_limit:
+        raise HTTPException(
+            status.HTTP_429_TOO_MANY_REQUESTS,
+            f"验证码发送过于频繁，请在 "
+            f"{settings.otp_send_window_seconds // 60} 分钟后重试",
+        )
+    code = create_otp(db, OtpPurpose.two_fa, user.email)
+    try:
+        get_email_service().send_verification(user.email, code)
+        db.commit()
+    except Exception:
+        db.rollback()
+        get_rate_limiter().decrement("otp_send", user.email)
+        logger.exception("step-up 复核验证码发送失败：%s", user.email)
+        raise HTTPException(
+            status.HTTP_502_BAD_GATEWAY,
+            "邮件发送失败，请稍后重试",
+        )
+    get_rate_limiter().hit(
+        "otp_resend_cooldown",
+        user.email,
+        settings.otp_resend_cooldown_seconds,
+    )
+    log_audit(
+        db,
+        "user",
+        str(user.id),
+        "stepup_2fa_send",
+        category="security",
+        target_type="user",
+        target_id=str(user.id),
+    )
+    return {"message": "验证码已发送至绑定邮箱"}
 
 
 @router.put("/me", response_model=UserOut)
@@ -175,10 +232,20 @@ def delete_own_account(
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> dict:
-    # 注销账号不可逆：必须本人复核（密码或 30 分钟窗口），
+    # 注销账号不可逆：必须本人双因素复核（密码 + 任意 2FA），
+    # 30 分钟免复核窗口不豁免。
     # 防止会话被窃取后静默注销。
     session = get_current_session(request, db)
-    authorize_stepup(request, db, user, session, payload.current_password)
+    authorize_critical_operation(
+        request,
+        db,
+        user,
+        session,
+        payload.current_password,
+        payload.stepup_method,
+        payload.stepup_code,
+        missing_password_detail="注销账号必须输入当前密码并完成二次验证",
+    )
     if user.role == UserRole.admin:
         admin_count = db.scalar(
             select(func.count()).select_from(User).where(User.role == UserRole.admin)

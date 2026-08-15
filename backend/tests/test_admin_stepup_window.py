@@ -92,7 +92,8 @@ def test_admin_batch_delete_without_password_in_window(
         "/api/v1/admin/users/batch/delete",
         json={"user_ids": [str(bob.id), str(carol.id)]},
     )
-    assert response.status_code == 200
+    assert response.status_code == 400
+    assert response.json()["detail"] == "批量删除必须输入当前密码并完成二次验证"
 
 
 def test_admin_delete_user_without_password_in_window(
@@ -103,7 +104,7 @@ def test_admin_delete_user_without_password_in_window(
     _grant_window(client)
     assert client.post(
         f"/api/v1/admin/users/{user.id}/delete", json={}
-    ).status_code == 200
+    ).status_code == 400
 
 
 def test_admin_delete_client_without_password_in_window(

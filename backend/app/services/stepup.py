@@ -14,14 +14,19 @@ from fastapi import HTTPException, Request, status
 from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
+from app.models.otp import OtpPurpose
 from app.models.session import Session as SessionModel
 from app.models.user import User
 from app.security.passwords import verify_password
 from app.services.audit import log_audit, log_rate_limit_rejected_once
+from app.services.otps import verify_otp
 from app.services.rate_limit import get_rate_limiter
+from app.services.twofa import verify_totp
 
 STEPUP_REQUIRED_DETAIL = "需要重新验证密码"
 WRONG_PASSWORD_DETAIL = "当前密码错误"
+MISSING_STEPUP_2FA_DETAIL = "请选择一种二次验证方式并输入验证码"
+INVALID_STEPUP_2FA_DETAIL = "二次验证码无效"
 
 
 def _as_utc(dt: datetime) -> datetime:
@@ -146,3 +151,75 @@ def authorize_stepup(
         user_agent=user_agent,
         detail={"window_minutes": settings.stepup_window_minutes},
     )
+
+
+def verify_stepup_2fa(
+    db: Session, user: User, method: str, code: str
+) -> bool:
+    """复核注销/删除等关键操作时的「任意 2FA」验证码。"""
+    if method == "email_otp":
+        # 邮箱验证码自带每码 5 次尝试锁与 10 分钟有效期。
+        return verify_otp(db, OtpPurpose.two_fa, user.email, code)
+    if method == "totp":
+        return verify_totp(user, code)
+    return False
+
+
+def authorize_critical_operation(
+    request: Request,
+    db: Session,
+    user: User,
+    session: SessionModel,
+    password: str | None,
+    stepup_method: str | None,
+    stepup_code: str | None,
+    missing_password_detail: str,
+) -> None:
+    """注销/删除账号等高危操作：必须当场「密码 + 任意 2FA」，窗口不豁免。"""
+    settings = get_settings()
+    ip = request.client.host if request.client else ""
+    user_agent = request.headers.get("user-agent")
+    if not password:
+        log_audit(
+            db,
+            "user",
+            str(user.id),
+            "stepup_required",
+            category="security",
+            ip=ip,
+            user_agent=user_agent,
+            detail={"reason": "critical_operation"},
+        )
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, missing_password_detail)
+
+    # 密码复核复用现有逻辑（限流 + 审计 + 开窗），
+    # 之后必须再用任意一种 2FA 完成二次验证。
+    authorize_stepup(request, db, user, session, password)
+    if stepup_method not in ("email_otp", "totp") or not stepup_code:
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST, MISSING_STEPUP_2FA_DETAIL
+        )
+
+    otp_key = f"{user.email}:{stepup_method}"
+    if not verify_stepup_2fa(db, user, stepup_method, stepup_code):
+        count = get_rate_limiter().hit(
+            "stepup_2fa", otp_key, settings.stepup_rate_window_seconds
+        )
+        log_audit(
+            db,
+            "user",
+            str(user.id),
+            "stepup_2fa_failed",
+            category="security",
+            ip=ip,
+            user_agent=user_agent,
+            detail={"method": stepup_method},
+        )
+        if count > settings.stepup_rate_limit:
+            raise HTTPException(
+                status.HTTP_429_TOO_MANY_REQUESTS, "尝试次数过多，请稍后再试"
+            )
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST, INVALID_STEPUP_2FA_DETAIL
+        )
+    get_rate_limiter().reset("stepup_2fa", otp_key)

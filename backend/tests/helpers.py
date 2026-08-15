@@ -66,6 +66,31 @@ def login_with_email_2fa(
     )
 
 
+def critical_stepup_payload(
+    client,
+    captured_email,
+    email: str,
+    password: str = "password123",
+    method: str = "email_otp",
+    code: str | None = None,
+) -> dict:
+    """构造注销/删除账号所需的「密码 + 任意 2FA」载荷。
+
+    默认用邮箱验证码：先调用 /me/step-up/send（作用于当前会话用户），
+    再从 captured_email 取最新验证码；测试侧清理发送冷却与配额。
+    """
+    get_rate_limiter().reset("otp_resend_cooldown", email)
+    get_rate_limiter().reset("otp_send", email)
+    if method == "email_otp" and code is None:
+        client.post("/api/v1/me/step-up/send")
+        code = captured_email.messages[-1][2]
+    return {
+        "current_password": password,
+        "stepup_method": method,
+        "stepup_code": code or "",
+    }
+
+
 def create_client(db_session, **overrides) -> OAuthClient:
     values = {
         "client_id": "cli_demo",

@@ -147,6 +147,9 @@ class TwoFaTotpEnable(BaseModel):
 
 class PasswordConfirm(BaseModel):
     current_password: str | None = Field(default=None, min_length=1, max_length=128)
+    # 注销/删除账号等高危操作需要「密码 + 任意 2FA」双因素复核。
+    stepup_method: str | None = Field(default=None, pattern=r"^(email_otp|totp)$")
+    stepup_code: str | None = Field(default=None, min_length=1, max_length=64)
 
 
 class StepUpVerifyRequest(BaseModel):
