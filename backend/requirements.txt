@@ -14,5 +14,5 @@ redis==5.2.1
 python-multipart==0.0.32
 httpx==0.28.1
 pyotp==2.10.0
-qrcode==8.0
+qrcode==8.2
 psutil==7.2.2
