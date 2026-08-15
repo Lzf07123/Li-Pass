@@ -41,20 +41,25 @@ lipass/
 │   │   ├── services/        # 邮件、会话、2FA、黑名单等业务服务
 │   │   └── core/            # 配置、数据库、日志
 │   ├── scripts/             # 运维脚本（已内置进镜像）：make_admin、demote_admin、seed_demo_client、rotate_jwt_key、download_ip2region
-│   └── tests/               # 仅保留本地，不入库
+│   └── tests/               # 后端测试（已入库，仓库根可跑 pytest）
 ├── frontend/                # React SPA 门户
 │   ├── src/
 │   │   ├── pages/           # 登录、注册、授权确认、用户中心、应用广场、管理后台
 │   │   ├── api/             # API 客户端
 │   │   ├── components/      # 品牌、外壳、主题等公共组件
 │   │   └── hooks/           # 自定义 Hook
-│   └── 测试目录（本地）      # __tests__/ 与 test/ 仅保留本地，不入库
+│   └── __tests__/           # 前端测试（已入库，vitest）
 ├── examples/demo-site/      # 示例授权网站（OIDC 演示，demo profile）
 ├── gateway/                 # 单域名 nginx 网关（/ 前端、/api 后端、/demo 演示站）
 ├── scripts/                 # PostgreSQL 备份/恢复脚本
 ├── docs/                    # 设计文档与对接文档
+├── AGENTS.md                # 项目协作手册（后续 AI Agent 开发入口）
 └── docker-compose.yaml      # gateway + frontend + backend + postgres + redis
 ```
+
+## 参与开发（Agent 协作）
+
+项目采用「设计先行 → 计划拆解 → TDD 实现 → 全量验证 → 记录」的开发方法。新会话的 AI Agent 请先读 [AGENTS.md](./AGENTS.md)（硬性规则、架构地图、验证命令与工作流）；spec/plan 文档规范见 [docs/superpowers/README.md](./docs/superpowers/README.md)。
 
 ## 快速开始（开发环境）
 
