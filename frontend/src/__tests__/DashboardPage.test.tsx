@@ -52,7 +52,8 @@ describe("DashboardPage", () => {
           headers: { "Content-Type": "application/json" },
         })
       )
-      .mockResolvedValueOnce(
+      .mockResolvedValueOnce(new Response(JSON.stringify([]), { status: 200 }))
+.mockResolvedValueOnce(
         new Response(
           JSON.stringify({
             email_otp_enabled: false,
@@ -106,7 +107,8 @@ describe("DashboardPage", () => {
       .mockResolvedValueOnce(
         new Response(JSON.stringify([current, other]), { status: 200 })
       )
-      .mockResolvedValueOnce(
+      .mockResolvedValueOnce(new Response(JSON.stringify([]), { status: 200 }))
+.mockResolvedValueOnce(
         new Response(
           JSON.stringify({
             email_otp_enabled: false,
@@ -121,6 +123,9 @@ describe("DashboardPage", () => {
       )
       .mockResolvedValueOnce(
         new Response(JSON.stringify([current]), { status: 200 })
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify([]), { status: 200 })
       );
     vi.stubGlobal("fetch", fetchMock);
     renderWithProviders(<DashboardPage />);
@@ -133,7 +138,7 @@ describe("DashboardPage", () => {
     fireEvent.click(screen.getByRole("button", { name: "全部退出" }));
 
     await waitFor(() =>
-      expect(screen.getByText("已退出 1 台设备")).toBeInTheDocument(),
+      expect(screen.getByText(/已退出 1 台设备/)).toBeInTheDocument(),
     );
     await waitFor(() =>
       expect(screen.queryByText("iPhone")).not.toBeInTheDocument(),
@@ -182,7 +187,8 @@ describe("DashboardPage", () => {
         .mockResolvedValueOnce(
           new Response(JSON.stringify([current]), { status: 200 })
         )
-        .mockResolvedValueOnce(
+        .mockResolvedValueOnce(new Response(JSON.stringify([]), { status: 200 }))
+.mockResolvedValueOnce(
           new Response(
             JSON.stringify({
               email_otp_enabled: false,
@@ -246,7 +252,8 @@ describe("DashboardPage", () => {
         )
       )
       .mockResolvedValueOnce(new Response(JSON.stringify([]), { status: 200 }))
-      .mockResolvedValueOnce(
+      .mockResolvedValueOnce(new Response(JSON.stringify([]), { status: 200 }))
+.mockResolvedValueOnce(
         new Response(
           JSON.stringify({
             email_otp_enabled: false,
@@ -326,7 +333,8 @@ describe("DashboardPage", () => {
         )
       )
       .mockResolvedValueOnce(new Response(JSON.stringify([]), { status: 200 }))
-      .mockResolvedValueOnce(
+      .mockResolvedValueOnce(new Response(JSON.stringify([]), { status: 200 }))
+.mockResolvedValueOnce(
         new Response(
           JSON.stringify({
             email_otp_enabled: false,
@@ -404,7 +412,8 @@ describe("DashboardPage", () => {
         )
       )
       .mockResolvedValueOnce(new Response(JSON.stringify([]), { status: 200 }))
-      .mockResolvedValueOnce(
+      .mockResolvedValueOnce(new Response(JSON.stringify([]), { status: 200 }))
+.mockResolvedValueOnce(
         new Response(
           JSON.stringify({
             email_otp_enabled: false,
@@ -467,7 +476,8 @@ describe("DashboardPage", () => {
       )
       .mockResolvedValueOnce(new Response(JSON.stringify([]), { status: 200 }))
       .mockResolvedValueOnce(new Response(JSON.stringify([]), { status: 200 }))
-      .mockResolvedValueOnce(
+      .mockResolvedValueOnce(new Response(JSON.stringify([]), { status: 200 }))
+.mockResolvedValueOnce(
         new Response(
           JSON.stringify({
             email_otp_enabled: false,
@@ -509,7 +519,8 @@ describe("DashboardPage", () => {
       )
       .mockResolvedValueOnce(new Response(JSON.stringify([]), { status: 200 }))
       .mockResolvedValueOnce(new Response(JSON.stringify([]), { status: 200 }))
-      .mockResolvedValueOnce(
+      .mockResolvedValueOnce(new Response(JSON.stringify([]), { status: 200 }))
+.mockResolvedValueOnce(
         new Response(
           JSON.stringify({
             email_otp_enabled: false,
@@ -586,7 +597,8 @@ describe("DashboardPage", () => {
           headers: { "Content-Type": "application/json" },
         })
       )
-      .mockResolvedValueOnce(
+      .mockResolvedValueOnce(new Response(JSON.stringify([]), { status: 200 }))
+.mockResolvedValueOnce(
         new Response(
           JSON.stringify({
             email_otp_enabled: false,
@@ -632,5 +644,79 @@ describe("DashboardPage", () => {
       );
       expect(body.email_notifications).toBe(false);
     });
+  });
+
+  it("展示可信设备并可移除", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ unread: 0 }), { status: 200 })
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            id: "1",
+            email: "a@example.com",
+            nickname: "Alice",
+            email_verified: true,
+            phone: null,
+            role: "user",
+            status: "active",
+          }),
+          { status: 200 }
+        )
+      )
+      .mockResolvedValueOnce(new Response(JSON.stringify([]), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify([]), { status: 200 }))
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify([
+            {
+              id: "t1",
+              device_name: "MacBook Pro",
+              user_agent: "ua",
+              ip: "127.0.0.1",
+              created_at: "2026-08-15T00:00:00Z",
+              expires_at: "2026-08-22T00:00:00Z",
+              last_used_at: null,
+              current: true,
+            },
+          ]),
+          { status: 200 }
+        )
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            email_otp_enabled: false,
+            totp_enabled: false,
+            recovery_codes_remaining: 0,
+          }),
+          { status: 200 }
+        )
+      )
+      .mockResolvedValueOnce(new Response(null, { status: 204 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify([]), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    renderWithProviders(<DashboardPage />);
+
+    await waitFor(() =>
+      expect(screen.getByText("可信设备")).toBeInTheDocument()
+    );
+    expect(screen.getByText("MacBook Pro")).toBeInTheDocument();
+    expect(screen.getByText("当前")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "移除" }));
+    await waitFor(() => {
+      const deleteCall = fetchMock.mock.calls.find(
+        (call) =>
+          (call[1] as RequestInit | undefined)?.method === "DELETE" &&
+          String(call[0]).includes("/api/v1/me/trusted-devices/t1"),
+      );
+      expect(deleteCall).toBeDefined();
+    });
+    await waitFor(() =>
+      expect(screen.getByText("已移除该可信设备")).toBeInTheDocument()
+    );
   });
 });

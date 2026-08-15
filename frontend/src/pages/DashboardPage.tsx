@@ -7,9 +7,17 @@ import {
   authApi,
   meApi,
   sessionsApi,
+  trustedDevicesApi,
   twofaApi,
 } from "../api/client";
-import type { AppOut, SessionOut, TotpSetup, TwoFaStatus, UserOut } from "../api/types";
+import type {
+  AppOut,
+  SessionOut,
+  TotpSetup,
+  TrustedDeviceOut,
+  TwoFaStatus,
+  UserOut,
+} from "../api/types";
 import { AnimatedNumber } from "../components/AnimatedNumber";
 import { AppHeader } from "../components/AppHeader";
 import { AsyncButton } from "../components/AsyncButton";
@@ -36,6 +44,7 @@ export function DashboardPage() {
   const [user, setUser] = useState<UserOut | null>(null);
   const [apps, setApps] = useState<AppOut[]>([]);
   const [sessions, setSessions] = useState<SessionOut[]>([]);
+  const [trustedDevices, setTrustedDevices] = useState<TrustedDeviceOut[]>([]);
   const [nickname, setNickname] = useState("");
   const [avatarUrl, setAvatarUrl] = useState("");
   const [emailNotifications, setEmailNotifications] = useState(true);
@@ -55,6 +64,7 @@ export function DashboardPage() {
   const [revokeTarget, setRevokeTarget] = useState<AppOut | null>(null);
   const [revokeAllOpen, setRevokeAllOpen] = useState(false);
   const [revokeSessionId, setRevokeSessionId] = useState<string | null>(null);
+  const [revokeTrustedId, setRevokeTrustedId] = useState<string | null>(null);
   const [twofaBusy, setTwofaBusy] = useState<
     "email" | "totp-setup" | "totp-enable" | "totp-disable" | null
   >(null);
@@ -89,6 +99,12 @@ export function DashboardPage() {
           .list()
           .then((data) => {
             if (!cancelled) setSessions(data);
+          })
+          .catch(() => undefined);
+        trustedDevicesApi
+          .list()
+          .then((data) => {
+            if (!cancelled && Array.isArray(data)) setTrustedDevices(data);
           })
           .catch(() => undefined);
         twofaApi
@@ -242,15 +258,32 @@ export function DashboardPage() {
     void revokeSessionAction.run(id);
   }
 
+  const revokeTrustedAction = useAsyncAction(
+    async (id: string) => {
+      await trustedDevicesApi.revoke(id);
+      setTrustedDevices(await trustedDevicesApi.list());
+      toast.success("已移除该可信设备");
+    },
+    {
+      onError: (err) => showError(err, "移除可信设备失败"),
+    },
+  );
+
+  function revokeTrusted(id: string) {
+    setRevokeTrustedId(id);
+    void revokeTrustedAction.run(id);
+  }
+
   const revokeAllAction = useAsyncAction(
     async () => {
       const result = await sessionsApi.revokeAll();
       setSessions(await sessionsApi.list());
+      setTrustedDevices(await trustedDevicesApi.list());
       setRevokeAllOpen(false);
       toast.success(
         result.revoked > 0
-          ? `已退出 ${result.revoked} 台设备`
-          : "当前没有其他设备需要退出",
+          ? `已退出 ${result.revoked} 台设备，可信设备已全部清除`
+          : "当前没有其他设备需要退出，可信设备已全部清除",
       );
     },
     {
@@ -922,6 +955,60 @@ export function DashboardPage() {
                 </p>
               )}
             </ul>
+          </section>
+        </FadeIn>
+
+        <FadeIn delay={0.36}>
+          <section className="card p-6">
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+              <h2 className="inline-flex items-center gap-2 text-base font-semibold text-foreground">
+                <LineIcon name="shield" className="h-4 w-4 text-primary" />
+                可信设备
+                <span className="ml-2 text-sm font-normal text-muted">
+                  7 天内登录免二次验证（仅登录环节）
+                </span>
+              </h2>
+            </div>
+            {trustedDevices.length === 0 ? (
+              <p className="text-sm text-muted">
+                暂无可信设备。登录完成二次验证并勾选「信任此设备」后，本设备会出现在这里。
+              </p>
+            ) : (
+              <ul className="space-y-2">
+                {trustedDevices.map((device) => (
+                  <li
+                    key={device.id}
+                    className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border px-4 py-3"
+                  >
+                    <div>
+                      <p className="font-medium text-foreground">
+                        {device.device_name || "未命名设备"}
+                        {device.current && (
+                          <span className="badge badge-primary ml-2">当前</span>
+                        )}
+                      </p>
+                      <p className="mt-0.5 text-sm text-muted">
+                        IP {device.ip}｜有效期至{" "}
+                        {new Date(device.expires_at).toLocaleString()}
+                      </p>
+                    </div>
+                    <AsyncButton
+                      type="button"
+                      status={
+                        revokeTrustedAction.pending &&
+                        revokeTrustedId === device.id
+                          ? "pending"
+                          : "idle"
+                      }
+                      onClick={() => revokeTrusted(device.id)}
+                      className="btn btn-secondary"
+                    >
+                      移除
+                    </AsyncButton>
+                  </li>
+                ))}
+              </ul>
+            )}
           </section>
         </FadeIn>
 

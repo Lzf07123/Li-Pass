@@ -74,7 +74,8 @@ describe("DashboardPage 2FA", () => {
       )
       .mockResolvedValueOnce(new Response(JSON.stringify([]), { status: 200 }))
       .mockResolvedValueOnce(new Response(JSON.stringify([]), { status: 200 }))
-      .mockResolvedValueOnce(
+      .mockResolvedValueOnce(new Response(JSON.stringify([]), { status: 200 }))
+.mockResolvedValueOnce(
         new Response(
           JSON.stringify({
             email_otp_enabled: true,
@@ -155,7 +156,8 @@ describe("DashboardPage 2FA", () => {
       )
       .mockResolvedValueOnce(new Response(JSON.stringify([]), { status: 200 }))
       .mockResolvedValueOnce(new Response(JSON.stringify([]), { status: 200 }))
-      .mockResolvedValueOnce(
+      .mockResolvedValueOnce(new Response(JSON.stringify([]), { status: 200 }))
+.mockResolvedValueOnce(
         new Response(
           JSON.stringify({
             email_otp_enabled: true,
@@ -219,7 +221,8 @@ describe("DashboardPage 2FA", () => {
       )
       .mockResolvedValueOnce(new Response(JSON.stringify([]), { status: 200 }))
       .mockResolvedValueOnce(new Response(JSON.stringify([]), { status: 200 }))
-      .mockResolvedValueOnce(
+      .mockResolvedValueOnce(new Response(JSON.stringify([]), { status: 200 }))
+.mockResolvedValueOnce(
         new Response(
           JSON.stringify({
             email_otp_enabled: true,

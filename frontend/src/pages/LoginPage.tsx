@@ -43,6 +43,7 @@ export function LoginPage() {
   const [emailStatus, setEmailStatus] = useState<EmailSendStatus | null>(null);
   const [code, setCode] = useState("");
   const [method, setMethod] = useState("");
+  const [trustDevice, setTrustDevice] = useState(false);
   const [resendCountdown, setResendCountdown] = useState(0);
   const [emailRetryAfterSeconds, setEmailRetryAfterSeconds] = useState(3600);
   const [rememberMe, setRememberMe] = useState(false);
@@ -141,8 +142,8 @@ export function LoginPage() {
   }
 
   const verifyAction = useAsyncAction(
-    async (challengeId: string, method: string, code: string) => {
-      await auth2faApi.verify(challengeId, method, code);
+    async (challengeId: string, method: string, code: string, trust: boolean) => {
+      await auth2faApi.verify(challengeId, method, code, trust);
       if (pendingRemember.current) {
         const pending = pendingRemember.current;
         persistRememberedCredentials(
@@ -165,7 +166,7 @@ export function LoginPage() {
   async function verifyCode(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!challenge) return;
-    await verifyAction.run(challenge.id, method, code);
+    await verifyAction.run(challenge.id, method, code, trustDevice);
   }
 
   const sendCodeAction = useAsyncAction(
@@ -250,6 +251,15 @@ export function LoginPage() {
               maxLength={method === "recovery" ? 64 : 6}
               required
             />
+          </label>
+          <label className="flex cursor-pointer items-center gap-2 text-sm text-foreground">
+            <input
+              type="checkbox"
+              checked={trustDevice}
+              onChange={(e) => setTrustDevice(e.target.checked)}
+              className="h-4 w-4 accent-primary"
+            />
+            信任此设备：7 天内登录免二次验证（仅登录环节）
           </label>
           <AsyncButton
             type="submit"
