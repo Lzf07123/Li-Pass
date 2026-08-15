@@ -281,9 +281,11 @@ export const sessionsApi = {
 export const appsApi = {
   list: () => api<AppOut[]>("/api/v1/apps"),
   revoke: (clientId: string) =>
-    api<{ logout_uri: string | null }>(`/api/v1/apps/${clientId}`, {
-      method: "DELETE",
-    }),
+    api<{
+      logout_uri: string | null;
+      /** 是否已向该网站的回程登出地址派发 logout_token */
+      backchannel_notified: boolean;
+    }>(`/api/v1/apps/${clientId}`, { method: "DELETE" }),
 };
 
 export const adminBlocksApi = {
