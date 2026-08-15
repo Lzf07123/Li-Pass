@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 
 import {
@@ -119,6 +119,36 @@ export function DashboardPage() {
       cancelled = true;
     };
   }, [navigate]);
+
+  const refreshSecondary = useCallback(() => {
+    appsApi.list().then(setApps).catch(() => undefined);
+    sessionsApi.list().then(setSessions).catch(() => undefined);
+    trustedDevicesApi
+      .list()
+      .then((data) => {
+        if (Array.isArray(data)) setTrustedDevices(data);
+      })
+      .catch(() => undefined);
+  }, []);
+
+  // 每次进入页面自动刷新一次：切回标签页 / 窗口重新可见时刷新数据，
+  // 保证应用广场与设备列表反映最新状态（防抖 500ms，一次可见只刷一次）。
+  useEffect(() => {
+    let lastRefresh = 0;
+    const onVisible = () => {
+      if (document.visibilityState !== "visible") return;
+      const now = Date.now();
+      if (now - lastRefresh < 500) return;
+      lastRefresh = now;
+      refreshSecondary();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener("focus", onVisible);
+    return () => {
+      document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("focus", onVisible);
+    };
+  }, [refreshSecondary]);
 
   function showError(err: unknown, fallback: string) {
     toast.error(err instanceof Error ? err.message : fallback);
@@ -294,12 +324,17 @@ export function DashboardPage() {
   const revokeAppAction = useAsyncAction(
     async (clientId: string, name: string) => {
       const result = await appsApi.revoke(clientId);
-      setApps((prev) => prev.filter((app) => app.client_id !== clientId));
+      setApps(await appsApi.list());
       setRevokeTarget(null);
       // 取消授权不再跳转到目标网站：网站下线只通过服务端回程登出通知，
       // 浏览器始终停留在门户。
       if (result.backchannel_notified) {
         toast.success(`已取消对“${name}”的授权，已通知该网站退出登录`);
+      } else if (result.backchannel_configured) {
+        toast.warning(
+          `已取消对“${name}”的授权；未找到该网站的活跃登录关系，门户无法通知其下线，如仍显示已登录请手动退出`,
+          { duration: 8000 },
+        );
       } else {
         toast.warning(
           `已取消对“${name}”的授权；该网站未配置回程登出，门户不会跳转访问，如该网站仍显示已登录请手动退出`,

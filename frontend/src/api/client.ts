@@ -286,6 +286,8 @@ export const appsApi = {
       logout_uri: string | null;
       /** 是否已向该网站的回程登出地址派发 logout_token */
       backchannel_notified: boolean;
+      /** 该网站是否配置了回程登出地址 */
+      backchannel_configured: boolean;
     }>(`/api/v1/apps/${clientId}`, { method: "DELETE" }),
 };
 

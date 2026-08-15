@@ -646,6 +646,7 @@ def revoke_app(
     return {
         "logout_uri": client.logout_uri,
         "backchannel_notified": bool(targets),
+        "backchannel_configured": bool(client.backchannel_logout_uri),
     }
 
 
