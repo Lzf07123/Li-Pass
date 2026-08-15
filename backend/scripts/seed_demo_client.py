@@ -11,6 +11,9 @@ REDIRECT_URI = os.environ.get(
 )
 HOME_URL = os.environ.get("DEMO_HOME_URL", "http://localhost/demo/")
 LOGOUT_URI = os.environ.get("DEMO_LOGOUT_URI", "http://localhost/demo/logout")
+BACKCHANNEL_LOGOUT_URI = os.environ.get(
+    "DEMO_BACKCHANNEL_LOGOUT_URI", "http://demo-site:3001/backchannel-logout"
+)
 
 
 def main() -> None:
@@ -25,6 +28,8 @@ def main() -> None:
                 description="OIDC 示例授权网站",
                 home_url=HOME_URL,
                 logout_uri=LOGOUT_URI,
+                post_logout_redirect_uris=[HOME_URL],
+                backchannel_logout_uri=BACKCHANNEL_LOGOUT_URI,
                 redirect_uris=[REDIRECT_URI],
                 scopes=["openid", "profile", "email"],
             )
@@ -33,6 +38,8 @@ def main() -> None:
             client.redirect_uris = [REDIRECT_URI]
             client.home_url = HOME_URL
             client.logout_uri = LOGOUT_URI
+            client.post_logout_redirect_uris = [HOME_URL]
+            client.backchannel_logout_uri = BACKCHANNEL_LOGOUT_URI
             client.is_active = True
         db.commit()
     print(f"示例客户端就绪: client_id={CLIENT_ID}（公开客户端，无 secret）")

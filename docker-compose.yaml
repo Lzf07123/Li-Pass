@@ -108,6 +108,10 @@ services:
       ENCRYPTION_KEY_PATH: ${ENCRYPTION_KEY_PATH:-/app/keys/encryption.key}
       DEMO_HOME_URL: ${DEMO_HOME_URL:-http://localhost/demo/}
       DEMO_LOGOUT_URI: ${DEMO_LOGOUT_URI:-http://localhost/demo/logout}
+      DEMO_BACKCHANNEL_LOGOUT_URI: ${DEMO_BACKCHANNEL_LOGOUT_URI:-http://demo-site:3001/backchannel-logout}
+      LOGOUT_TOKEN_TTL_SECONDS: ${LOGOUT_TOKEN_TTL_SECONDS:-120}
+      BACKCHANNEL_LOGOUT_TIMEOUT_SECONDS: ${BACKCHANNEL_LOGOUT_TIMEOUT_SECONDS:-5}
+      BACKCHANNEL_LOGOUT_MAX_RETRIES: ${BACKCHANNEL_LOGOUT_MAX_RETRIES:-2}
       EMAIL_BACKEND: ${EMAIL_BACKEND:-console}
       SMTP_HOST: ${SMTP_HOST:-}
       SMTP_PORT: ${SMTP_PORT:-587}
@@ -247,6 +251,7 @@ services:
       DEMO_REDIRECT_URI: ${DEMO_REDIRECT_URI:-http://localhost/demo/callback}
       DEMO_SECRET_KEY: ${DEMO_SECRET_KEY:-}
       DEMO_PATH_PREFIX: /demo
+      DEMO_HOME_URL: ${DEMO_HOME_URL:-http://localhost/demo/}
     # 演示站同样不向宿主机开放端口，统一走 gateway 的 /demo/ 路径。
     depends_on:
       backend:

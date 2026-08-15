@@ -16,6 +16,7 @@ LinPass SSO 是一个符合 OIDC/OAuth2 授权码流程的身份提供商（IdP�
 | `POST /oauth2/token` | 用授权码换令牌 |
 | `GET /oauth2/userinfo` | 获取用户信息（Bearer 令牌） |
 | `GET /oauth2/jwks` | 令牌签名公钥 |
+| `GET /oauth2/end-session` | RP 发起登出（联邦登出入口） |
 
 支持范围：`openid`、`profile`、`email`；仅支持 `response_type=code` 与 PKCE `S256`。
 
@@ -228,7 +229,79 @@ curl -u CLIENT_ID:CLIENT_SECRET -X DELETE \
 | `invalid_client` | client_id/secret 错误 |
 | `invalid_token` | access token 无效或过期 |
 
-## 7. acr 声明
+## 7. 登出与联邦登出
+
+门户支持三种登出路径，接入方按自身技术栈任选组合：
+
+1. **RP 发起登出（RP-Initiated Logout）**：用户在你的网站点击退出时，先清掉自己的本地会话，再 302 到 IdP 统一退出。
+2. **回程登出（Back-Channel Logout）**：用户从门户（或管理员强制下线）退出时，IdP 服务器间 POST `logout_token` 通知你下线。
+3. **浏览器串跳漏斗**：未实现回程通道的网站，门户登出时把各网站的 `logout_uri` 串成一条 `?next=` 链，由浏览器依次跳转清会话。
+
+发现文档中的 `end_session_endpoint`、`backchannel_logout_supported: true`、`frontchannel_logout_supported: false` 描述了门户的支持情况。**门户不实现 front-channel iframe 登出**（第三方 Cookie 已被主流浏览器禁用），请勿依赖该机制。
+
+### 7.1 RP 发起登出
+
+管理员在应用配置中填写「登出回跳白名单」（精确匹配，不做前缀匹配）后，网站这样发起：
+
+```text
+GET {issuer}/oauth2/end-session
+    ?id_token_hint=ID_TOKEN        # 可选：上次登录收到的 id_token
+    &client_id=YOUR_CLIENT_ID      # 与 hint 二选一即可
+    &post_logout_redirect_uri=https%3A%2F%2Fyour-site.example%2F
+    &state=RANDOM_STATE            # 可选：回跳时原样返回
+```
+
+门户校验回跳地址后展示「退出登录」确认页。用户确认后：门户会话被吊销、向支持回程的网站分发 `logout_token`，最后 302 回：
+
+```text
+https://your-site.example/?state=RANDOM_STATE
+```
+
+注意事项：
+
+- `post_logout_redirect_uri` 必须精确命中白名单，否则门户拒绝并跳到门户首页（不会回跳第三方地址）。
+- 即便门户当前没有会话（例如已超时），也会直接 302 回跳，而不是报错。
+- 校验 `state` 与发起时一致，防止跨站请求伪造。
+
+### 7.2 回程登出（Back-Channel Logout）
+
+管理员在应用配置中填写「回程登出地址」（生产环境必须 https 且不得指向回环/私网地址）。用户在门户登出、RP 发起登出确认、管理员强制下线或取消授权时，门户会向该地址 POST `application/x-www-form-urlencoded` 的 `logout_token`：
+
+```json
+{
+  "iss": "https://auth.example.com",
+  "aud": "YOUR_CLIENT_ID",
+  "sub": "<user uuid>",
+  "sid": "<门户会话 uuid>",
+  "iat": 1780000000,
+  "exp": 1780000120,
+  "jti": "<唯一标识>",
+  "events": {
+    "http://schemas.openid.net/event/backchannel-logout": {}
+  }
+}
+```
+
+接收方必须：
+
+- 用 JWKS（`kid` 选钥）验签，校验 `iss` 等于门户 issuer、`aud` 等于自身 `client_id`。
+- 校验 `iat`/`exp` 新鲜窗口（默认 120 秒内），拒绝过期令牌。
+- 维护 `jti` 已见缓存防重放；对同一 `jti` 只处理一次。
+- 只对 `events` 中存在 `http://schemas.openid.net/event/backchannel-logout` 的令牌执行登出。
+- 终止本地与 `(sub, sid)` 匹配的会话；id_token 中的 `sid` 即门户会话标识，登录时请按 `(sub, sid)` 绑定本地会话。
+- 处理成功返回 2xx；门户对失败会有限重试，但仍以“尽力而为”为准，不能假设一定送达。
+
+### 7.3 浏览器串跳漏斗（无回程通道的网站）
+
+如果你只配置了「登出地址」（`logout_uri`）而没有回程地址，门户登出时会向浏览器返回形如：
+
+```text
+https://your-site.example/logout?next=<下一个目标或门户登录页的 URL 编码值>
+```
+
+你的 `logout_uri` 端点应：清掉本地会话，随后 302 到 `next`；出于安全，只允许相对路径或自己的域名，拒绝 `//` 开头的外部协议重定向。
+
+## 8. acr 声明
 
 `id_token` 携带 `acr`：
 
@@ -237,7 +310,7 @@ curl -u CLIENT_ID:CLIENT_SECRET -X DELETE \
 
 需要强认证的网站可校验该声明，拒绝 1fa 会话。
 
-## 8. 安全要求
+## 9. 安全要求
 
 - 必须校验 `state` 与 `nonce`。
 - 公开客户端必须使用 PKCE；机密客户端在服务端保管 secret。
