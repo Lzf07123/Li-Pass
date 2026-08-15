@@ -78,6 +78,17 @@ export interface SessionOut {
   current: boolean;
 }
 
+export interface TrustedDeviceOut {
+  id: string;
+  device_name: string;
+  user_agent: string;
+  ip: string;
+  created_at: string;
+  expires_at: string;
+  last_used_at: string | null;
+  current: boolean;
+}
+
 export interface AdminSessionUserOut {
   id: string;
   email: string;

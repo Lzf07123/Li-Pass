@@ -80,6 +80,7 @@ docker compose -f docker-compose.yaml --env-file .env exec backend \
 | `SESSION_COOKIE_NAME` | 会话 Cookie 名（默认 `lipass_session`）；后端同时兼容接受旧名 `portal_session`，旧浏览器里的会话自然过期前仍可登录，详见「标识迁移」 |
 | `SESSION_TTL_DAYS` / `SESSION_DEFAULT_TTL_DAYS` | 勾选“记住我”/未勾选时的会话有效期（默认 30 天 / 1 天；未勾选同时使用会话级 Cookie，关闭浏览器即失效） |
 | `SESSION_IDLE_DAYS` | 会话空闲超时天数（默认 7 天，超过即强制下线） |
+| `TRUSTED_DEVICE_TTL_DAYS` | 登录可信设备有效期（默认 7）：用户完成登录 2FA 时勾选「信任此设备」后，该设备在此天数内登录免二次验证；豁免**仅限登录环节**，敏感操作复核不受影响 |
 | `PUBLIC_REGISTRATION_ENABLED` | 公开注册入口默认值（默认 `true`）；`false` 时注册页提示“注册渠道暂时关闭，只接收邀请注册”，后端同时拒绝公开注册请求。管理后台「站点设置」可运行时覆盖该默认值（存入 `site_settings` 表） |
 | `DATABASE_URL` / `REDIS_URL` | 数据与缓存连接串：留空时默认编排内 PostgreSQL/Redis（需 `bundle` profile）；填写远程地址即切换为远程实例 |
 | `PENDING_REQUEST_STORE` / `TWOFA_STORE` / `RATE_LIMITER` | 生产用 `redis` |

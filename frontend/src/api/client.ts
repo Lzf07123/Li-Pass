@@ -22,6 +22,7 @@ import type {
   SessionOut,
   SiteSettings,
   StepUpStatus,
+  TrustedDeviceOut,
   TotpSetup,
   TwoFaStatus,
   UserOut,
@@ -308,11 +309,22 @@ export const auth2faApi = {
       method: "POST",
       body: JSON.stringify({ challenge_id }),
     }),
-  verify: (challenge_id: string, method: string, code: string) =>
+  verify: (
+    challenge_id: string,
+    method: string,
+    code: string,
+    trust_device: boolean = false,
+  ) =>
     api<UserOut>("/api/v1/auth/2fa/verify", {
       method: "POST",
-      body: JSON.stringify({ challenge_id, method, code }),
+      body: JSON.stringify({ challenge_id, method, code, trust_device }),
     }),
+};
+
+export const trustedDevicesApi = {
+  list: () => api<TrustedDeviceOut[]>("/api/v1/me/trusted-devices"),
+  revoke: (id: string) =>
+    api<void>(`/api/v1/me/trusted-devices/${id}`, { method: "DELETE" }),
 };
 
 export const twofaApi = {

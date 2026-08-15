@@ -10,6 +10,7 @@ from fastapi import (
     File,
     HTTPException,
     Request,
+    Response,
     UploadFile,
     status,
 )
@@ -24,6 +25,7 @@ from app.models.oauth_client import OAuthClient
 from app.models.oidc_client_session import OIDCClientSession
 from app.models.otp import OtpPurpose
 from app.models.session import Session as SessionModel
+from app.models.trusted_device import TrustedDevice
 from app.models.user import User, UserRole
 from app.models.user_consent import UserConsent
 from app.schemas.auth import (
@@ -38,6 +40,7 @@ from app.schemas.auth import (
     serialize_user,
 )
 from app.security.passwords import hash_password
+from app.security.tokens import hash_token
 from app.services.account_deletion import delete_user_account
 from app.services.device_info import describe_session_device
 from app.services.avatar_cleanup import delete_avatar_file
@@ -54,6 +57,12 @@ from app.services.stepup import (
     authorize_critical_operation,
     authorize_stepup,
     stepup_status,
+)
+from app.services.trusted_devices import (
+    TRUSTED_DEVICE_COOKIE,
+    clear_trusted_device_cookie,
+    revoke_all as revoke_all_trusted_devices,
+    revoke_one,
 )
 
 router = APIRouter(prefix="/api/v1", tags=["users"])
@@ -221,8 +230,18 @@ def change_password(
     ).all()
     for session in others:
         session.revoked_at = datetime.now(timezone.utc)
+    revoked_trusted = revoke_all_trusted_devices(db, user.id)
     db.commit()
     log_audit(db, "user", str(user.id), "password_change", category="user")
+    if revoked_trusted:
+        log_audit(
+            db,
+            "user",
+            str(user.id),
+            "trusted_device_revoked",
+            category="security",
+            detail={"reason": "password_change", "count": revoked_trusted},
+        )
     return {"message": "密码已修改，其他会话已退出"}
 
 
@@ -447,6 +466,7 @@ def revoke_all_sessions(
         .execution_options(synchronize_session=False)
     )
     count = result.rowcount or 0
+    revoked_trusted = revoke_all_trusted_devices(db, user.id)
     db.commit()
     targets = collect_logout_targets(db, list(target_ids))
     if targets:
@@ -463,7 +483,73 @@ def revoke_all_sessions(
         user_agent=request.headers.get("user-agent"),
         detail={"count": count},
     )
+    if revoked_trusted:
+        log_audit(
+            db,
+            "user",
+            str(user.id),
+            "trusted_device_revoked",
+            category="security",
+            detail={"reason": "revoke_all_sessions", "count": revoked_trusted},
+        )
     return {"revoked": count}
+
+
+@router.get("/me/trusted-devices")
+def list_trusted_devices(
+    request: Request,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> list[dict]:
+    raw = request.cookies.get(TRUSTED_DEVICE_COOKIE)
+    current_hash = hash_token(raw) if raw else None
+    devices = db.scalars(
+        select(TrustedDevice)
+        .where(
+            TrustedDevice.user_id == user.id,
+            TrustedDevice.revoked_at.is_(None),
+        )
+        .order_by(TrustedDevice.created_at.desc())
+    ).all()
+    return [
+        {
+            "id": str(d.id),
+            "device_name": d.device_name,
+            "user_agent": d.user_agent,
+            "ip": d.ip,
+            "created_at": d.created_at,
+            "expires_at": d.expires_at,
+            "last_used_at": d.last_used_at,
+            "current": d.token_hash == current_hash,
+        }
+        for d in devices
+    ]
+
+
+@router.delete(
+    "/me/trusted-devices/{device_id}", status_code=status.HTTP_204_NO_CONTENT
+)
+def revoke_trusted_device(
+    device_id: uuid.UUID,
+    request: Request,
+    response: Response,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> None:
+    device = revoke_one(db, user.id, device_id)
+    if device is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "可信设备不存在")
+    raw = request.cookies.get(TRUSTED_DEVICE_COOKIE)
+    if raw and hash_token(raw) == device.token_hash:
+        clear_trusted_device_cookie(response)
+    log_audit(
+        db,
+        "user",
+        str(user.id),
+        "trusted_device_revoked",
+        category="security",
+        detail={"device_id": str(device.id), "reason": "user_revoke"},
+    )
 
 
 @router.get("/apps", response_model=list[AppOut])

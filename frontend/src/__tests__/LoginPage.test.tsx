@@ -142,6 +142,68 @@ describe("LoginPage", () => {
     );
   });
 
+  it("勾选信任此设备后 2FA 验证请求携带 trust_device", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            requires_2fa: true,
+            challenge_id: "ch-1",
+            methods: ["email_otp", "recovery"],
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } }
+        )
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            id: "1",
+            email: "a@example.com",
+            nickname: "Alice",
+            email_verified: true,
+            phone: null,
+            role: "user",
+            status: "active",
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } }
+        )
+      );
+    vi.stubGlobal("fetch", fetchMock);
+    renderWithProviders(<LoginPage />);
+    fireEvent.change(screen.getByLabelText("邮箱"), {
+      target: { value: "a@example.com" },
+    });
+    fireEvent.change(screen.getByLabelText("密码"), {
+      target: { value: "password123" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "登录" }));
+    await waitFor(() =>
+      expect(
+        screen.getByText("信任此设备：7 天内登录免二次验证（仅登录环节）"),
+      ).toBeInTheDocument()
+    );
+    fireEvent.click(
+      screen.getByRole("checkbox", {
+        name: "信任此设备：7 天内登录免二次验证（仅登录环节）",
+      })
+    );
+    fireEvent.change(screen.getByLabelText("验证码"), {
+      target: { value: "123456" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "验证" }));
+    await waitFor(() => {
+      const verifyCall = fetchMock.mock.calls.find((call) =>
+        String(call[0]).includes("/2fa/verify")
+      );
+      expect(verifyCall).toBeDefined();
+      const body = JSON.parse(
+        String((verifyCall as [unknown, RequestInit])[1].body)
+      );
+      expect(body.trust_device).toBe(true);
+    });
+  });
+
   it("next 白名单：仅允许同源或 API 同源地址", () => {
     const origin = window.location.origin;
     expect(isSafeNext(`${origin}/oauth2/authorize`)).toBe(true);
