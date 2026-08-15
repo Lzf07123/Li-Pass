@@ -236,6 +236,8 @@ def verify_email(
     if not verify_otp(db, OtpPurpose.register, email, payload.code):
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "验证码无效或已过期")
 
+    # 成功消费验证码不占用限流额度：只有失败尝试累积计数。
+    get_rate_limiter().decrement("email_verify", email)
     user.email_verified_at = datetime.now(timezone.utc)
     # 强制 2FA：验证邮箱后直接启用邮箱验证码作为默认第二方案。
     user.email_otp_enabled = True
@@ -658,6 +660,8 @@ def verify_twofa(
         )
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "验证码无效")
 
+    # 成功消费验证码不占用限流额度：只有失败尝试累积计数。
+    get_rate_limiter().decrement("twofa_verify", ip)
     store.delete(payload.challenge_id)
     _create_session_and_cookie(
         db,
