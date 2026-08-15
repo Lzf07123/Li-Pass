@@ -231,15 +231,26 @@ curl -u CLIENT_ID:CLIENT_SECRET -X DELETE \
 
 ## 7. 登出与联邦登出
 
-门户支持三种登出路径，接入方按自身技术栈任选组合：
+### 7.1 两种登出语义（先分清）
 
-1. **RP 发起登出（RP-Initiated Logout）**：用户在你的网站点击退出时，先清掉自己的本地会话，再 302 到 IdP 统一退出。
+「退出登录」在 SSO 场景下有**两种截然不同的语义**，接入方与用户动手前先写清楚：
+
+| 语义 | 范围 | 实现方式 |
+| --- | --- | --- |
+| **登出本网站（本地登出）** | 只结束当前网站的本地会话；门户与其它授权网站保持登录 | 网站自行清本地会话，**不要**调用门户 `end-session` |
+| **登出 SSO（单点登出）** | 退出门户会话，并让所有已授权网站一并退出 | 网站清本地会话后 302 到 `end-session`，门户确认后完成 |
+
+门户 `end-session` 确认页会再次让用户在两者中选择：「登出 SSO」吊销门户会话并通知全部网站；「仅登出本网站」保留门户会话、仅回跳发起网站（发起网站的本地会话由该网站在跳转前自行结束）。参考实现见仓库 `examples/demo-site/app.py`：登录后提供「登出本网站」与「登出 SSO（退出所有网站）」两个按钮。
+
+门户支持三种登出通道，接入方按自身技术栈任选组合：
+
+1. **RP 发起登出（RP-Initiated Logout）**：仅用于「登出 SSO」，见 §7.2。
 2. **回程登出（Back-Channel Logout）**：用户从门户（或管理员强制下线）退出时，IdP 服务器间 POST `logout_token` 通知你下线。
 3. **浏览器串跳漏斗**：未实现回程通道的网站，门户登出时把各网站的 `logout_uri` 串成一条 `?next=` 链，由浏览器依次跳转清会话。
 
 发现文档中的 `end_session_endpoint`、`backchannel_logout_supported: true`、`frontchannel_logout_supported: false` 描述了门户的支持情况。**门户不实现 front-channel iframe 登出**（第三方 Cookie 已被主流浏览器禁用），请勿依赖该机制。
 
-### 7.1 RP 发起登出
+### 7.2 RP 发起登出
 
 管理员在应用配置中填写「登出回跳白名单」（精确匹配，不做前缀匹配）后，网站这样发起：
 
@@ -251,7 +262,12 @@ GET {issuer}/oauth2/end-session
     &state=RANDOM_STATE            # 可选：回跳时原样返回
 ```
 
-门户校验回跳地址后展示「退出登录」确认页。用户确认后：门户会话被吊销、向支持回程的网站分发 `logout_token`，最后 302 回：
+门户校验回跳地址后展示「退出登录」确认页，并给出两个选择：
+
+- **登出 SSO**：门户会话被吊销，向支持回程的网站分发 `logout_token`，最后 302 回跳。
+- **仅登出本网站**：保留门户会话、只回跳发起网站；发起网站的本地会话已由该网站在跳转前自行结束。
+
+选择「登出 SSO」后最终回跳到：
 
 ```text
 https://your-site.example/?state=RANDOM_STATE
@@ -263,7 +279,7 @@ https://your-site.example/?state=RANDOM_STATE
 - 即便门户当前没有会话（例如已超时），也会直接 302 回跳，而不是报错。
 - 校验 `state` 与发起时一致，防止跨站请求伪造。
 
-### 7.2 回程登出（Back-Channel Logout）
+### 7.3 回程登出（Back-Channel Logout）
 
 管理员在应用配置中填写「回程登出地址」（生产环境必须 https 且不得指向回环/私网地址）。用户在门户登出、RP 发起登出确认、管理员强制下线或取消授权时，门户会向该地址 POST `application/x-www-form-urlencoded` 的 `logout_token`：
 
@@ -291,7 +307,7 @@ https://your-site.example/?state=RANDOM_STATE
 - 终止本地与 `(sub, sid)` 匹配的会话；id_token 中的 `sid` 即门户会话标识，登录时请按 `(sub, sid)` 绑定本地会话。
 - 处理成功返回 2xx；门户对失败会有限重试，但仍以“尽力而为”为准，不能假设一定送达。
 
-### 7.3 浏览器串跳漏斗（无回程通道的网站）
+### 7.4 浏览器串跳漏斗（无回程通道的网站）
 
 如果你只配置了「登出地址」（`logout_uri`）而没有回程地址，门户登出时会向浏览器返回形如：
 
