@@ -148,6 +148,10 @@ class PasswordConfirm(BaseModel):
     current_password: str = Field(min_length=1, max_length=128)
 
 
+class StepUpVerifyRequest(BaseModel):
+    password: str = Field(min_length=1, max_length=128)
+
+
 class TwoFaSendRequest(BaseModel):
     challenge_id: str
 

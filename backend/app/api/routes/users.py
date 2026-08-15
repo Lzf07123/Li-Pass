@@ -32,6 +32,7 @@ from app.schemas.auth import (
     PhoneBind,
     ProfileUpdate,
     SessionOut,
+    StepUpVerifyRequest,
     UserOut,
     serialize_user,
 )
@@ -48,6 +49,7 @@ from app.services.federated_logout import (
 )
 from app.services.otps import create_otp, verify_otp
 from app.services.rate_limit import get_rate_limiter
+from app.services.stepup import authorize_stepup, stepup_status
 
 router = APIRouter(prefix="/api/v1", tags=["users"])
 logger = logging.getLogger(__name__)
@@ -76,6 +78,30 @@ def _avatar_ext(content: bytes) -> str | None:
 @router.get("/me", response_model=UserOut)
 def me(user: User = Depends(get_current_user)) -> dict:
     return serialize_user(user)
+
+
+@router.get("/me/step-up")
+def stepup_status_endpoint(
+    request: Request,
+    db: Session = Depends(get_db),
+) -> dict:
+    """当前会话的 step-up 复核窗口状态。"""
+    session = get_current_session(request, db)
+    return stepup_status(session)
+
+
+@router.post("/me/step-up")
+def stepup_verify(
+    payload: StepUpVerifyRequest,
+    request: Request,
+    db: Session = Depends(get_db),
+) -> dict:
+    """在已登录会话上复核密码：成功后开启 30 分钟敏感操作免复核窗口。"""
+    session = get_current_session(request, db)
+    user = get_current_user(request, db)
+    authorize_stepup(request, db, user, session, payload.password)
+    result = stepup_status(session)
+    return {**result, "message": "身份复核成功"}
 
 
 @router.put("/me", response_model=UserOut)
