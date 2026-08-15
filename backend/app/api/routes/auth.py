@@ -68,6 +68,11 @@ from app.services.twofa import (
     get_twofa_store,
     verify_totp,
 )
+from app.services.trusted_devices import (
+    TRUSTED_DEVICE_COOKIE,
+    find_valid,
+    grant,
+)
 
 router = APIRouter(prefix="/api/v1/auth", tags=["auth"])
 settings = get_settings()
@@ -494,32 +499,46 @@ def login(
         methods.append("totp")
     if methods:
         methods.append("recovery")
-        challenge_id = create_challenge(
-            get_twofa_store(),
-            str(user.id),
-            methods,
-            remember_me=payload.remember_me,
+        trusted = find_valid(
+            db, user.id, request.cookies.get(TRUSTED_DEVICE_COOKIE)
         )
-        # 进入 2FA 界面时不自动发送验证码，由前端引导用户点击“获取验证码”，
-        # 之后的重发由 /2fa/send 按 60 秒冷却与每小时配额控制。
-        email_status = "skipped"
+        if trusted is None:
+            challenge_id = create_challenge(
+                get_twofa_store(),
+                str(user.id),
+                methods,
+                remember_me=payload.remember_me,
+            )
+            # 进入 2FA 界面时不自动发送验证码，由前端引导用户点击“获取验证码”，
+            # 之后的重发由 /2fa/send 按 60 秒冷却与每小时配额控制。
+            email_status = "skipped"
+            log_audit(
+                db,
+                "user",
+                str(user.id),
+                "login_step1",
+                category="auth",
+                ip=ip,
+                user_agent=user_agent,
+            )
+            return {
+                "requires_2fa": True,
+                "challenge_id": challenge_id,
+                "methods": methods,
+                "email_sent": email_status == "sent",
+                "email_status": email_status,
+                "email_retry_after_seconds": settings.otp_send_window_seconds,
+            }
         log_audit(
             db,
             "user",
             str(user.id),
-            "login_step1",
-            category="auth",
+            "2fa_trusted_skip",
+            category="security",
             ip=ip,
             user_agent=user_agent,
+            detail={"device_id": str(trusted.id)},
         )
-        return {
-            "requires_2fa": True,
-            "challenge_id": challenge_id,
-            "methods": methods,
-            "email_sent": email_status == "sent",
-            "email_status": email_status,
-            "email_retry_after_seconds": settings.otp_send_window_seconds,
-        }
 
     _create_session_and_cookie(
         db,
@@ -663,6 +682,21 @@ def verify_twofa(
     # 成功消费验证码不占用限流额度：只有失败尝试累积计数。
     get_rate_limiter().decrement("twofa_verify", ip)
     store.delete(payload.challenge_id)
+    if payload.trust_device:
+        device = grant(db, user.id, request, response)
+        log_audit(
+            db,
+            "user",
+            str(user.id),
+            "trusted_device_granted",
+            category="security",
+            ip=request.client.host if request.client else None,
+            user_agent=request.headers.get("user-agent"),
+            detail={
+                "device_id": str(device.id),
+                "ttl_days": settings.trusted_device_ttl_days,
+            },
+        )
     _create_session_and_cookie(
         db,
         user,
