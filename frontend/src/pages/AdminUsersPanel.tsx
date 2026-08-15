@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useState } from "react";
 
-import { adminUsersApi } from "../api/client";
+import { adminUsersApi, twofaApi } from "../api/client";
 import { AnimatedNumber } from "../components/AnimatedNumber";
 import { AsyncButton } from "../components/AsyncButton";
 import { ConfirmDialog } from "../components/ConfirmDialog";
 import { Modal } from "../components/Modal";
 import { PasswordInput } from "../components/PasswordInput";
 import { StepUpNotice } from "../components/StepUpNotice";
+import { StepUp2faForm } from "../components/StepUp2faForm";
 import { useAsyncAction } from "../hooks/useAsyncAction";
 import { useBreathOnChange } from "../hooks/useBreathOnChange";
 import { useStepUp } from "../hooks/useStepUp";
@@ -25,7 +26,6 @@ export function AdminUsersPanel({ currentAdminId }: { currentAdminId: string }) 
     action: "toggle" | "reset2fa" | "cancelInvite" | "removeInvite";
   } | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<AdminUserOut | null>(null);
-  const [deletePassword, setDeletePassword] = useState("");
   const [createOpen, setCreateOpen] = useState(false);
   const [createEmail, setCreateEmail] = useState("");
   const [createNickname, setCreateNickname] = useState("");
@@ -35,7 +35,10 @@ export function AdminUsersPanel({ currentAdminId }: { currentAdminId: string }) 
   const [inviteNickname, setInviteNickname] = useState("");
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [batchDeleteOpen, setBatchDeleteOpen] = useState(false);
-  const [batchDeletePassword, setBatchDeletePassword] = useState("");
+  const [adminTwofa, setAdminTwofa] = useState<{
+    email_otp_enabled: boolean;
+    totp_enabled: boolean;
+  } | null>(null);
   const [confirmPasswordError, setConfirmPasswordError] = useState<string | null>(null);
   const [resetPasswordError, setResetPasswordError] = useState<string | null>(null);
   const [deletePasswordError, setDeletePasswordError] = useState<string | null>(null);
@@ -261,26 +264,35 @@ export function AdminUsersPanel({ currentAdminId }: { currentAdminId: string }) 
 
   function startDelete(user: AdminUserOut) {
     setDeleteTarget(user);
-    setDeletePassword("");
     setDeletePasswordError(null);
-    void stepUp.refresh(true);
+    setAdminTwofa(null);
+    twofaApi
+      .status()
+      .then(setAdminTwofa)
+      .catch(() => setAdminTwofa(null));
   }
 
   const deleteAction = useAsyncAction(
-    async (id: string, password: string | undefined) => {
-      const result = await adminUsersApi.deleteAccount(id, password);
+    async (
+      id: string,
+      password: string,
+      stepupMethod: string,
+      stepupCode: string,
+    ) => {
+      const result = await adminUsersApi.deleteAccount(
+        id,
+        password,
+        stepupMethod,
+        stepupCode,
+      );
       setUsers((prev) => prev.filter((item) => item.id !== id));
       setDeleteTarget(null);
-      setDeletePassword("");
       toast.success(result.message);
     },
     {
       onError: (err) => {
         const message = err instanceof Error ? err.message : "删除失败";
-        if (message.includes("需要重新验证密码")) {
-          stepUp.invalidate();
-          setDeletePasswordError("复核已过期，请重新输入当前密码");
-        } else if (message.includes("当前密码")) {
+        if (message.includes("当前密码") || message.includes("二次验证")) {
           setDeletePasswordError(message);
         } else {
           toast.error(message);
@@ -288,17 +300,6 @@ export function AdminUsersPanel({ currentAdminId }: { currentAdminId: string }) 
       },
     },
   );
-
-  async function submitDelete(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (!deleteTarget) return;
-    const password = deletePassword.trim() || undefined;
-    if (!password && !(await stepUp.refresh(true))?.active) {
-      setDeletePasswordError("请输入你的当前密码以确认删除");
-      return;
-    }
-    await deleteAction.run(deleteTarget.id, password);
-  }
 
   function openCreate() {
     setCreateEmail("");
@@ -402,10 +403,19 @@ export function AdminUsersPanel({ currentAdminId }: { currentAdminId: string }) 
   }
 
   const batchDeleteAction = useAsyncAction(
-    async (ids: string[], password: string | undefined) => {
-      const result = await adminUsersApi.batchDelete(ids, password);
+    async (
+      ids: string[],
+      password: string,
+      stepupMethod: string,
+      stepupCode: string,
+    ) => {
+      const result = await adminUsersApi.batchDelete(
+        ids,
+        password,
+        stepupMethod,
+        stepupCode,
+      );
       setBatchDeleteOpen(false);
-      setBatchDeletePassword("");
       setSelected(new Set());
       await load(query, statusFilter, roleFilter);
       toast.success(result.message);
@@ -413,10 +423,7 @@ export function AdminUsersPanel({ currentAdminId }: { currentAdminId: string }) 
     {
       onError: (err) => {
         const message = err instanceof Error ? err.message : "批量删除失败";
-        if (message.includes("需要重新验证密码")) {
-          stepUp.invalidate();
-          setBatchDeleteError("复核已过期，请重新输入当前密码");
-        } else if (message.includes("当前密码")) {
+        if (message.includes("当前密码") || message.includes("二次验证")) {
           setBatchDeleteError(message);
         } else {
           toast.error(message);
@@ -424,18 +431,6 @@ export function AdminUsersPanel({ currentAdminId }: { currentAdminId: string }) 
       },
     },
   );
-
-  async function submitBatchDelete(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const ids = Array.from(selected);
-    if (ids.length === 0) return;
-    const password = batchDeletePassword.trim() || undefined;
-    if (!password && !(await stepUp.refresh(true))?.active) {
-      setBatchDeleteError("请输入你的当前密码以确认批量删除");
-      return;
-    }
-    await batchDeleteAction.run(ids, password);
-  }
 
   const batchInviteAction = useAsyncAction(
     async (emails: string[]) => {
@@ -578,9 +573,12 @@ export function AdminUsersPanel({ currentAdminId }: { currentAdminId: string }) 
           </AsyncButton>
           <button
             onClick={() => {
-              setBatchDeletePassword("");
               setBatchDeleteError(null);
-              void stepUp.refresh(true);
+              setAdminTwofa(null);
+              twofaApi
+                .status()
+                .then(setAdminTwofa)
+                .catch(() => setAdminTwofa(null));
               setBatchDeleteOpen(true);
             }}
             disabled={batchStatusAction.pending || batchDeleteAction.pending}
@@ -925,69 +923,39 @@ export function AdminUsersPanel({ currentAdminId }: { currentAdminId: string }) 
         title={deleteTarget ? `删除账号：${deleteTarget.email}` : "删除账号"}
         intent="danger"
         footer={
-          <>
-            <button
-              type="button"
-              className="btn btn-secondary"
-              onClick={() => setDeleteTarget(null)}
-              disabled={deleteAction.pending}
-            >
-              取消
-            </button>
-            <AsyncButton
-              type="submit"
-              form="delete-user-form"
-              status={deleteAction.status}
-              className="btn btn-danger"
-            >
-              永久删除
-            </AsyncButton>
-          </>
+          <button
+            type="button"
+            className="btn btn-secondary"
+            onClick={() => setDeleteTarget(null)}
+            disabled={deleteAction.pending}
+          >
+            取消
+          </button>
         }
       >
-        <form
-          id="delete-user-form"
-          onSubmit={submitDelete}
-          className="space-y-3"
-        >
+        <div className="space-y-3">
           <p className="text-foreground">
             删除后将永久移除该用户的会话、授权记录、恢复码与头像等全部数据，
             此操作不可恢复。
           </p>
-          <label className="block">
-            <span className="label">你的当前密码</span>
-            <PasswordInput
-              value={deletePassword}
-              onChange={(e) => {
-                setDeletePassword(e.target.value);
-                setDeletePasswordError(null);
-              }}
-              placeholder="输入管理员当前密码确认"
-              className="input"
-              autoComplete="current-password"
-              autoFocus
-              required={!stepUp.active}
-              aria-invalid={deletePasswordError ? true : undefined}
-              aria-describedby={
-                deletePasswordError ? "delete-password-error" : undefined
+          <StepUp2faForm
+            emailOtpEnabled={adminTwofa?.email_otp_enabled === true}
+            totpEnabled={adminTwofa?.totp_enabled === true}
+            submitLabel="永久删除"
+            status={deleteAction.status}
+            serverError={deletePasswordError}
+            onSubmit={({ current_password, stepup_method, stepup_code }) => {
+              if (deleteTarget) {
+                void deleteAction.run(
+                  deleteTarget.id,
+                  current_password,
+                  stepup_method,
+                  stepup_code,
+                );
               }
-            />
-            {stepUp.active && stepUp.status && (
-              <StepUpNotice
-                expiresInSeconds={stepUp.status.expires_in_seconds}
-              />
-            )}
-            {deletePasswordError && (
-              <p
-                id="delete-password-error"
-                role="alert"
-                className="mt-1.5 text-xs text-destructive"
-              >
-                {deletePasswordError}
-              </p>
-            )}
-          </label>
-        </form>
+            }}
+          />
+        </div>
       </Modal>
 
       <Modal
@@ -1131,69 +1099,37 @@ export function AdminUsersPanel({ currentAdminId }: { currentAdminId: string }) 
         title="批量删除账号"
         intent="danger"
         footer={
-          <>
-            <button
-              type="button"
-              className="btn btn-secondary"
-              onClick={() => setBatchDeleteOpen(false)}
-              disabled={batchDeleteAction.pending}
-            >
-              取消
-            </button>
-            <AsyncButton
-              type="submit"
-              form="batch-delete-user-form"
-              status={batchDeleteAction.status}
-              className="btn btn-danger"
-            >
-              永久删除
-            </AsyncButton>
-          </>
+          <button
+            type="button"
+            className="btn btn-secondary"
+            onClick={() => setBatchDeleteOpen(false)}
+            disabled={batchDeleteAction.pending}
+          >
+            取消
+          </button>
         }
       >
-        <form
-          id="batch-delete-user-form"
-          onSubmit={submitBatchDelete}
-          className="space-y-3"
-        >
+        <div className="space-y-3">
           <p className="text-foreground">
             将永久删除选中的 {selected.size} 个账号及其会话、授权记录、恢复码与头像等全部数据，
             此操作不可恢复。
           </p>
-          <label className="block">
-            <span className="label">你的当前密码</span>
-            <PasswordInput
-              value={batchDeletePassword}
-              onChange={(e) => {
-                setBatchDeletePassword(e.target.value);
-                setBatchDeleteError(null);
-              }}
-              placeholder="输入管理员当前密码确认"
-              className="input"
-              autoComplete="current-password"
-              autoFocus
-              required={!stepUp.active}
-              aria-invalid={batchDeleteError ? true : undefined}
-              aria-describedby={
-                batchDeleteError ? "batch-delete-error" : undefined
-              }
-            />
-            {stepUp.active && stepUp.status && (
-              <StepUpNotice
-                expiresInSeconds={stepUp.status.expires_in_seconds}
-              />
-            )}
-            {batchDeleteError && (
-              <p
-                id="batch-delete-error"
-                role="alert"
-                className="mt-1.5 text-xs text-destructive"
-              >
-                {batchDeleteError}
-              </p>
-            )}
-          </label>
-        </form>
+          <StepUp2faForm
+            emailOtpEnabled={adminTwofa?.email_otp_enabled === true}
+            totpEnabled={adminTwofa?.totp_enabled === true}
+            submitLabel="永久删除"
+            status={batchDeleteAction.status}
+            serverError={batchDeleteError}
+            onSubmit={({ current_password, stepup_method, stepup_code }) =>
+              void batchDeleteAction.run(
+                Array.from(selected),
+                current_password,
+                stepup_method,
+                stepup_code,
+              )
+            }
+          />
+        </div>
       </Modal>
 
       <Modal

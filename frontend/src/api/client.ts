@@ -222,6 +222,10 @@ export const meApi = {
       method: "POST",
       body: JSON.stringify({ password }),
     }),
+  stepUpSend: () =>
+    api<{ message: string }>("/api/v1/me/step-up/send", {
+      method: "POST",
+    }),
   changePassword: (data: {
     current_password?: string;
     new_password: string;
@@ -235,12 +239,18 @@ export const meApi = {
           : {}),
       }),
     }),
-  deleteAccount: (current_password?: string) =>
+  deleteAccount: (
+    current_password?: string,
+    stepup_method?: string,
+    stepup_code?: string,
+  ) =>
     api<{ message: string }>("/api/v1/me/delete", {
       method: "POST",
-      body: JSON.stringify(
-        current_password ? { current_password } : {}
-      ),
+      body: JSON.stringify({
+        ...(current_password ? { current_password } : {}),
+        ...(stepup_method ? { stepup_method } : {}),
+        ...(stepup_code ? { stepup_code } : {}),
+      }),
     }),
   sendPhoneBind: () =>
     api<{ message: string }>("/api/v1/me/phone/bind/send", {
@@ -389,12 +399,19 @@ export const adminUsersApi = {
         ...(currentPassword ? { current_password: currentPassword } : {}),
       }),
     }),
-  batchDelete: (ids: string[], current_password?: string) =>
+  batchDelete: (
+    ids: string[],
+    current_password?: string,
+    stepup_method?: string,
+    stepup_code?: string,
+  ) =>
     api<BatchDeleteResult>("/api/v1/admin/users/batch/delete", {
       method: "POST",
       body: JSON.stringify({
         user_ids: ids,
         ...(current_password ? { current_password } : {}),
+        ...(stepup_method ? { stepup_method } : {}),
+        ...(stepup_code ? { stepup_code } : {}),
       }),
     }),
   update: (
@@ -426,10 +443,19 @@ export const adminUsersApi = {
       method: "POST",
       body: JSON.stringify(current_password ? { current_password } : {}),
     }),
-  deleteAccount: (id: string, current_password?: string) =>
+  deleteAccount: (
+    id: string,
+    current_password?: string,
+    stepup_method?: string,
+    stepup_code?: string,
+  ) =>
     api<{ message: string }>(`/api/v1/admin/users/${id}/delete`, {
       method: "POST",
-      body: JSON.stringify(current_password ? { current_password } : {}),
+      body: JSON.stringify({
+        ...(current_password ? { current_password } : {}),
+        ...(stepup_method ? { stepup_method } : {}),
+        ...(stepup_code ? { stepup_code } : {}),
+      }),
     }),
 };
 
