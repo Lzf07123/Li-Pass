@@ -41,3 +41,41 @@ Object.defineProperty(globalThis, "IntersectionObserver", {
   configurable: true,
   value: IntersectionObserverMock,
 });
+
+// 当前 jsdom 环境未暴露 window.localStorage；提供内存实现，
+// 支撑「记住账号/密码」相关测试（生产环境使用浏览器真实 localStorage）。
+if (typeof window.localStorage === "undefined") {
+  class MemoryStorage implements Storage {
+    private readonly store = new Map<string, string>();
+
+    get length(): number {
+      return this.store.size;
+    }
+
+    clear(): void {
+      this.store.clear();
+    }
+
+    getItem(key: string): string | null {
+      return this.store.has(key) ? (this.store.get(key) as string) : null;
+    }
+
+    key(index: number): string | null {
+      return Array.from(this.store.keys())[index] ?? null;
+    }
+
+    removeItem(key: string): void {
+      this.store.delete(key);
+    }
+
+    setItem(key: string, value: string): void {
+      this.store.set(key, String(value));
+    }
+  }
+
+  Object.defineProperty(window, "localStorage", {
+    writable: true,
+    configurable: true,
+    value: new MemoryStorage(),
+  });
+}

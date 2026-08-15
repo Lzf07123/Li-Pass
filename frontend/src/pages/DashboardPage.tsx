@@ -17,8 +17,10 @@ import { ConfirmDialog } from "../components/ConfirmDialog";
 import { FloatingBackground } from "../components/FloatingBackground";
 import { Modal } from "../components/Modal";
 import { PasswordInput } from "../components/PasswordInput";
+import { PasswordStrength } from "../components/PasswordStrength";
 import { SiteFooter } from "../components/SiteFooter";
 import { StepUpNotice } from "../components/StepUpNotice";
+import { StepUp2faForm } from "../components/StepUp2faForm";
 import { useAsyncAction } from "../hooks/useAsyncAction";
 import { useBreathOnChange } from "../hooks/useBreathOnChange";
 import { useStepUp } from "../hooks/useStepUp";
@@ -57,7 +59,6 @@ export function DashboardPage() {
     "email" | "totp-setup" | "totp-enable" | "totp-disable" | null
   >(null);
   const [deleteAccountOpen, setDeleteAccountOpen] = useState(false);
-  const [deleteAccountPassword, setDeleteAccountPassword] = useState("");
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const navigate = useNavigate();
   const toast = useToast();
@@ -399,20 +400,20 @@ export function DashboardPage() {
   }
 
   const deleteAccountAction = useAsyncAction(
-    async (password: string | undefined) => {
-      const result = await meApi.deleteAccount(password);
+    async (password: string, stepupMethod: string, stepupCode: string) => {
+      const result = await meApi.deleteAccount(
+        password,
+        stepupMethod,
+        stepupCode,
+      );
       setDeleteAccountOpen(false);
-      setDeleteAccountPassword("");
       toast.success(result.message);
       navigate("/login");
     },
     {
       onError: (err) => {
         const message = err instanceof Error ? err.message : "注销失败";
-        if (message.includes("需要重新验证密码")) {
-          stepUp.invalidate();
-          setDeleteAccountError("复核已过期，请重新输入当前密码");
-        } else if (message.includes("当前密码")) {
+        if (message.includes("当前密码") || message.includes("二次验证")) {
           setDeleteAccountError(message);
         } else {
           toast.error(message);
@@ -420,16 +421,6 @@ export function DashboardPage() {
       },
     },
   );
-
-  async function submitDeleteAccount(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const password = deleteAccountPassword.trim() || undefined;
-    if (!password && !(await stepUp.refresh(true))?.active) {
-      setDeleteAccountError("请输入当前密码以确认注销账号");
-      return;
-    }
-    await deleteAccountAction.run(password);
-  }
 
   useEffect(() => {
     if (!user) return;
@@ -630,6 +621,7 @@ export function DashboardPage() {
                 autoComplete="new-password"
                 required
               />
+              <PasswordStrength password={newPassword} />
               <AsyncButton
                 type="submit"
                 status={changePasswordAction.status}
@@ -1003,9 +995,7 @@ export function DashboardPage() {
             </p>
             <button
               onClick={() => {
-                setDeleteAccountPassword("");
                 setDeleteAccountError(null);
-                void stepUp.refresh(true);
                 setDeleteAccountOpen(true);
               }}
               className="btn btn-danger"
@@ -1083,68 +1073,35 @@ export function DashboardPage() {
         title="注销账号"
         intent="danger"
         footer={
-          <>
-            <button
-              type="button"
-              className="btn btn-secondary"
-              onClick={() => setDeleteAccountOpen(false)}
-              disabled={deleteAccountAction.pending}
-            >
-              取消
-            </button>
-            <AsyncButton
-              type="submit"
-              form="delete-account-form"
-              status={deleteAccountAction.status}
-              className="btn btn-danger"
-            >
-              永久注销
-            </AsyncButton>
-          </>
+          <button
+            type="button"
+            className="btn btn-secondary"
+            onClick={() => setDeleteAccountOpen(false)}
+            disabled={deleteAccountAction.pending}
+          >
+            取消
+          </button>
         }
       >
-        <form
-          id="delete-account-form"
-          onSubmit={submitDeleteAccount}
-          className="space-y-3"
-        >
+        <div className="space-y-3">
           <p className="text-foreground">
             此操作将永久删除账号及全部关联数据，且不可恢复。请确认这是你本人操作。
           </p>
-          <label className="block">
-            <span className="label">当前密码</span>
-            <PasswordInput
-              value={deleteAccountPassword}
-              onChange={(e) => {
-                setDeleteAccountPassword(e.target.value);
-                setDeleteAccountError(null);
-              }}
-              placeholder="输入当前密码确认注销"
-              className="input"
-              autoComplete="current-password"
-              autoFocus
-              required={!stepUp.active}
-              aria-invalid={deleteAccountError ? true : undefined}
-              aria-describedby={
-                deleteAccountError ? "delete-account-error" : undefined
-              }
-            />
-            {stepUp.active && stepUp.status && (
-              <StepUpNotice
-                expiresInSeconds={stepUp.status.expires_in_seconds}
-              />
-            )}
-            {deleteAccountError && (
-              <p
-                id="delete-account-error"
-                role="alert"
-                className="mt-1.5 text-xs text-destructive"
-              >
-                {deleteAccountError}
-              </p>
-            )}
-          </label>
-        </form>
+          <StepUp2faForm
+            emailOtpEnabled={twofa?.email_otp_enabled === true}
+            totpEnabled={twofa?.totp_enabled === true}
+            submitLabel="永久注销"
+            status={deleteAccountAction.status}
+            serverError={deleteAccountError}
+            onSubmit={({ current_password, stepup_method, stepup_code }) =>
+              void deleteAccountAction.run(
+                current_password,
+                stepup_method,
+                stepup_code,
+              )
+            }
+          />
+        </div>
       </Modal>
       <SiteFooter />
     </div>

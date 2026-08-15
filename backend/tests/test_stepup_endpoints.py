@@ -61,7 +61,7 @@ def test_change_password_without_window_requires_stepup(
     assert response.json()["detail"] == "需要重新验证密码"
 
 
-def test_delete_account_without_password_in_window(
+def test_delete_account_always_requires_password_and_2fa_even_in_window(
     client, captured_email
 ) -> None:
     register_and_login(client, captured_email)
@@ -71,16 +71,18 @@ def test_delete_account_without_password_in_window(
         ).status_code
         == 200
     )
-    assert client.post("/api/v1/me/delete", json={}).status_code == 200
+    response = client.post("/api/v1/me/delete", json={})
+    assert response.status_code == 400
+    assert response.json()["detail"] == "注销账号必须输入当前密码并完成二次验证"
 
 
-def test_delete_account_without_window_requires_stepup(
+def test_delete_account_without_window_requires_password_and_2fa(
     client, captured_email
 ) -> None:
     register_and_login(client, captured_email)
     response = client.post("/api/v1/me/delete", json={})
-    assert response.status_code == 403
-    assert response.json()["detail"] == "需要重新验证密码"
+    assert response.status_code == 400
+    assert response.json()["detail"] == "注销账号必须输入当前密码并完成二次验证"
 
 
 def test_expired_window_requires_stepup_and_logs_audit(

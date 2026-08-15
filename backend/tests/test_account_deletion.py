@@ -11,19 +11,30 @@ from app.models.session import Session as SessionModel
 from app.models.user import User, UserRole
 from app.models.user_consent import UserConsent
 from app.security.passwords import hash_password
-from tests.helpers import create_client, register_and_login
+from tests.helpers import (
+    create_client,
+    critical_stepup_payload,
+    register_and_login,
+)
 
 
 def _now() -> datetime:
     return datetime.now(timezone.utc)
 
 
-def test_self_service_delete_requires_password(client, captured_email, db_session) -> None:
+def test_self_service_delete_requires_password_and_2fa(
+    client, captured_email, db_session
+) -> None:
     register_and_login(client, captured_email)
 
     response = client.post(
         "/api/v1/me/delete",
-        json={"current_password": "wrong-password"},
+        json=critical_stepup_payload(
+            client,
+            captured_email,
+            "a@example.com",
+            password="wrong-password",
+        ),
     )
     assert response.status_code == 400
     assert response.json()["detail"] == "当前密码错误"
@@ -33,7 +44,7 @@ def test_self_service_delete_requires_password(client, captured_email, db_sessio
 
     response = client.post(
         "/api/v1/me/delete",
-        json={"current_password": "password123"},
+        json=critical_stepup_payload(client, captured_email, "a@example.com"),
     )
     assert response.status_code == 200
     deleted_mails = [
@@ -109,7 +120,7 @@ def test_self_service_delete_cleans_up_related_data(
 
     response = client.post(
         "/api/v1/me/delete",
-        json={"current_password": "password123"},
+        json=critical_stepup_payload(client, captured_email, "a@example.com"),
     )
     assert response.status_code == 200
 
@@ -141,7 +152,7 @@ def test_last_admin_cannot_cancel_account(client, captured_email, db_session) ->
 
     response = client.post(
         "/api/v1/me/delete",
-        json={"current_password": "password123"},
+        json=critical_stepup_payload(client, captured_email, "a@example.com"),
     )
     assert response.status_code == 400
     assert response.json()["detail"] == "最后一位管理员不能注销账号"
@@ -158,7 +169,7 @@ def test_last_admin_cannot_cancel_account(client, captured_email, db_session) ->
 
     response = client.post(
         "/api/v1/me/delete",
-        json={"current_password": "password123"},
+        json=critical_stepup_payload(client, captured_email, "a@example.com"),
     )
     assert response.status_code == 200
     assert db_session.scalar(
@@ -198,7 +209,12 @@ def test_admin_delete_user_requires_admin_password_and_logs_audit(
 
     response = client.post(
         f"/api/v1/admin/users/{bob.id}/delete",
-        json={"current_password": "wrong-password"},
+        json=critical_stepup_payload(
+            client,
+            captured_email,
+            "admin@example.com",
+            password="wrong-password",
+        ),
     )
     assert response.status_code == 400
     assert (
@@ -207,7 +223,7 @@ def test_admin_delete_user_requires_admin_password_and_logs_audit(
 
     response = client.post(
         f"/api/v1/admin/users/{bob.id}/delete",
-        json={"current_password": "password123"},
+        json=critical_stepup_payload(client, captured_email, "admin@example.com"),
     )
     assert response.status_code == 200
     assert len(
@@ -231,7 +247,7 @@ def test_admin_delete_user_requires_admin_password_and_logs_audit(
     assert logs[0].target_id == str(bob.id)
 
 
-def test_admin_delete_restrictions(client, db_session) -> None:
+def test_admin_delete_restrictions(client, captured_email, db_session) -> None:
     admin = _login_admin(client, db_session)
     other_admin = User(
         email="admin2@example.com",
@@ -246,7 +262,7 @@ def test_admin_delete_restrictions(client, db_session) -> None:
     # 不能删除自己
     response = client.post(
         f"/api/v1/admin/users/{admin.id}/delete",
-        json={"current_password": "password123"},
+        json=critical_stepup_payload(client, captured_email, "admin@example.com"),
     )
     assert response.status_code == 400
     assert "不能删除自己" in response.json()["detail"]
@@ -254,7 +270,7 @@ def test_admin_delete_restrictions(client, db_session) -> None:
     # 不能直接删除其他管理员
     response = client.post(
         f"/api/v1/admin/users/{other_admin.id}/delete",
-        json={"current_password": "password123"},
+        json=critical_stepup_payload(client, captured_email, "admin@example.com"),
     )
     assert response.status_code == 403
     assert (
@@ -268,7 +284,7 @@ def test_non_admin_cannot_delete_users(client, captured_email, db_session) -> No
     user = db_session.scalar(select(User).where(User.email == "a@example.com"))
     response = client.post(
         f"/api/v1/admin/users/{user.id}/delete",
-        json={"current_password": "password123"},
+        json=critical_stepup_payload(client, captured_email, "admin@example.com"),
     )
     assert response.status_code == 403
     assert db_session.get(User, user.id) is not None

@@ -5,6 +5,7 @@ import { authApi } from "../api/client";
 import { AsyncButton } from "../components/AsyncButton";
 import { AuthShell } from "../components/AuthShell";
 import { PasswordInput } from "../components/PasswordInput";
+import { PasswordStrength } from "../components/PasswordStrength";
 import { useAsyncAction } from "../hooks/useAsyncAction";
 import { useToast } from "../hooks/useToast";
 
@@ -115,6 +116,7 @@ export function ResetPasswordPage() {
             required
           />
         </label>
+        <PasswordStrength password={newPassword} />
         <label className="block">
           <span className="label">确认新密码</span>
           <PasswordInput

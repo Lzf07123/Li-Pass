@@ -7,7 +7,11 @@ from app.models.audit_log import AuditLog
 from app.models.user import User, UserRole
 from app.security.passwords import hash_password, verify_password
 from app.security.tokens import generate_token, hash_token
-from tests.helpers import login_with_email_2fa, register_and_login
+from tests.helpers import (
+    critical_stepup_payload,
+    login_with_email_2fa,
+    register_and_login,
+)
 
 
 def _login_admin(client, db_session) -> User:
@@ -431,7 +435,9 @@ def test_used_invite_restored_after_user_deleted_and_can_resend(
     assert (
         client.post(
             f"/api/v1/admin/users/{user.id}/delete",
-            json={"current_password": "password123"},
+            json=critical_stepup_payload(
+                client, captured_email, "admin@example.com"
+            ),
         ).status_code
         == 200
     )

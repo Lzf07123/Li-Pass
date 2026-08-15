@@ -24,7 +24,7 @@ from app.services.audit import log_audit, log_rate_limit_rejected_once
 from app.services.geoip import describe_ip
 from app.services.email import get_email_service
 from app.services.rate_limit import get_rate_limiter
-from app.services.stepup import authorize_stepup
+from app.services.stepup import authorize_critical_operation, authorize_stepup
 
 logger = logging.getLogger(__name__)
 
@@ -51,6 +51,8 @@ class AdminDeleteUser(BaseModel):
     # 删除账号属于不可逆操作：要求管理员本人当前密码复核，
     # 防止会话被临时窃取后静默删除用户；step-up 窗口内可省略。
     current_password: str | None = Field(default=None, min_length=1, max_length=128)
+    stepup_method: str | None = Field(default=None, pattern=r"^(email_otp|totp)$")
+    stepup_code: str | None = Field(default=None, min_length=1, max_length=64)
 
 
 class AdminCreateUser(BaseModel):
@@ -76,6 +78,8 @@ class AdminBatchUserUpdate(BaseModel):
 class AdminBatchDeleteUser(BaseModel):
     user_ids: list[uuid.UUID] = Field(min_length=1, max_length=200)
     current_password: str | None = Field(default=None, min_length=1, max_length=128)
+    stepup_method: str | None = Field(default=None, pattern=r"^(email_otp|totp)$")
+    stepup_code: str | None = Field(default=None, min_length=1, max_length=64)
 
 
 class AdminBatchInviteUser(BaseModel):
@@ -729,7 +733,16 @@ def batch_delete_users(
     db: Session = Depends(get_db),
 ) -> dict:
     session = get_current_session(request, db)
-    authorize_stepup(request, db, actor, session, payload.current_password)
+    authorize_critical_operation(
+        request,
+        db,
+        actor,
+        session,
+        payload.current_password,
+        payload.stepup_method,
+        payload.stepup_code,
+        missing_password_detail="批量删除必须输入当前密码并完成二次验证",
+    )
     user_ids = list(dict.fromkeys(payload.user_ids))
     users = db.scalars(select(User).where(User.id.in_(user_ids))).all()
     by_id = {user.id: user for user in users}
@@ -805,7 +818,16 @@ def delete_user(
             "不能直接删除管理员账号，请先将其降级为普通用户",
         )
     session = get_current_session(request, db)
-    authorize_stepup(request, db, actor, session, payload.current_password)
+    authorize_critical_operation(
+        request,
+        db,
+        actor,
+        session,
+        payload.current_password,
+        payload.stepup_method,
+        payload.stepup_code,
+        missing_password_detail="删除用户必须输入当前密码并完成二次验证",
+    )
 
     user_email = user.email
     user_nickname = user.nickname
