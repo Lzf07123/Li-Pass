@@ -244,6 +244,8 @@ https://auth.example.com/verify-email?email=user%40example.com&next=https%3A%2F%
 
 用户完成邮箱验证后会自动回到原授权流程（`state` 与 PKCE 参数经 `next` 保留），随后按常规流程跳回 `redirect_uri`。未验证邮箱的用户仍可登录门户本身，只是不能完成含 `email` scope 的授权；不请求 `email` scope 的授权不受此限制。
 
+登录门户时可能需要完成二次验证（若该设备此前被用户标记为「可信设备」，7 天内仅验证密码，见 §9 的 `acr` 说明）；这对授权码流程透明，回调参数不变。
+
 **授权端点返回（全部为 `302` 跳转，无 JSON 响应体）**：
 
 | 场景 | 跳转目标 | 参数 |
@@ -578,13 +580,13 @@ https://your-site.example/logout?next=<下一个目标或门户登录页的 URL 
 
 `id_token` 携带 `acr`：
 
-- `urn:lipass:acr:1fa`：仅密码登录
+- `urn:lipass:acr:1fa`：仅密码登录（**含「可信设备」跳过二次验证的登录**——该次登录只验证了密码，`acr` 仍为 `1fa`）
 - `urn:lipass:acr:2fa`：经过邮箱验证码 / TOTP / 恢复码二次验证
 
 > 品牌改名前的历史令牌在过期前仍携带 `urn:portal-oss:acr:1fa/2fa`；
 > 升级期间按“两套值等价”校验，窗口过后只保留 `urn:lipass:acr:*`。
 
-需要强认证的网站可校验该声明，拒绝 1fa 会话。
+需要强认证的网站可校验该声明，拒绝 1fa 会话。注意：门户的「可信设备」豁免只作用于门户登录本身，并不改变 `acr`；用户在门户勾选过「信任此设备」后，其后续登录的 `id_token` 仍可能携带 `1fa`，接入方如需强认证应据此拒绝或在站内自行发起 step-up。
 
 ## 10. 安全要求
 
