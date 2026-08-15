@@ -5,7 +5,7 @@
 ### 破坏性变更
 
 - **强制二次验证（2FA）**：注册验证邮箱后自动启用「邮箱验证码」作为默认第二方案；所有已验证邮箱的账号登录都必须完成 2FA（新迁移 `a2b3c4d5e6f7` 会把历史「已验证且无任何 2FA」的用户批量启用邮箱验证码）。账号必须至少保留一种 2FA 方案：关闭最后一种会被拒绝；管理端「重置 2FA」不再清空，而是恢复默认邮箱验证码。未验证邮箱的账号仍可密码登录，验证邮箱后立即强制。若邮箱不可达，用户可用 TOTP 或恢复码完成登录；需灰度或回滚时参见 [设计文档](docs/superpowers/specs/2026-08-16-mandatory-2fa-design.md)。
-- OIDC `access_token` 的 `aud` 从 `client_id` 改为 `{issuer}/oauth2/userinfo`，并已在 userinfo 端点强制校验。`id_token` 的 `aud` 仍为 `client_id`，不受影响。此前若对接方校验过 `access_token` 的 `aud == client_id`，发布后需同步更新为 userinfo 端点地址。详见 [对接指南 §2.5](docs/oidc-integration.md)。
+- OIDC `access_token` 的 `aud` 从 `client_id` 改为 `{issuer}/oauth2/userinfo`，并已在 userinfo 端点强制校验。`id_token` 的 `aud` 仍为 `client_id`，不受影响。此前若对接方校验过 `access_token` 的 `aud == client_id`，发布后需同步更新为 userinfo 端点地址。详见 [对接指南 §3.5](docs/oidc-integration.md)。
 - 技术标识统一为 `lipass`：Compose 项目/镜像/网络/命名卷由 `account-service` 系列改为 `lipass` 系列，从旧版升级需先按 [部署文档 §标识迁移](docs/deployment.md) 迁移数据卷；`acr` 声明由 `urn:portal-oss:acr:1fa/2fa` 改为 `urn:lipass:acr:1fa/2fa`，接入方在升级期按“两套值等价”校验，窗口过后只保留新值。
 
 ### 功能
@@ -16,7 +16,7 @@
 - 登录页新增「记住账号」「记住密码」选项：默认关闭、仅在登录成功后按勾选写入 localStorage（取消勾选即清除；勾选「记住密码」自动勾选「记住账号」）。密码本地明文保存存在同源 XSS 读取风险，已通过 CSP `script-src 'self'` 等缓解，仍建议优先使用浏览器密码管理器；权衡说明见设计文档。
 - 强制 2FA 落地：验证邮箱（普通注册验证、邀请注册、管理员代建）后直接启用邮箱验证码作为默认第一方案；用户可升级到 TOTP 认证器，并可在两种方案并存时关闭其一，但不可清空全部。管理端「重置 2FA」恢复默认邮箱方案并清空 TOTP/恢复码。设计见 [强制二次验证设计](docs/superpowers/specs/2026-08-16-mandatory-2fa-design.md)，实施计划见 [实施计划](docs/superpowers/plans/2026-08-16-mandatory-2fa.md)。
 - 敏感操作 step-up 复核窗口：新增 `GET/POST /api/v1/me/step-up`（复核窗口状态与显式密码复核端点）；一次密码复核成功后，该会话在 **30 分钟**内执行其它敏感操作免再次输入密码。窗口为固定时长、按会话隔离（一台设备复核不豁免其它设备）、**登录成功不自动授窗**。用户中心（修改密码/注销账号）、2FA 开关（邮箱验证码/TOTP）与全部管理端敏感操作（角色变更/重置密码/重置 2FA/删除用户/批量删除/删除客户端/重置密钥）统一接入；窗口时长与限流阈值可配置（`STEPUP_WINDOW_MINUTES=0` 可关闭窗口回到每操作必验）。设计见 [敏感操作 step-up 认证窗口设计](docs/superpowers/specs/2026-08-16-sensitive-stepup-window-design.md)，实施计划见 [实施计划](docs/superpowers/plans/2026-08-16-sensitive-stepup-window.md)。
-- 联邦登出完整落地：RP 发起登出（`GET /oauth2/end-session` + 确认页 `/logout/confirm` + 精确匹配回跳白名单）、回程登出（`logout_token` 签发/异步分发/重试/SSRF 防护）、无回程网站的浏览器串跳漏斗、用户/管理员会话撤销与取消授权联动下线；`id_token` 新增 `sid`，发现文档新增 `end_session_endpoint`/`backchannel_logout_supported`；管理端新增「登出回跳白名单」「回程登出地址」配置，演示站实现对应 RP 侧示例。详见 [对接指南 §7](docs/oidc-integration.md) 与 [实施计划](docs/superpowers/plans/2026-08-15-federated-logout.md)。
+- 联邦登出完整落地：RP 发起登出（`GET /oauth2/end-session` + 确认页 `/logout/confirm` + 精确匹配回跳白名单）、回程登出（`logout_token` 签发/异步分发/重试/SSRF 防护）、无回程网站的浏览器串跳漏斗、用户/管理员会话撤销与取消授权联动下线；`id_token` 新增 `sid`，发现文档新增 `end_session_endpoint`/`backchannel_logout_supported`；管理端新增「登出回跳白名单」「回程登出地址」配置，演示站实现对应 RP 侧示例。详见 [对接指南 §8](docs/oidc-integration.md) 与 [实施计划](docs/superpowers/plans/2026-08-15-federated-logout.md)。
 
 ### 安全加固
 
@@ -35,8 +35,9 @@
 
 ### 行为变更
 
+- 对接规范明确化：`docs/oidc-integration.md` 新增「§2 对接方接口契约（必选/可选）」与接入验收清单——授权回调接口为必选（校验 `state`、`error` 按失败处理、完整校验 `id_token`、本地会话绑定 `(sub, sid)`）；登出通道（回程登出 / 登出地址）至少二选一；登出回跳页在使用 RP 发起登出时必填。注册客户端表单字段与接口的必填/选填关系同步成表，原有章节顺延编号。
 - 登录页与验证邮箱页对「返回原网站的链接（`next`）」校验失败不再静默：当 `next` 的域名/协议与门户当前访问源不一致（典型如 `PUBLIC_BASE_URL` 误配为 `http://` 而实际以 `https://` 访问）时，页面展示明确告警并说明登录/验证后将停留在门户个人中心，避免用户在不知情下丢回调。部署文档同步强调 `PUBLIC_BASE_URL` 必须与浏览器实际访问的完整源（含协议）一致。
-- 登出语义明确化：`end-session` 确认页把含糊的「确认退出 / 取消」改为两个明确选项——「登出 SSO」（吊销门户会话并通知全部授权网站）与「仅登出本网站」（保留门户会话、仅回跳；发起网站的本地会话由该网站在跳转前自行结束）。内部确认端点 `POST /api/v1/oauth/logout-requests/{id}/cancel` 重命名为 `/local-only`（仅本项目前端调用，无外部接入方影响）；演示站登录后拆出「登出本网站」「登出 SSO（退出所有网站）」两个按钮。对接指南 §7 新增「两种登出语义」小节。
+- 登出语义明确化：`end-session` 确认页把含糊的「确认退出 / 取消」改为两个明确选项——「登出 SSO」（吊销门户会话并通知全部授权网站）与「仅登出本网站」（保留门户会话、仅回跳；发起网站的本地会话由该网站在跳转前自行结束）。内部确认端点 `POST /api/v1/oauth/logout-requests/{id}/cancel` 重命名为 `/local-only`（仅本项目前端调用，无外部接入方影响）；演示站登录后拆出「登出本网站」「登出 SSO（退出所有网站）」两个按钮。对接指南 §8 新增「两种登出语义」小节。
 - 注销账号、删除用户、批量删除由「密码复核 + 30 分钟窗口豁免」收紧为「密码 + 任意 2FA 每次必验」：旧客户端缺少 `stepup_method`/`stepup_code` 将收到 400，需同步更新前端。
 - 敏感操作在「未提供当前密码且不在复核窗口内」时返回 **403「需要重新验证密码」**（原为 422 或 400）；密码错误仍返回 400「当前密码错误」。旧前端始终携带密码，行为不受影响；前端接入复核窗口后可在 30 分钟内免密码执行后续敏感操作。
 - 管理后台面板级代码分割：8 个标签面板改为懒加载（React.lazy + Suspense），访问任一标签不再下载全部面板代码，后台入口分包由约 661KB 降至约 8.5KB；数据统计的地图 GeoJSON（约 578KB）改为组件挂载时按需异步加载，坐标精度收敛到 3 位小数（约 425KB，gzip 约 121KB），构建不再出现超大分包警告。
