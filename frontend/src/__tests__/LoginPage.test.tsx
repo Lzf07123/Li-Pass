@@ -150,4 +150,15 @@ describe("LoginPage", () => {
     expect(isSafeNext("//evil.example")).toBe(false);
     expect(isSafeNext("javascript:alert(1)")).toBe(false);
   });
+
+  it("注册链接透传 next 参数以保留应用回跳", () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response("{}")));
+    renderWithProviders(<LoginPage />, [
+      "/login?next=%2Foauth2%2Fauthorize",
+    ]);
+    expect(screen.getByRole("link", { name: "注册新账号" })).toHaveAttribute(
+      "href",
+      "/register?next=%2Foauth2%2Fauthorize",
+    );
+  });
 });

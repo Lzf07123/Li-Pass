@@ -6,10 +6,13 @@ import { AsyncButton } from "../components/AsyncButton";
 import { AuthShell } from "../components/AuthShell";
 import { useAsyncAction } from "../hooks/useAsyncAction";
 import { useToast } from "../hooks/useToast";
+import { isSafeNext } from "../lib/navigation";
 
 export function VerifyEmailPage() {
   const [searchParams] = useSearchParams();
   const email = searchParams.get("email") ?? "";
+  const rawNext = searchParams.get("next");
+  const next = isSafeNext(rawNext) ? rawNext : null;
   const [code, setCode] = useState("");
   const [resendCountdown, setResendCountdown] = useState(0);
   const toast = useToast();
@@ -24,6 +27,10 @@ export function VerifyEmailPage() {
   const submitAction = useAsyncAction(
     async (email: string, code: string) => {
       const result = await authApi.verifyEmail({ email, code });
+      if (next) {
+        window.location.href = next;
+        return;
+      }
       toast.success(
         `${result.message}，已默认开启邮箱二次验证，登录时需要输入邮箱验证码`,
         {

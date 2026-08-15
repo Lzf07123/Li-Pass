@@ -122,8 +122,10 @@ def authorize(
         )
     if "email" in requested and user.email_verified_at is None:
         settings = get_settings()
+        next_url = f"{settings.jwt_issuer}/oauth2/authorize?{request.url.query}"
         verify_url = (
             f"{settings.frontend_base_url}/verify-email?email={quote(user.email, safe='')}"
+            f"&next={quote(next_url, safe='')}"
         )
         return RedirectResponse(verify_url, status_code=302)
 
