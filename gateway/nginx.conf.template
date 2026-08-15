@@ -88,7 +88,11 @@ server {
     }
     location /demo/ {
         set $demo_upstream demo-site:3001;
-        proxy_pass http://$demo_upstream/;
+        # proxy_pass 带变量时其 URI 部分会整体替换原始请求路径（而非只替换
+        # location 前缀），必须先用 rewrite 显式剥离 /demo 前缀，再不带 URI
+        # 转发，否则 /demo/login 会被透传成 /，演示站所有子路径 404/405。
+        rewrite ^/demo/(.*)$ /$1 break;
+        proxy_pass http://$demo_upstream;
     }
 
     # 其余全部交给前端 SPA

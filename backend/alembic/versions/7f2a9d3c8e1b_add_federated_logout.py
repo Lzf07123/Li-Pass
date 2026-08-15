@@ -37,7 +37,7 @@ def upgrade() -> None:
         sa.Column('session_id', sa.Uuid(), nullable=True),
     )
     op.create_foreign_key(
-        None,
+        'fk_authorization_codes_session_id',
         'authorization_codes',
         'sessions',
         ['session_id'],
@@ -103,7 +103,11 @@ def downgrade() -> None:
         table_name='oidc_client_sessions',
     )
     op.drop_table('oidc_client_sessions')
-    op.drop_constraint(None, 'authorization_codes', type_='foreignkey')
+    op.drop_constraint(
+        'fk_authorization_codes_session_id',
+        'authorization_codes',
+        type_='foreignkey',
+    )
     op.drop_column('authorization_codes', 'session_id')
     op.drop_column('oauth_clients', 'backchannel_logout_uri')
     op.drop_column('oauth_clients', 'post_logout_redirect_uris')

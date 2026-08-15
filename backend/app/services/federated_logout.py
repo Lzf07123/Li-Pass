@@ -75,7 +75,8 @@ def build_logout_funnel(uris: list[str], final_url: str) -> str:
     """
     chain = final_url
     for uri in reversed(uris):
-        chain = f"{uri}?next={quote(chain, safe='')}"
+        separator = "&" if "?" in uri else "?"
+        chain = f"{uri}{separator}next={quote(chain, safe='')}"
     return chain
 
 

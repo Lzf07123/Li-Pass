@@ -21,6 +21,16 @@ def test_build_logout_funnel_nests_next_chain() -> None:
     assert "https://b.example/logout?next=http://localhost:5173/login" in decoded
 
 
+def test_build_logout_funnel_handles_existing_query_string() -> None:
+    chain = build_logout_funnel(
+        ["https://a.example/logout?lang=zh"], "http://localhost:5173/login"
+    )
+    decoded = unquote(chain)
+    assert decoded == (
+        "https://a.example/logout?lang=zh&next=http://localhost:5173/login"
+    )
+
+
 def test_portal_logout_returns_funnel_for_clients_without_backchannel(
     client, db_session, captured_email
 ) -> None:
