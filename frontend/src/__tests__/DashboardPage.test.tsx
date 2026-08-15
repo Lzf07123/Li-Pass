@@ -207,7 +207,7 @@ describe("DashboardPage", () => {
     expect(screen.getByRole("button", { name: "退出所有设备" })).toBeDisabled();
   });
 
-  it("取消授权后应用从广场移除", async () => {
+  it("取消授权后应用从广场移除且不跳转目标网站", async () => {
     vi.spyOn(window, "confirm").mockReturnValue(true);
     const originalLocation = window.location;
     Object.defineProperty(window, "location", {
@@ -285,8 +285,13 @@ describe("DashboardPage", () => {
       (call) => (call[1] as RequestInit | undefined)?.method === "DELETE"
     );
     expect(String(deleteCall?.[0])).toContain("/api/v1/apps/cli_demo");
+    expect(window.location.href).toBe("");
     await waitFor(() =>
-      expect(window.location.href).toContain("http://localhost:3001/logout?next=")
+      expect(
+        screen.getByText(
+          "已取消对“Demo”的授权；该网站未配置回程登出，门户不会跳转访问，如该网站仍显示已登录请手动退出",
+        ),
+      ).toBeInTheDocument()
     );
     Object.defineProperty(window, "location", { value: originalLocation, configurable: true });
   });
@@ -440,7 +445,7 @@ describe("DashboardPage", () => {
     await waitFor(() =>
       expect(
         screen.getByText(
-          "已取消对“Demo”的授权，但该网站未配置登出通道，门户无法通知其下线；如仍显示已登录请在该网站手动退出",
+          "已取消对“Demo”的授权；该网站未配置回程登出，门户不会跳转访问，如该网站仍显示已登录请手动退出",
         ),
       ).toBeInTheDocument()
     );
