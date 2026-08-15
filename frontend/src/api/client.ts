@@ -21,6 +21,7 @@ import type {
   SendNotificationResult,
   SessionOut,
   SiteSettings,
+  StepUpStatus,
   TotpSetup,
   TwoFaStatus,
   UserOut,
@@ -154,20 +155,20 @@ export const adminClientsApi = {
       method: "POST",
       body: JSON.stringify(data),
     }),
-  remove: (id: string, current_password: string) =>
+  remove: (id: string, current_password?: string) =>
     api<void>(`/api/v1/admin/clients/${id}`, {
       method: "DELETE",
-      body: JSON.stringify({ current_password }),
+      body: JSON.stringify(current_password ? { current_password } : {}),
     }),
   update: (id: string, data: ClientUpdate) =>
     api<ClientOut>(`/api/v1/admin/clients/${id}`, {
       method: "PATCH",
       body: JSON.stringify(data),
     }),
-  resetSecret: (id: string, current_password: string) =>
+  resetSecret: (id: string, current_password?: string) =>
     api<ClientSecretOut>(`/api/v1/admin/clients/${id}/reset-secret`, {
       method: "POST",
-      body: JSON.stringify({ current_password }),
+      body: JSON.stringify(current_password ? { current_password } : {}),
     }),
 };
 
@@ -215,15 +216,31 @@ export const meApi = {
     email_notifications?: boolean;
   }) =>
     api<UserOut>("/api/v1/me", { method: "PUT", body: JSON.stringify(data) }),
-  changePassword: (data: { current_password: string; new_password: string }) =>
+  stepUpStatus: () => api<StepUpStatus>("/api/v1/me/step-up"),
+  stepUpVerify: (password: string) =>
+    api<StepUpStatus & { message: string }>("/api/v1/me/step-up", {
+      method: "POST",
+      body: JSON.stringify({ password }),
+    }),
+  changePassword: (data: {
+    current_password?: string;
+    new_password: string;
+  }) =>
     api<{ message: string }>("/api/v1/me/password", {
       method: "POST",
-      body: JSON.stringify(data),
+      body: JSON.stringify({
+        new_password: data.new_password,
+        ...(data.current_password
+          ? { current_password: data.current_password }
+          : {}),
+      }),
     }),
-  deleteAccount: (current_password: string) =>
+  deleteAccount: (current_password?: string) =>
     api<{ message: string }>("/api/v1/me/delete", {
       method: "POST",
-      body: JSON.stringify({ current_password }),
+      body: JSON.stringify(
+        current_password ? { current_password } : {}
+      ),
     }),
   sendPhoneBind: () =>
     api<{ message: string }>("/api/v1/me/phone/bind/send", {
@@ -288,26 +305,30 @@ export const auth2faApi = {
 
 export const twofaApi = {
   status: () => api<TwoFaStatus>("/api/v1/me/2fa/status"),
-  enableEmail: (current_password: string) =>
+  enableEmail: (current_password?: string) =>
     api<{ message: string }>("/api/v1/me/2fa/email/enable", {
       method: "POST",
-      body: JSON.stringify({ current_password }),
+      body: JSON.stringify(current_password ? { current_password } : {}),
     }),
-  disableEmail: (current_password: string) =>
+  disableEmail: (current_password?: string) =>
     api<{ message: string }>("/api/v1/me/2fa/email/disable", {
       method: "POST",
-      body: JSON.stringify({ current_password }),
+      body: JSON.stringify(current_password ? { current_password } : {}),
     }),
   totpSetup: () => api<TotpSetup>("/api/v1/me/2fa/totp/setup"),
-  totpEnable: (code: string, secret: string, current_password: string) =>
+  totpEnable: (code: string, secret: string, current_password?: string) =>
     api<{ message: string; recovery_codes: string[] }>("/api/v1/me/2fa/totp/enable", {
       method: "POST",
-      body: JSON.stringify({ code, secret, current_password }),
+      body: JSON.stringify({
+        code,
+        secret,
+        ...(current_password ? { current_password } : {}),
+      }),
     }),
-  totpDisable: (current_password: string) =>
+  totpDisable: (current_password?: string) =>
     api<{ message: string }>("/api/v1/me/2fa/totp/disable", {
       method: "POST",
-      body: JSON.stringify({ current_password }),
+      body: JSON.stringify(current_password ? { current_password } : {}),
     }),
 };
 
@@ -368,10 +389,13 @@ export const adminUsersApi = {
         ...(currentPassword ? { current_password: currentPassword } : {}),
       }),
     }),
-  batchDelete: (ids: string[], current_password: string) =>
+  batchDelete: (ids: string[], current_password?: string) =>
     api<BatchDeleteResult>("/api/v1/admin/users/batch/delete", {
       method: "POST",
-      body: JSON.stringify({ user_ids: ids, current_password }),
+      body: JSON.stringify({
+        user_ids: ids,
+        ...(current_password ? { current_password } : {}),
+      }),
     }),
   update: (
     id: string,
@@ -385,20 +409,27 @@ export const adminUsersApi = {
         ...(currentPassword ? { current_password: currentPassword } : {}),
       }),
     }),
-  resetPassword: (id: string, new_password: string, current_password: string) =>
+  resetPassword: (
+    id: string,
+    new_password: string,
+    current_password?: string,
+  ) =>
     api<{ message: string }>(`/api/v1/admin/users/${id}/reset-password`, {
       method: "POST",
-      body: JSON.stringify({ new_password, current_password }),
+      body: JSON.stringify({
+        new_password,
+        ...(current_password ? { current_password } : {}),
+      }),
     }),
-  reset2fa: (id: string, current_password: string) =>
+  reset2fa: (id: string, current_password?: string) =>
     api<{ message: string }>(`/api/v1/admin/users/${id}/reset-2fa`, {
       method: "POST",
-      body: JSON.stringify({ current_password }),
+      body: JSON.stringify(current_password ? { current_password } : {}),
     }),
-  deleteAccount: (id: string, current_password: string) =>
+  deleteAccount: (id: string, current_password?: string) =>
     api<{ message: string }>(`/api/v1/admin/users/${id}/delete`, {
       method: "POST",
-      body: JSON.stringify({ current_password }),
+      body: JSON.stringify(current_password ? { current_password } : {}),
     }),
 };
 

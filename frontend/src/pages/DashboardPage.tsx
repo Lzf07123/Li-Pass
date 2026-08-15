@@ -18,8 +18,10 @@ import { FloatingBackground } from "../components/FloatingBackground";
 import { Modal } from "../components/Modal";
 import { PasswordInput } from "../components/PasswordInput";
 import { SiteFooter } from "../components/SiteFooter";
+import { StepUpNotice } from "../components/StepUpNotice";
 import { useAsyncAction } from "../hooks/useAsyncAction";
 import { useBreathOnChange } from "../hooks/useBreathOnChange";
+import { useStepUp } from "../hooks/useStepUp";
 import { useToast } from "../hooks/useToast";
 import { FadeIn } from "../components/bits/FadeIn";
 import { LineIcon } from "../components/bits/LineIcon";
@@ -59,6 +61,7 @@ export function DashboardPage() {
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const navigate = useNavigate();
   const toast = useToast();
+  const stepUp = useStepUp();
   const sessionsBreathing = useBreathOnChange(sessions);
   const appsBreathing = useBreathOnChange(apps);
   const emailNoticeId = useRef<number | null>(null);
@@ -131,9 +134,9 @@ export function DashboardPage() {
   }
 
   const changePasswordAction = useAsyncAction(
-    async (currentPassword: string, newPassword: string) => {
+    async (currentPassword: string | undefined, newPassword: string) => {
       const result = await meApi.changePassword({
-        current_password: currentPassword,
+        current_password: currentPassword || undefined,
         new_password: newPassword,
       });
       toast.success(result.message);
@@ -143,15 +146,29 @@ export function DashboardPage() {
     {
       onError: (err) => {
         const message = err instanceof Error ? err.message : "修改失败";
-        if (message.includes("当前密码")) setChangePasswordError(message);
-        else toast.error(message);
+        if (message.includes("需要重新验证密码")) {
+          stepUp.invalidate();
+          setChangePasswordError("复核已过期，请重新输入当前密码");
+        } else if (message.includes("当前密码")) {
+          setChangePasswordError(message);
+        } else {
+          toast.error(message);
+        }
       },
     },
   );
 
   async function changePassword(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    await changePasswordAction.run(currentPassword, newPassword);
+    const password = currentPassword.trim() || undefined;
+    if (!password) {
+      const fresh = await stepUp.refresh(true);
+      if (!fresh?.active) {
+        setChangePasswordError("请输入当前密码");
+        return;
+      }
+    }
+    await changePasswordAction.run(password, newPassword);
   }
 
   const sendPhoneCodeAction = useAsyncAction(
@@ -269,7 +286,8 @@ export function DashboardPage() {
 
   async function toggleEmailTwofa() {
     if (twofaBusy !== null || twofa === null) return;
-    if (!twofaPassword) {
+    const password = twofaPassword.trim() || undefined;
+    if (!password && !(await stepUp.refresh(true))?.active) {
       setTwofaPasswordError("请输入当前密码");
       return;
     }
@@ -277,15 +295,18 @@ export function DashboardPage() {
     setTwofaBusy("email");
     try {
       const result = enabling
-        ? await twofaApi.enableEmail(twofaPassword)
-        : await twofaApi.disableEmail(twofaPassword);
+        ? await twofaApi.enableEmail(password)
+        : await twofaApi.disableEmail(password);
       setTwofa(await twofaApi.status());
       setTwofaPassword("");
       setTwofaPasswordError(null);
       toast.success(result.message);
     } catch (err) {
       const message = err instanceof Error ? err.message : "操作失败";
-      if (message.includes("当前密码")) {
+      if (message.includes("需要重新验证密码")) {
+        stepUp.invalidate();
+        setTwofaPasswordError("复核已过期，请重新输入当前密码");
+      } else if (message.includes("当前密码")) {
         setTwofaPasswordError(message);
       } else {
         toast.error(message);
@@ -310,7 +331,8 @@ export function DashboardPage() {
 
   async function enableTotp() {
     if (!totpSetup || twofaBusy !== null) return;
-    if (!twofaPassword) {
+    const password = twofaPassword.trim() || undefined;
+    if (!password && !(await stepUp.refresh(true))?.active) {
       setTwofaPasswordError("请输入当前密码");
       return;
     }
@@ -320,7 +342,11 @@ export function DashboardPage() {
     }
     setTwofaBusy("totp-enable");
     try {
-      const result = await twofaApi.totpEnable(totpCode, totpSetup.secret, twofaPassword);
+      const result = await twofaApi.totpEnable(
+        totpCode,
+        totpSetup.secret,
+        password,
+      );
       setRecoveryCodes(result.recovery_codes);
       setTotpSetup(null);
       setTotpCode("");
@@ -330,7 +356,10 @@ export function DashboardPage() {
       toast.success(result.message);
     } catch (err) {
       const message = err instanceof Error ? err.message : "启用失败";
-      if (message.includes("当前密码")) {
+      if (message.includes("需要重新验证密码")) {
+        stepUp.invalidate();
+        setTwofaPasswordError("复核已过期，请重新输入当前密码");
+      } else if (message.includes("当前密码")) {
         setTwofaPasswordError(message);
       } else {
         toast.error(message);
@@ -342,20 +371,24 @@ export function DashboardPage() {
 
   async function disableTotp() {
     if (twofaBusy !== null) return;
-    if (!twofaPassword) {
+    const password = twofaPassword.trim() || undefined;
+    if (!password && !(await stepUp.refresh(true))?.active) {
       setTwofaPasswordError("请输入当前密码");
       return;
     }
     setTwofaBusy("totp-disable");
     try {
-      const result = await twofaApi.totpDisable(twofaPassword);
+      const result = await twofaApi.totpDisable(password);
       setTwofa(await twofaApi.status());
       setTwofaPassword("");
       setTwofaPasswordError(null);
       toast.success(result.message);
     } catch (err) {
       const message = err instanceof Error ? err.message : "关闭失败";
-      if (message.includes("当前密码")) {
+      if (message.includes("需要重新验证密码")) {
+        stepUp.invalidate();
+        setTwofaPasswordError("复核已过期，请重新输入当前密码");
+      } else if (message.includes("当前密码")) {
         setTwofaPasswordError(message);
       } else {
         toast.error(message);
@@ -366,7 +399,7 @@ export function DashboardPage() {
   }
 
   const deleteAccountAction = useAsyncAction(
-    async (password: string) => {
+    async (password: string | undefined) => {
       const result = await meApi.deleteAccount(password);
       setDeleteAccountOpen(false);
       setDeleteAccountPassword("");
@@ -376,19 +409,26 @@ export function DashboardPage() {
     {
       onError: (err) => {
         const message = err instanceof Error ? err.message : "注销失败";
-        if (message.includes("当前密码")) setDeleteAccountError(message);
-        else toast.error(message);
+        if (message.includes("需要重新验证密码")) {
+          stepUp.invalidate();
+          setDeleteAccountError("复核已过期，请重新输入当前密码");
+        } else if (message.includes("当前密码")) {
+          setDeleteAccountError(message);
+        } else {
+          toast.error(message);
+        }
       },
     },
   );
 
   async function submitDeleteAccount(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!deleteAccountPassword) {
+    const password = deleteAccountPassword.trim() || undefined;
+    if (!password && !(await stepUp.refresh(true))?.active) {
       setDeleteAccountError("请输入当前密码以确认注销账号");
       return;
     }
-    await deleteAccountAction.run(deleteAccountPassword);
+    await deleteAccountAction.run(password);
   }
 
   useEffect(() => {
@@ -558,7 +598,7 @@ export function DashboardPage() {
                   }}
                   className="input"
                   autoComplete="current-password"
-                  required
+                  required={!stepUp.active}
                   aria-invalid={changePasswordError ? true : undefined}
                   aria-describedby={
                     changePasswordError
@@ -566,6 +606,11 @@ export function DashboardPage() {
                       : undefined
                   }
                 />
+                {stepUp.active && stepUp.status && (
+                  <StepUpNotice
+                    expiresInSeconds={stepUp.status.expires_in_seconds}
+                  />
+                )}
                 {changePasswordError && (
                   <p
                     id="change-password-error"
@@ -769,11 +814,17 @@ export function DashboardPage() {
                 className="input"
                 autoComplete="current-password"
                 disabled={twofaBusy !== null}
+                required={!stepUp.active}
                 aria-invalid={twofaPasswordError ? true : undefined}
                 aria-describedby={
                   twofaPasswordError ? "twofa-password-error" : undefined
                 }
               />
+              {stepUp.active && stepUp.status && (
+                <StepUpNotice
+                  expiresInSeconds={stepUp.status.expires_in_seconds}
+                />
+              )}
               {twofaPasswordError && (
                 <p
                   id="twofa-password-error"
@@ -928,6 +979,8 @@ export function DashboardPage() {
             <button
               onClick={() => {
                 setDeleteAccountPassword("");
+                setDeleteAccountError(null);
+                void stepUp.refresh(true);
                 setDeleteAccountOpen(true);
               }}
               className="btn btn-danger"
@@ -1045,11 +1098,17 @@ export function DashboardPage() {
               className="input"
               autoComplete="current-password"
               autoFocus
+              required={!stepUp.active}
               aria-invalid={deleteAccountError ? true : undefined}
               aria-describedby={
                 deleteAccountError ? "delete-account-error" : undefined
               }
             />
+            {stepUp.active && stepUp.status && (
+              <StepUpNotice
+                expiresInSeconds={stepUp.status.expires_in_seconds}
+              />
+            )}
             {deleteAccountError && (
               <p
                 id="delete-account-error"
