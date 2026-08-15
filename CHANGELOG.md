@@ -4,16 +4,19 @@
 
 ### 破坏性变更
 
+- **强制二次验证（2FA）**：注册验证邮箱后自动启用「邮箱验证码」作为默认第二方案；所有已验证邮箱的账号登录都必须完成 2FA（新迁移 `a2b3c4d5e6f7` 会把历史「已验证且无任何 2FA」的用户批量启用邮箱验证码）。账号必须至少保留一种 2FA 方案：关闭最后一种会被拒绝；管理端「重置 2FA」不再清空，而是恢复默认邮箱验证码。未验证邮箱的账号仍可密码登录，验证邮箱后立即强制。若邮箱不可达，用户可用 TOTP 或恢复码完成登录；需灰度或回滚时参见 [设计文档](docs/superpowers/specs/2026-08-16-mandatory-2fa-design.md)。
 - OIDC `access_token` 的 `aud` 从 `client_id` 改为 `{issuer}/oauth2/userinfo`，并已在 userinfo 端点强制校验。`id_token` 的 `aud` 仍为 `client_id`，不受影响。此前若对接方校验过 `access_token` 的 `aud == client_id`，发布后需同步更新为 userinfo 端点地址。详见 [对接指南 §2.5](docs/oidc-integration.md)。
 - 技术标识统一为 `lipass`：Compose 项目/镜像/网络/命名卷由 `account-service` 系列改为 `lipass` 系列，从旧版升级需先按 [部署文档 §标识迁移](docs/deployment.md) 迁移数据卷；`acr` 声明由 `urn:portal-oss:acr:1fa/2fa` 改为 `urn:lipass:acr:1fa/2fa`，接入方在升级期按“两套值等价”校验，窗口过后只保留新值。
 
 ### 功能
 
+- 强制 2FA 落地：验证邮箱（普通注册验证、邀请注册、管理员代建）后直接启用邮箱验证码作为默认第一方案；用户可升级到 TOTP 认证器，并可在两种方案并存时关闭其一，但不可清空全部。管理端「重置 2FA」恢复默认邮箱方案并清空 TOTP/恢复码。设计见 [强制二次验证设计](docs/superpowers/specs/2026-08-16-mandatory-2fa-design.md)，实施计划见 [实施计划](docs/superpowers/plans/2026-08-16-mandatory-2fa.md)。
 - 敏感操作 step-up 复核窗口：新增 `GET/POST /api/v1/me/step-up`（复核窗口状态与显式密码复核端点）；一次密码复核成功后，该会话在 **30 分钟**内执行其它敏感操作免再次输入密码。窗口为固定时长、按会话隔离（一台设备复核不豁免其它设备）、**登录成功不自动授窗**。用户中心（修改密码/注销账号）、2FA 开关（邮箱验证码/TOTP）与全部管理端敏感操作（角色变更/重置密码/重置 2FA/删除用户/批量删除/删除客户端/重置密钥）统一接入；窗口时长与限流阈值可配置（`STEPUP_WINDOW_MINUTES=0` 可关闭窗口回到每操作必验）。设计见 [敏感操作 step-up 认证窗口设计](docs/superpowers/specs/2026-08-16-sensitive-stepup-window-design.md)，实施计划见 [实施计划](docs/superpowers/plans/2026-08-16-sensitive-stepup-window.md)。
 - 联邦登出完整落地：RP 发起登出（`GET /oauth2/end-session` + 确认页 `/logout/confirm` + 精确匹配回跳白名单）、回程登出（`logout_token` 签发/异步分发/重试/SSRF 防护）、无回程网站的浏览器串跳漏斗、用户/管理员会话撤销与取消授权联动下线；`id_token` 新增 `sid`，发现文档新增 `end_session_endpoint`/`backchannel_logout_supported`；管理端新增「登出回跳白名单」「回程登出地址」配置，演示站实现对应 RP 侧示例。详见 [对接指南 §7](docs/oidc-integration.md) 与 [实施计划](docs/superpowers/plans/2026-08-15-federated-logout.md)。
 
 ### 安全加固
 
+- 登录兜底强制 2FA：对「已验证邮箱却没有任何 2FA 方案」的历史账号（迁移遗漏、异常数据），登录时自动启用邮箱验证码并记审计 `2fa_email_auto_enabled`，保证「至少一种 2FA」不变式不被绕过。
 - 敏感操作的密码复核统一收敛到 `app/services/stepup.py`：此前散落各路由的 `current_password` 校验无独立限流，现新增按邮箱+IP 与全局邮箱的双层复核失败限流（默认 5/10 次每 15 分钟），并落 `stepup_verify_success`/`stepup_failed`/`stepup_required` 审计（category=`security`），复核被拒与疑似会话窃取的免密尝试可追踪。
 - 依赖安全审计（pip-audit）：`python-multipart 0.0.20 → 0.0.32`（修复多个 2026 年公告的 multipart 解析 DoS）、`pyotp 2.1.0 → 2.10.0`（移除其携带的有漏洞传递依赖 `future 0.15.2`）；升级后 pip-audit 清零，npm 生产依赖审计 0 漏洞。
 - 后端镜像的 ip2region 数据与 Python 绑定源码改为构建时从固定 tag 拉取（SHA256 信任清单校验、下载带重试），修复镜像遗漏 vendored 绑定源码导致容器启动 `ModuleNotFoundError: No module named 'ip2region'`；构建期新增 `import app.main` 冒烟检查，把此类“漏 COPY/漏拉取”问题前移到镜像构建阶段暴露。构建下载基地址可用 `IP2REGION_DOWNLOAD_BASE_URL` 覆盖（Gitee raw 实测拒绝 xdb 数据文件，需保持 GitHub 源）。
