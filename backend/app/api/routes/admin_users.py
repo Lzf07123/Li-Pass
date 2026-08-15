@@ -7,7 +7,7 @@ from pydantic import BaseModel, EmailStr, Field
 from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
-from app.api.deps import get_current_admin
+from app.api.deps import get_current_admin, get_current_session
 from app.core.config import get_settings
 from app.core.db import get_db
 from app.models.account_invite import AccountInvite
@@ -16,7 +16,7 @@ from app.models.recovery_code import RecoveryCode
 from app.models.session import Session as SessionModel
 from app.models.user import User, UserRole, UserStatus
 from app.schemas.auth import PasswordConfirm
-from app.security.passwords import hash_password, verify_password
+from app.security.passwords import hash_password
 from app.security.tokens import generate_token, hash_token
 from app.services.account_deletion import delete_user_account
 from app.services.admin_stats import invalidate_admin_stats_cache
@@ -24,6 +24,7 @@ from app.services.audit import log_audit, log_rate_limit_rejected_once
 from app.services.geoip import describe_ip
 from app.services.email import get_email_service
 from app.services.rate_limit import get_rate_limiter
+from app.services.stepup import authorize_stepup
 
 logger = logging.getLogger(__name__)
 
@@ -42,13 +43,14 @@ class AdminUserUpdate(BaseModel):
 
 class AdminResetPassword(BaseModel):
     new_password: str = Field(min_length=8, max_length=128)
-    current_password: str = Field(min_length=1, max_length=128)
+    # step-up 窗口内可省略：30 分钟内已复核过管理员密码。
+    current_password: str | None = Field(default=None, min_length=1, max_length=128)
 
 
 class AdminDeleteUser(BaseModel):
     # 删除账号属于不可逆操作：要求管理员本人当前密码复核，
-    # 防止会话被临时窃取后静默删除用户。
-    current_password: str = Field(min_length=1, max_length=128)
+    # 防止会话被临时窃取后静默删除用户；step-up 窗口内可省略。
+    current_password: str | None = Field(default=None, min_length=1, max_length=128)
 
 
 class AdminCreateUser(BaseModel):
@@ -73,7 +75,7 @@ class AdminBatchUserUpdate(BaseModel):
 
 class AdminBatchDeleteUser(BaseModel):
     user_ids: list[uuid.UUID] = Field(min_length=1, max_length=200)
-    current_password: str = Field(min_length=1, max_length=128)
+    current_password: str | None = Field(default=None, min_length=1, max_length=128)
 
 
 class AdminBatchInviteUser(BaseModel):
@@ -542,6 +544,7 @@ def batch_invite_users(
 @router.patch("/users/batch", response_model=dict)
 def batch_update_users(
     payload: AdminBatchUserUpdate,
+    request: Request,
     actor: User = Depends(get_current_admin),
     db: Session = Depends(get_db),
 ) -> dict:
@@ -566,10 +569,8 @@ def batch_update_users(
                 status.HTTP_400_BAD_REQUEST, "不能批量取消自己的管理员角色"
             )
     if payload.role is not None:
-        if not payload.current_password or not verify_password(
-            payload.current_password, actor.password_hash
-        ):
-            raise HTTPException(status.HTTP_400_BAD_REQUEST, "当前密码错误")
+        session = get_current_session(request, db)
+        authorize_stepup(request, db, actor, session, payload.current_password)
 
     for user in users:
         if payload.status is not None:
@@ -599,6 +600,7 @@ def batch_update_users(
 def update_user(
     user_id: uuid.UUID,
     payload: AdminUserUpdate,
+    request: Request,
     actor: User = Depends(get_current_admin),
     db: Session = Depends(get_db),
 ) -> dict:
@@ -611,10 +613,8 @@ def update_user(
         if payload.role is not None and payload.role != UserRole.admin:
             raise HTTPException(status.HTTP_400_BAD_REQUEST, "不能取消自己的管理员角色")
     if payload.role is not None:
-        if not payload.current_password or not verify_password(
-            payload.current_password, actor.password_hash
-        ):
-            raise HTTPException(status.HTTP_400_BAD_REQUEST, "当前密码错误")
+        session = get_current_session(request, db)
+        authorize_stepup(request, db, actor, session, payload.current_password)
     if payload.status is not None:
         user.status = payload.status
     if payload.role is not None:
@@ -641,14 +641,15 @@ def update_user(
 def reset_password(
     user_id: uuid.UUID,
     payload: AdminResetPassword,
+    request: Request,
     actor: User = Depends(get_current_admin),
     db: Session = Depends(get_db),
 ) -> dict:
     user = db.get(User, user_id)
     if user is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "用户不存在")
-    if not verify_password(payload.current_password, actor.password_hash):
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, "当前密码错误")
+    session = get_current_session(request, db)
+    authorize_stepup(request, db, actor, session, payload.current_password)
     user.password_hash = hash_password(payload.new_password)
     sessions = db.scalars(
         select(SessionModel).where(
@@ -676,14 +677,15 @@ def reset_password(
 def reset_twofa(
     user_id: uuid.UUID,
     payload: PasswordConfirm,
+    request: Request,
     actor: User = Depends(get_current_admin),
     db: Session = Depends(get_db),
 ) -> dict:
     user = db.get(User, user_id)
     if user is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "用户不存在")
-    if not verify_password(payload.current_password, actor.password_hash):
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, "当前密码错误")
+    session = get_current_session(request, db)
+    authorize_stepup(request, db, actor, session, payload.current_password)
     # 2FA 被重置后，旧会话（可能基于 2FA 建立）一并失效。
     sessions = db.scalars(
         select(SessionModel).where(
@@ -722,8 +724,8 @@ def batch_delete_users(
     actor: User = Depends(get_current_admin),
     db: Session = Depends(get_db),
 ) -> dict:
-    if not verify_password(payload.current_password, actor.password_hash):
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, "当前密码错误")
+    session = get_current_session(request, db)
+    authorize_stepup(request, db, actor, session, payload.current_password)
     user_ids = list(dict.fromkeys(payload.user_ids))
     users = db.scalars(select(User).where(User.id.in_(user_ids))).all()
     by_id = {user.id: user for user in users}
@@ -798,8 +800,8 @@ def delete_user(
             status.HTTP_403_FORBIDDEN,
             "不能直接删除管理员账号，请先将其降级为普通用户",
         )
-    if not verify_password(payload.current_password, actor.password_hash):
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, "当前密码错误")
+    session = get_current_session(request, db)
+    authorize_stepup(request, db, actor, session, payload.current_password)
 
     user_email = user.email
     user_nickname = user.nickname

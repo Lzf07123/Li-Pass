@@ -1,15 +1,15 @@
 import pyotp
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app.api.deps import get_current_user
+from app.api.deps import get_current_session, get_current_user
 from app.core.db import get_db
 from app.models.recovery_code import RecoveryCode
 from app.models.user import User
 from app.schemas.auth import PasswordConfirm, TwoFaTotpEnable
-from app.security.passwords import verify_password
 from app.services.audit import log_audit
+from app.services.stepup import authorize_stepup
 from app.services.twofa import (
     build_otpauth_uri,
     enable_totp,
@@ -18,11 +18,6 @@ from app.services.twofa import (
 )
 
 router = APIRouter(prefix="/api/v1/me/2fa", tags=["twofa"])
-
-
-def _require_password(password: str, user: User) -> None:
-    if not verify_password(password, user.password_hash):
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, "当前密码错误")
 
 
 @router.get("/status")
@@ -45,12 +40,15 @@ def twofa_status(
 @router.post("/email/enable")
 def enable_email_otp(
     payload: PasswordConfirm,
+    request: Request,
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> dict:
-    # 2FA 开启/关闭/更换均属于高敏感操作，统一要求当前密码，
+    # 2FA 开启/关闭/更换均属于高敏感操作，统一要求密码复核
+    # （或处于该会话 30 分钟 step-up 窗口内），
     # 防止会话被临时窃取后静默改动认证策略。
-    _require_password(payload.current_password, user)
+    session = get_current_session(request, db)
+    authorize_stepup(request, db, user, session, payload.current_password)
     if user.email_verified_at is None:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "请先验证邮箱")
     user.email_otp_enabled = True
@@ -62,10 +60,12 @@ def enable_email_otp(
 @router.post("/email/disable")
 def disable_email_otp(
     payload: PasswordConfirm,
+    request: Request,
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> dict:
-    _require_password(payload.current_password, user)
+    session = get_current_session(request, db)
+    authorize_stepup(request, db, user, session, payload.current_password)
     user.email_otp_enabled = False
     db.commit()
     log_audit(db, "user", str(user.id), "2fa_email_disable", category="2fa")
@@ -84,11 +84,14 @@ def totp_setup(user: User = Depends(get_current_user)) -> dict:
 @router.post("/totp/enable")
 def totp_enable(
     payload: TwoFaTotpEnable,
+    request: Request,
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> dict:
-    # 开启 TOTP 属于高敏感操作，要求当前密码确认，防止会话被临时窃取后直接接管账号。
-    _require_password(payload.current_password, user)
+    # 开启 TOTP 属于高敏感操作，要求密码复核（或 30 分钟窗口内），
+    # 防止会话被临时窃取后直接接管账号。
+    session = get_current_session(request, db)
+    authorize_stepup(request, db, user, session, payload.current_password)
     try:
         valid_code = pyotp.TOTP(payload.secret).verify(payload.code, valid_window=1)
     except (ValueError, TypeError):
@@ -104,10 +107,12 @@ def totp_enable(
 @router.post("/totp/disable")
 def totp_disable(
     payload: PasswordConfirm,
+    request: Request,
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> dict:
-    _require_password(payload.current_password, user)
+    session = get_current_session(request, db)
+    authorize_stepup(request, db, user, session, payload.current_password)
     user.totp_secret_encrypted = None
     user.totp_enabled_at = None
     codes = db.scalars(

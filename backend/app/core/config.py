@@ -64,6 +64,14 @@ class Settings(BaseSettings):
     login_email_rate_limit: int = 10
     login_email_rate_window_seconds: int = 900
     login_ip_rate_limit: int = 20
+    # 敏感操作 step-up 复核窗口与限流：
+    # 一次密码复核成功后，该会话 STEPUP_WINDOW_MINUTES 分钟内免再次输入密码；
+    # 0 = 关闭窗口（每次敏感操作都必须重新复核）。
+    stepup_window_minutes: int = 30
+    stepup_rate_limit: int = 5
+    stepup_rate_window_seconds: int = 900
+    stepup_email_rate_limit: int = 10
+    stepup_email_rate_window_seconds: int = 900
     client_block_rate_limit: int = 100
     client_block_rate_window_seconds: int = 3600
     audit_retention_days: int = 180
@@ -145,6 +153,16 @@ class Settings(BaseSettings):
             raise ValueError("IP2REGION_UPDATE_RATE_LIMIT 必须 ≥1")
         if self.ip2region_update_rate_window_seconds < 1:
             raise ValueError("IP2REGION_UPDATE_RATE_WINDOW_SECONDS 必须 ≥1")
+        if self.stepup_window_minutes < 0:
+            raise ValueError("STEPUP_WINDOW_MINUTES 必须 ≥0（0 表示关闭免复核窗口）")
+        if self.stepup_rate_limit < 1:
+            raise ValueError("STEPUP_RATE_LIMIT 必须 ≥1")
+        if self.stepup_rate_window_seconds < 1:
+            raise ValueError("STEPUP_RATE_WINDOW_SECONDS 必须 ≥1")
+        if self.stepup_email_rate_limit < 1:
+            raise ValueError("STEPUP_EMAIL_RATE_LIMIT 必须 ≥1")
+        if self.stepup_email_rate_window_seconds < 1:
+            raise ValueError("STEPUP_EMAIL_RATE_WINDOW_SECONDS 必须 ≥1")
         if not self.allowed_hosts:
             raise ValueError("ALLOWED_HOSTS 不能为空")
         if self.db_pool_size < 1 or self.db_max_overflow < 0:

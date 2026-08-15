@@ -179,6 +179,12 @@ export interface TotpSetup {
   qr_data_url: string;
 }
 
+export interface StepUpStatus {
+  active: boolean;
+  window_minutes: number;
+  expires_in_seconds: number;
+}
+
 export interface AdminUserOut {
   id: string;
   kind: "user" | "invite";

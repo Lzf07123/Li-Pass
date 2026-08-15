@@ -6,8 +6,10 @@ import { AsyncButton } from "../components/AsyncButton";
 import { ConfirmDialog } from "../components/ConfirmDialog";
 import { Modal } from "../components/Modal";
 import { PasswordInput } from "../components/PasswordInput";
+import { StepUpNotice } from "../components/StepUpNotice";
 import { useAsyncAction } from "../hooks/useAsyncAction";
 import { useBreathOnChange } from "../hooks/useBreathOnChange";
+import { useStepUp } from "../hooks/useStepUp";
 import { useToast } from "../hooks/useToast";
 import type { AdminUserOut } from "../api/types";
 
@@ -43,6 +45,7 @@ export function AdminUsersPanel({ currentAdminId }: { currentAdminId: string }) 
   const [inviteBusyId, setInviteBusyId] = useState<string | null>(null);
   const [adminPassword, setAdminPassword] = useState("");
   const toast = useToast();
+  const stepUp = useStepUp();
   const usersBreathing = useBreathOnChange(users);
 
   const selectableUsers = users.filter(
@@ -103,10 +106,15 @@ export function AdminUsersPanel({ currentAdminId }: { currentAdminId: string }) 
     setNewPassword("");
     setAdminPassword("");
     setResetPasswordError(null);
+    void stepUp.refresh(true);
   }
 
   const resetPasswordAction = useAsyncAction(
-    async (id: string, newPassword: string, currentPassword: string) => {
+    async (
+      id: string,
+      newPassword: string,
+      currentPassword: string | undefined,
+    ) => {
       const result = await adminUsersApi.resetPassword(
         id,
         newPassword,
@@ -120,8 +128,14 @@ export function AdminUsersPanel({ currentAdminId }: { currentAdminId: string }) 
     {
       onError: (err) => {
         const message = err instanceof Error ? err.message : "重置失败";
-        if (message.includes("当前密码")) setResetPasswordError(message);
-        else toast.error(message);
+        if (message.includes("需要重新验证密码")) {
+          stepUp.invalidate();
+          setResetPasswordError("复核已过期，请重新输入当前密码");
+        } else if (message.includes("当前密码")) {
+          setResetPasswordError(message);
+        } else {
+          toast.error(message);
+        }
       },
     },
   );
@@ -132,16 +146,22 @@ export function AdminUsersPanel({ currentAdminId }: { currentAdminId: string }) 
       toast.error("新密码至少 8 位");
       return;
     }
+    const password = adminPassword.trim() || undefined;
+    if (!password && !(await stepUp.refresh(true))?.active) {
+      setResetPasswordError("请输入管理员当前密码");
+      return;
+    }
     await resetPasswordAction.run(
       passwordTarget.id,
       newPassword,
-      adminPassword,
+      password,
     );
   }
 
   function startReset2fa(user: AdminUserOut) {
     setAdminPassword("");
     setConfirmPasswordError(null);
+    void stepUp.refresh(true);
     setConfirmTarget({ user, action: "reset2fa" });
   }
 
@@ -173,7 +193,7 @@ export function AdminUsersPanel({ currentAdminId }: { currentAdminId: string }) 
       } else if (action === "reset2fa") {
         const result = await adminUsersApi.reset2fa(
           user.id,
-          currentPassword ?? "",
+          currentPassword || undefined,
         );
         toast.success(result.message);
       } else if (action === "cancelInvite") {
@@ -190,11 +210,15 @@ export function AdminUsersPanel({ currentAdminId }: { currentAdminId: string }) 
     {
       onError: (err) => {
         const message = err instanceof Error ? err.message : "操作失败";
-        if (
-          confirmTarget?.action === "reset2fa" &&
-          message.includes("当前密码")
-        ) {
-          setConfirmPasswordError(message);
+        if (confirmTarget?.action === "reset2fa") {
+          if (message.includes("需要重新验证密码")) {
+            stepUp.invalidate();
+            setConfirmPasswordError("复核已过期，请重新输入当前密码");
+          } else if (message.includes("当前密码")) {
+            setConfirmPasswordError(message);
+          } else {
+            toast.error(message);
+          }
         } else {
           toast.error(message);
         }
@@ -216,12 +240,22 @@ export function AdminUsersPanel({ currentAdminId }: { currentAdminId: string }) 
     }
   }
 
-  function runConfirm() {
+  async function runConfirm() {
     if (!confirmTarget) return;
+    if (
+      confirmTarget.action === "reset2fa" &&
+      !adminPassword.trim() &&
+      !(await stepUp.refresh(true))?.active
+    ) {
+      setConfirmPasswordError("请输入管理员当前密码");
+      return;
+    }
     void confirmAction.run(
       confirmTarget.user,
       confirmTarget.action,
-      confirmTarget.action === "reset2fa" ? adminPassword : undefined,
+      confirmTarget.action === "reset2fa"
+        ? adminPassword.trim() || undefined
+        : undefined,
     );
   }
 
@@ -229,10 +263,11 @@ export function AdminUsersPanel({ currentAdminId }: { currentAdminId: string }) 
     setDeleteTarget(user);
     setDeletePassword("");
     setDeletePasswordError(null);
+    void stepUp.refresh(true);
   }
 
   const deleteAction = useAsyncAction(
-    async (id: string, password: string) => {
+    async (id: string, password: string | undefined) => {
       const result = await adminUsersApi.deleteAccount(id, password);
       setUsers((prev) => prev.filter((item) => item.id !== id));
       setDeleteTarget(null);
@@ -242,8 +277,14 @@ export function AdminUsersPanel({ currentAdminId }: { currentAdminId: string }) 
     {
       onError: (err) => {
         const message = err instanceof Error ? err.message : "删除失败";
-        if (message.includes("当前密码")) setDeletePasswordError(message);
-        else toast.error(message);
+        if (message.includes("需要重新验证密码")) {
+          stepUp.invalidate();
+          setDeletePasswordError("复核已过期，请重新输入当前密码");
+        } else if (message.includes("当前密码")) {
+          setDeletePasswordError(message);
+        } else {
+          toast.error(message);
+        }
       },
     },
   );
@@ -251,11 +292,12 @@ export function AdminUsersPanel({ currentAdminId }: { currentAdminId: string }) 
   async function submitDelete(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!deleteTarget) return;
-    if (!deletePassword) {
+    const password = deletePassword.trim() || undefined;
+    if (!password && !(await stepUp.refresh(true))?.active) {
       setDeletePasswordError("请输入你的当前密码以确认删除");
       return;
     }
-    await deleteAction.run(deleteTarget.id, deletePassword);
+    await deleteAction.run(deleteTarget.id, password);
   }
 
   function openCreate() {
@@ -360,7 +402,7 @@ export function AdminUsersPanel({ currentAdminId }: { currentAdminId: string }) 
   }
 
   const batchDeleteAction = useAsyncAction(
-    async (ids: string[], password: string) => {
+    async (ids: string[], password: string | undefined) => {
       const result = await adminUsersApi.batchDelete(ids, password);
       setBatchDeleteOpen(false);
       setBatchDeletePassword("");
@@ -371,8 +413,14 @@ export function AdminUsersPanel({ currentAdminId }: { currentAdminId: string }) 
     {
       onError: (err) => {
         const message = err instanceof Error ? err.message : "批量删除失败";
-        if (message.includes("当前密码")) setBatchDeleteError(message);
-        else toast.error(message);
+        if (message.includes("需要重新验证密码")) {
+          stepUp.invalidate();
+          setBatchDeleteError("复核已过期，请重新输入当前密码");
+        } else if (message.includes("当前密码")) {
+          setBatchDeleteError(message);
+        } else {
+          toast.error(message);
+        }
       },
     },
   );
@@ -381,11 +429,12 @@ export function AdminUsersPanel({ currentAdminId }: { currentAdminId: string }) 
     event.preventDefault();
     const ids = Array.from(selected);
     if (ids.length === 0) return;
-    if (!batchDeletePassword) {
+    const password = batchDeletePassword.trim() || undefined;
+    if (!password && !(await stepUp.refresh(true))?.active) {
       setBatchDeleteError("请输入你的当前密码以确认批量删除");
       return;
     }
-    await batchDeleteAction.run(ids, batchDeletePassword);
+    await batchDeleteAction.run(ids, password);
   }
 
   const batchInviteAction = useAsyncAction(
@@ -531,6 +580,7 @@ export function AdminUsersPanel({ currentAdminId }: { currentAdminId: string }) 
             onClick={() => {
               setBatchDeletePassword("");
               setBatchDeleteError(null);
+              void stepUp.refresh(true);
               setBatchDeleteOpen(true);
             }}
             disabled={batchStatusAction.pending || batchDeleteAction.pending}
@@ -766,11 +816,17 @@ export function AdminUsersPanel({ currentAdminId }: { currentAdminId: string }) 
               className="input"
               autoComplete="current-password"
               autoFocus
+              required={!stepUp.active}
               aria-invalid={confirmPasswordError ? true : undefined}
               aria-describedby={
                 confirmPasswordError ? "confirm-password-error" : undefined
               }
             />
+            {stepUp.active && stepUp.status && (
+              <StepUpNotice
+                expiresInSeconds={stepUp.status.expires_in_seconds}
+              />
+            )}
             {confirmPasswordError && (
               <p
                 id="confirm-password-error"
@@ -826,11 +882,17 @@ export function AdminUsersPanel({ currentAdminId }: { currentAdminId: string }) 
               className="input"
               autoComplete="current-password"
               autoFocus
+              required={!stepUp.active}
               aria-invalid={resetPasswordError ? true : undefined}
               aria-describedby={
                 resetPasswordError ? "reset-password-error" : undefined
               }
             />
+            {stepUp.active && stepUp.status && (
+              <StepUpNotice
+                expiresInSeconds={stepUp.status.expires_in_seconds}
+              />
+            )}
             {resetPasswordError && (
               <p
                 id="reset-password-error"
@@ -904,11 +966,17 @@ export function AdminUsersPanel({ currentAdminId }: { currentAdminId: string }) 
               className="input"
               autoComplete="current-password"
               autoFocus
+              required={!stepUp.active}
               aria-invalid={deletePasswordError ? true : undefined}
               aria-describedby={
                 deletePasswordError ? "delete-password-error" : undefined
               }
             />
+            {stepUp.active && stepUp.status && (
+              <StepUpNotice
+                expiresInSeconds={stepUp.status.expires_in_seconds}
+              />
+            )}
             {deletePasswordError && (
               <p
                 id="delete-password-error"
@@ -1104,11 +1172,17 @@ export function AdminUsersPanel({ currentAdminId }: { currentAdminId: string }) 
               className="input"
               autoComplete="current-password"
               autoFocus
+              required={!stepUp.active}
               aria-invalid={batchDeleteError ? true : undefined}
               aria-describedby={
                 batchDeleteError ? "batch-delete-error" : undefined
               }
             />
+            {stepUp.active && stepUp.status && (
+              <StepUpNotice
+                expiresInSeconds={stepUp.status.expires_in_seconds}
+              />
+            )}
             {batchDeleteError && (
               <p
                 id="batch-delete-error"

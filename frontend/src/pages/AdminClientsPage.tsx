@@ -6,8 +6,10 @@ import { AsyncButton } from "../components/AsyncButton";
 import { ConfirmDialog } from "../components/ConfirmDialog";
 import { Modal } from "../components/Modal";
 import { PasswordInput } from "../components/PasswordInput";
+import { StepUpNotice } from "../components/StepUpNotice";
 import { useAsyncAction } from "../hooks/useAsyncAction";
 import { useBreathOnChange } from "../hooks/useBreathOnChange";
+import { useStepUp } from "../hooks/useStepUp";
 import { useToast } from "../hooks/useToast";
 import type { ClientBlockOut, ClientOut } from "../api/types";
 
@@ -38,6 +40,7 @@ export function AdminClientsPage() {
   const [removePasswordError, setRemovePasswordError] = useState<string | null>(null);
   const [resetSecretPasswordError, setResetSecretPasswordError] = useState<string | null>(null);
   const toast = useToast();
+  const stepUp = useStepUp();
   const clientsBreathing = useBreathOnChange(clients);
 
   useEffect(() => {
@@ -156,7 +159,7 @@ export function AdminClientsPage() {
   }
 
   const removeAction = useAsyncAction(
-    async (client: ClientOut, currentPassword: string) => {
+    async (client: ClientOut, currentPassword: string | undefined) => {
       await adminClientsApi.remove(client.id, currentPassword);
       setClients((prev) => prev.filter((item) => item.id !== client.id));
       setRemoveTarget(null);
@@ -166,15 +169,26 @@ export function AdminClientsPage() {
     {
       onError: (err) => {
         const message = err instanceof Error ? err.message : "删除失败";
-        if (message.includes("当前密码")) setRemovePasswordError(message);
-        else toast.error(message);
+        if (message.includes("需要重新验证密码")) {
+          stepUp.invalidate();
+          setRemovePasswordError("复核已过期，请重新输入当前密码");
+        } else if (message.includes("当前密码")) {
+          setRemovePasswordError(message);
+        } else {
+          toast.error(message);
+        }
       },
     },
   );
 
-  function confirmRemove() {
+  async function confirmRemove() {
     if (!removeTarget) return;
-    void removeAction.run(removeTarget, adminPassword);
+    const password = adminPassword.trim() || undefined;
+    if (!password && !(await stepUp.refresh(true))?.active) {
+      setRemovePasswordError("请输入管理员当前密码");
+      return;
+    }
+    void removeAction.run(removeTarget, password);
   }
 
   function startEdit(client: ClientOut) {
@@ -251,7 +265,7 @@ export function AdminClientsPage() {
   }
 
   const resetSecretAction = useAsyncAction(
-    async (client: ClientOut, currentPassword: string) => {
+    async (client: ClientOut, currentPassword: string | undefined) => {
       const result = await adminClientsApi.resetSecret(
         client.id,
         currentPassword,
@@ -267,14 +281,25 @@ export function AdminClientsPage() {
     {
       onError: (err) => {
         const message = err instanceof Error ? err.message : "重置密钥失败";
-        if (message.includes("当前密码")) setResetSecretPasswordError(message);
-        else toast.error(message);
+        if (message.includes("需要重新验证密码")) {
+          stepUp.invalidate();
+          setResetSecretPasswordError("复核已过期，请重新输入当前密码");
+        } else if (message.includes("当前密码")) {
+          setResetSecretPasswordError(message);
+        } else {
+          toast.error(message);
+        }
       },
     },
   );
 
-  function resetSecret(client: ClientOut) {
-    void resetSecretAction.run(client, adminPassword);
+  async function resetSecret(client: ClientOut) {
+    const password = adminPassword.trim() || undefined;
+    if (!password && !(await stepUp.refresh(true))?.active) {
+      setResetSecretPasswordError("请输入管理员当前密码");
+      return;
+    }
+    void resetSecretAction.run(client, password);
   }
 
   async function copyText(text: string, label: string) {
@@ -294,6 +319,7 @@ export function AdminClientsPage() {
   function startResetSecret(client: ClientOut) {
     setAdminPassword("");
     setResetSecretPasswordError(null);
+    void stepUp.refresh(true);
     setResetTarget(client);
   }
 
@@ -445,6 +471,8 @@ export function AdminClientsPage() {
                 <button
                   onClick={() => {
                     setRemovePasswordError(null);
+                    setAdminPassword("");
+                    void stepUp.refresh(true);
                     setRemoveTarget(client);
                   }}
                   className="btn btn-danger"
@@ -683,11 +711,17 @@ export function AdminClientsPage() {
             className="input"
             autoComplete="current-password"
             autoFocus
+            required={!stepUp.active}
             aria-invalid={removePasswordError ? true : undefined}
             aria-describedby={
               removePasswordError ? "remove-password-error" : undefined
             }
           />
+          {stepUp.active && stepUp.status && (
+            <StepUpNotice
+              expiresInSeconds={stepUp.status.expires_in_seconds}
+            />
+          )}
           {removePasswordError && (
             <p
               id="remove-password-error"
@@ -727,6 +761,7 @@ export function AdminClientsPage() {
             className="input"
             autoComplete="current-password"
             autoFocus
+            required={!stepUp.active}
             aria-invalid={resetSecretPasswordError ? true : undefined}
             aria-describedby={
               resetSecretPasswordError
@@ -734,6 +769,11 @@ export function AdminClientsPage() {
                 : undefined
             }
           />
+          {stepUp.active && stepUp.status && (
+            <StepUpNotice
+              expiresInSeconds={stepUp.status.expires_in_seconds}
+            />
+          )}
           {resetSecretPasswordError && (
             <p
               id="reset-secret-password-error"

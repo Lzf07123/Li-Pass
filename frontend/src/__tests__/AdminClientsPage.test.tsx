@@ -100,6 +100,26 @@ describe("AdminClientsPage", () => {
           headers: { "Content-Type": "application/json" },
         })
       )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            active: true,
+            window_minutes: 30,
+            expires_in_seconds: 1800,
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } }
+        )
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            active: true,
+            window_minutes: 30,
+            expires_in_seconds: 1800,
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } }
+        )
+      )
       .mockResolvedValueOnce(new Response(null, { status: 204 }));
     vi.stubGlobal("fetch", fetchMock);
     renderWithProviders(<AdminClientsPage />);
@@ -205,6 +225,26 @@ describe("AdminClientsPage", () => {
           status: 200,
           headers: { "Content-Type": "application/json" },
         })
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            active: true,
+            window_minutes: 30,
+            expires_in_seconds: 1800,
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } }
+        )
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            active: true,
+            window_minutes: 30,
+            expires_in_seconds: 1800,
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } }
+        )
       )
       .mockResolvedValueOnce(
         new Response(

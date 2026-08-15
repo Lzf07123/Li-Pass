@@ -9,10 +9,12 @@
 
 ### 功能
 
+- 敏感操作 step-up 复核窗口：新增 `GET/POST /api/v1/me/step-up`（复核窗口状态与显式密码复核端点）；一次密码复核成功后，该会话在 **30 分钟**内执行其它敏感操作免再次输入密码。窗口为固定时长、按会话隔离（一台设备复核不豁免其它设备）、**登录成功不自动授窗**。用户中心（修改密码/注销账号）、2FA 开关（邮箱验证码/TOTP）与全部管理端敏感操作（角色变更/重置密码/重置 2FA/删除用户/批量删除/删除客户端/重置密钥）统一接入；窗口时长与限流阈值可配置（`STEPUP_WINDOW_MINUTES=0` 可关闭窗口回到每操作必验）。设计见 [敏感操作 step-up 认证窗口设计](docs/superpowers/specs/2026-08-16-sensitive-stepup-window-design.md)，实施计划见 [实施计划](docs/superpowers/plans/2026-08-16-sensitive-stepup-window.md)。
 - 联邦登出完整落地：RP 发起登出（`GET /oauth2/end-session` + 确认页 `/logout/confirm` + 精确匹配回跳白名单）、回程登出（`logout_token` 签发/异步分发/重试/SSRF 防护）、无回程网站的浏览器串跳漏斗、用户/管理员会话撤销与取消授权联动下线；`id_token` 新增 `sid`，发现文档新增 `end_session_endpoint`/`backchannel_logout_supported`；管理端新增「登出回跳白名单」「回程登出地址」配置，演示站实现对应 RP 侧示例。详见 [对接指南 §7](docs/oidc-integration.md) 与 [实施计划](docs/superpowers/plans/2026-08-15-federated-logout.md)。
 
 ### 安全加固
 
+- 敏感操作的密码复核统一收敛到 `app/services/stepup.py`：此前散落各路由的 `current_password` 校验无独立限流，现新增按邮箱+IP 与全局邮箱的双层复核失败限流（默认 5/10 次每 15 分钟），并落 `stepup_verify_success`/`stepup_failed`/`stepup_required` 审计（category=`security`），复核被拒与疑似会话窃取的免密尝试可追踪。
 - 依赖安全审计（pip-audit）：`python-multipart 0.0.20 → 0.0.32`（修复多个 2026 年公告的 multipart 解析 DoS）、`pyotp 2.1.0 → 2.10.0`（移除其携带的有漏洞传递依赖 `future 0.15.2`）；升级后 pip-audit 清零，npm 生产依赖审计 0 漏洞。
 - 后端镜像的 ip2region 数据与 Python 绑定源码改为构建时从固定 tag 拉取（SHA256 信任清单校验、下载带重试），修复镜像遗漏 vendored 绑定源码导致容器启动 `ModuleNotFoundError: No module named 'ip2region'`；构建期新增 `import app.main` 冒烟检查，把此类“漏 COPY/漏拉取”问题前移到镜像构建阶段暴露。构建下载基地址可用 `IP2REGION_DOWNLOAD_BASE_URL` 覆盖（Gitee raw 实测拒绝 xdb 数据文件，需保持 GitHub 源）。
 - 依赖安全升级：`fastapi 0.115.6 → 0.141.1`、`starlette 0.41.3 → 1.6.0`（修复 CVE-2026-48710「BadHost」Host 头认证绕过、CVE-2025-62727 Range 头 DoS、CVE-2025-54121 multipart 主线程阻塞）、`cryptography 44.0.0 → 50.0.0`（修复内嵌 OpenSSL 公告与 PKCS7 Bleichenbacher oracle）、`PyJWT 2.10.1 → 2.13.0`（修复 CVE-2026-32597 crit 头未校验）；新增 [Dependabot](.github/dependabot.yml) 每周依赖漏洞扫描。
@@ -26,6 +28,7 @@
 
 ### 行为变更
 
+- 敏感操作在「未提供当前密码且不在复核窗口内」时返回 **403「需要重新验证密码」**（原为 422 或 400）；密码错误仍返回 400「当前密码错误」。旧前端始终携带密码，行为不受影响；前端接入复核窗口后可在 30 分钟内免密码执行后续敏感操作。
 - 管理后台面板级代码分割：8 个标签面板改为懒加载（React.lazy + Suspense），访问任一标签不再下载全部面板代码，后台入口分包由约 661KB 降至约 8.5KB；数据统计的地图 GeoJSON（约 578KB）改为组件挂载时按需异步加载，坐标精度收敛到 3 位小数（约 425KB，gzip 约 121KB），构建不再出现超大分包警告。
 - 管理后台「数据统计」概览卡片改为 React Bits MagicBento 风格的深色 Bento 网格（新组件 `MagicBento`）：支持光标跟随聚光、悬停粒子星点、边框辉光、3D 倾斜与磁性吸附，光色默认跟随明暗主题的品牌主色（可用 `glowColor` 覆盖为 RGB 三元组）；统计页启用 `compact` 紧凑模式（等宽 3 列、单卡高 144px），卡片带分类图标与副标题，账号/邮箱卡附占比进度条，登录与注册卡附迷你趋势线，并按卡片用途可点击跳转对应管理标签（用户/会话/审计）；移动端与 `prefers-reduced-motion` 下自动关闭动画、仅保留静态卡片。
 - 管理后台顶部标签由按钮组改为 React Bits PillNav 风格的胶囊标签（新组件 `PillTabs`）：hover / 键盘聚焦时主色圆环自胶囊底部中心展开、旧文案上滑、主色前景文案从下方滑入，活动标签固定为主色胶囊；保留原 `ScrollTabs` 的横向滑动、边缘渐隐与深链居中能力，渐隐起始色新增 `fadeColor` 参数以贴合轨道背景，`prefers-reduced-motion` 下动画瞬切。

@@ -32,10 +32,11 @@ from app.schemas.auth import (
     PhoneBind,
     ProfileUpdate,
     SessionOut,
+    StepUpVerifyRequest,
     UserOut,
     serialize_user,
 )
-from app.security.passwords import hash_password, verify_password
+from app.security.passwords import hash_password
 from app.services.account_deletion import delete_user_account
 from app.services.device_info import describe_session_device
 from app.services.avatar_cleanup import delete_avatar_file
@@ -48,6 +49,7 @@ from app.services.federated_logout import (
 )
 from app.services.otps import create_otp, verify_otp
 from app.services.rate_limit import get_rate_limiter
+from app.services.stepup import authorize_stepup, stepup_status
 
 router = APIRouter(prefix="/api/v1", tags=["users"])
 logger = logging.getLogger(__name__)
@@ -76,6 +78,30 @@ def _avatar_ext(content: bytes) -> str | None:
 @router.get("/me", response_model=UserOut)
 def me(user: User = Depends(get_current_user)) -> dict:
     return serialize_user(user)
+
+
+@router.get("/me/step-up")
+def stepup_status_endpoint(
+    request: Request,
+    db: Session = Depends(get_db),
+) -> dict:
+    """当前会话的 step-up 复核窗口状态。"""
+    session = get_current_session(request, db)
+    return stepup_status(session)
+
+
+@router.post("/me/step-up")
+def stepup_verify(
+    payload: StepUpVerifyRequest,
+    request: Request,
+    db: Session = Depends(get_db),
+) -> dict:
+    """在已登录会话上复核密码：成功后开启 30 分钟敏感操作免复核窗口。"""
+    session = get_current_session(request, db)
+    user = get_current_user(request, db)
+    authorize_stepup(request, db, user, session, payload.password)
+    result = stepup_status(session)
+    return {**result, "message": "身份复核成功"}
 
 
 @router.put("/me", response_model=UserOut)
@@ -124,10 +150,10 @@ def change_password(
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> dict:
-    if not verify_password(payload.current_password, user.password_hash):
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, "当前密码错误")
+    session = get_current_session(request, db)
+    authorize_stepup(request, db, user, session, payload.current_password)
     user.password_hash = hash_password(payload.new_password)
-    current = get_current_session(request, db)
+    current = session
     others = db.scalars(
         select(SessionModel).where(
             SessionModel.user_id == user.id,
@@ -149,9 +175,10 @@ def delete_own_account(
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> dict:
-    # 注销账号不可逆：必须本人当前密码复核，防止会话被窃取后静默注销。
-    if not verify_password(payload.current_password, user.password_hash):
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, "当前密码错误")
+    # 注销账号不可逆：必须本人复核（密码或 30 分钟窗口），
+    # 防止会话被窃取后静默注销。
+    session = get_current_session(request, db)
+    authorize_stepup(request, db, user, session, payload.current_password)
     if user.role == UserRole.admin:
         admin_count = db.scalar(
             select(func.count()).select_from(User).where(User.role == UserRole.admin)

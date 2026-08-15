@@ -138,6 +138,16 @@ describe("AdminPage", () => {
       )
       .mockResolvedValueOnce(
         new Response(
+          JSON.stringify({
+            active: false,
+            window_minutes: 30,
+            expires_in_seconds: 0,
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } }
+        )
+      )
+      .mockResolvedValueOnce(
+        new Response(
           JSON.stringify({ message: "密码已重置，该用户所有会话已退出" }),
           { status: 200, headers: { "Content-Type": "application/json" } }
         )
