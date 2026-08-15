@@ -1086,9 +1086,18 @@ export function DashboardPage() {
                       </span>
                     )}
                     <div className="min-w-0 flex-1">
-                      <p className="truncate font-semibold text-foreground">
-                        {app.name}
-                      </p>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="truncate font-semibold text-foreground">
+                          {app.name}
+                        </p>
+                        {app.active_sessions > 0 ? (
+                          <span className="badge badge-primary">
+                            已登录 · {app.active_sessions} 台设备
+                          </span>
+                        ) : (
+                          <span className="badge badge-muted">未登录</span>
+                        )}
+                      </div>
                       {app.description && (
                         <p className="truncate text-sm text-muted">
                           {app.description}

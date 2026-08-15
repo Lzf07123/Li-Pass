@@ -168,6 +168,7 @@ export interface AppOut {
   description: string;
   logo_url: string | null;
   home_url: string | null;
+  active_sessions: number;
 }
 
 export interface ClientBlockOut {

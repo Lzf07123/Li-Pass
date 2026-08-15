@@ -41,6 +41,7 @@ describe("DashboardPage", () => {
               description: "",
               logo_url: null,
               home_url: "http://localhost:3001",
+              active_sessions: 1,
             },
           ]),
           { status: 200, headers: { "Content-Type": "application/json" } }
@@ -67,6 +68,7 @@ describe("DashboardPage", () => {
     renderWithProviders(<DashboardPage />);
     await waitFor(() => expect(screen.getByDisplayValue("Alice")).toBeInTheDocument());
     await waitFor(() => expect(screen.getByText("Demo")).toBeInTheDocument());
+    expect(screen.getByText("已登录 · 1 台设备")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "上传头像" })).toBeInTheDocument();
   });
 

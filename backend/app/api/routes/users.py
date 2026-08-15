@@ -582,6 +582,22 @@ def list_apps(
         )
     ).all()
     blocked_client_ids = {block.client_id for block in blocks}
+    now = datetime.now(timezone.utc)
+    link_rows = db.execute(
+        select(
+            OIDCClientSession.client_id,
+            func.count(OIDCClientSession.id),
+        )
+        .join(SessionModel, OIDCClientSession.session_id == SessionModel.id)
+        .where(
+            OIDCClientSession.user_id == user.id,
+            OIDCClientSession.revoked_at.is_(None),
+            SessionModel.revoked_at.is_(None),
+            SessionModel.expires_at > now,
+        )
+        .group_by(OIDCClientSession.client_id)
+    ).all()
+    active_counts = dict(link_rows)
     result = []
     for client in clients:
         if client.id in blocked_client_ids:
@@ -593,6 +609,7 @@ def list_apps(
                 "description": client.description,
                 "logo_url": client.logo_url,
                 "home_url": client.home_url,
+                "active_sessions": active_counts.get(client.id, 0),
             }
         )
     return result
