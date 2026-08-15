@@ -46,6 +46,7 @@
 
 ### 缺陷修复
 
+- 设备信息解析误把 Chromium Client Hints 的 GREASE token 当作浏览器名：新版 Chrome 的 `sec-ch-ua` 使用 `Not=A?Brand` 变体，旧黑名单只覆盖 `Not A;Brand`/`Not)A;Brand`/`Not_A Brand`，导致设备管理与会话监控显示「macOS · Not=A?Brand」。现改为按 GREASE token 的结构匹配（`Not?A?Brand`，中间为非字母数字字符）过滤；读取侧对历史已写入的脏名称优先按原始 UA 重建，无 UA 时剔除 GREASE 片段，用户中心与管理后台同步修复。
 - 网关演示站动态上游解析的 `proxy_pass` 带变量时其 URI 部分会整体替换原始路径，`/demo/login`、`POST /demo/logout` 等子路径被透传成 `/`（404/405）；已改用 `rewrite` 显式剥离 `/demo` 前缀后不带 URI 转发。
 - 联邦登出迁移 `7f2a9d3c8e1b` 的 downgrade 在 PostgreSQL 上失败：`authorization_codes.session_id` 外键未命名导致无法生成 `DROP CONSTRAINT`；已命名外键并在真实 PostgreSQL 上验证 downgrade/upgrade 往返。
 - 头像上传超限修复：`starlette 1.6.0` 已将 `HTTP_413_CONTENT_TOO_LARGE` 更名为 `HTTP_413_REQUEST_ENTITY_TOO_LARGE`，超限头像此前会在校验时抛出 `AttributeError`（表现为 500 而非 413），已改用新常量并保留现有测试覆盖。

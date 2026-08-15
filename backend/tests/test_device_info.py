@@ -25,6 +25,10 @@ MAC_SAFARI_UA = (
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
     "AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Safari/605.1.15"
 )
+MAC_CHROME_UA = (
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
+    "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+)
 FIREFOX_UA = (
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:129.0) "
     "Gecko/20100101 Firefox/129.0"
@@ -49,6 +53,34 @@ def test_parse_client_hints_model():
     assert fp.platform_version == "14"
     assert fp.mobile is True
     assert fp.browser == "Chrome"
+
+
+def test_parse_client_hints_skips_grease_brand_variants():
+    """GREASE token 随 Chrome 版本轮换，必须按结构过滤而不是枚举黑名单。"""
+    for grease in ("Not A;Brand", "Not_A Brand", "Not=A?Brand"):
+        fp = parse_ch_headers(
+            {
+                "sec-ch-ua-model": '"MacBook Pro"',
+                "sec-ch-ua-platform": '"macOS"',
+                "sec-ch-ua-platform-version": '"14.5"',
+                "sec-ch-ua-mobile": "?0",
+                "sec-ch-ua": (
+                    f'"{grease}";v="99", "Chromium";v="124", '
+                    '"Google Chrome";v="124"'
+                ),
+            }
+        )
+        assert fp.browser == "Chrome", grease
+
+
+def test_parse_client_hints_chromium_only_falls_back():
+    fp = parse_ch_headers(
+        {
+            "sec-ch-ua-platform": '"Windows"',
+            "sec-ch-ua": '"Not=A?Brand";v="8", "Chromium";v="124"',
+        }
+    )
+    assert fp.browser == "Chromium"
 
 
 def test_parse_ua_iphone_safari():
@@ -110,6 +142,14 @@ def test_describe_session_device_handles_legacy_ua():
         "MacBook Pro · macOS 14.5"
     )
     assert describe_session_device("", "") == "未知设备"
+
+
+def test_describe_session_device_repairs_grease_brand_label():
+    """历史会话已把 Not=A?Brand 写入 device_name，读取时按 UA 重建。"""
+    assert describe_session_device("macOS · Not=A?Brand", MAC_CHROME_UA) == (
+        "macOS · Chrome"
+    )
+    assert describe_session_device("Not=A?Brand", "") == "未知设备"
 
 
 def test_login_stores_device_label_from_client_hints(

@@ -8,6 +8,13 @@ import re
 from dataclasses import dataclass
 from typing import Mapping
 
+# Chromium Client Hints 的 GREASE 品牌 token：以 Not 开头、Brand 结尾，
+# 中间各带一个非字母数字字符（如 Not A;Brand / Not)A;Brand / Not=A?Brand），
+# 具体字符随 Chrome 版本轮换，因此按结构匹配而不是枚举黑名单。
+_GREASE_BRAND = r"Not[^A-Za-z0-9]A[^A-Za-z0-9]Brand"
+_GREASE_BRAND_FULL = re.compile(f"^{_GREASE_BRAND}$")
+_GREASE_BRAND_ANY = re.compile(_GREASE_BRAND)
+
 
 @dataclass(frozen=True)
 class DeviceFingerprint:
@@ -41,16 +48,18 @@ def parse_ch_headers(headers: Mapping[str, str]) -> DeviceFingerprint:
         "Microsoft Edge": "Edge",
         "Opera": "Opera",
     }
-    for name in re.findall(r'"([^"]*)";\s*v=', headers.get("sec-ch-ua") or ""):
-        cleaned = name.strip()
-        if cleaned and cleaned not in {
-            "Chromium",
-            "Not A;Brand",
-            "Not_A Brand",
-            "Not)A;Brand",
-        }:
-            browser = brand_map.get(cleaned, cleaned)
-            break
+    candidates = [
+        name.strip()
+        for name in re.findall(r'"([^"]*)";\s*v=', headers.get("sec-ch-ua") or "")
+        if name.strip() and not _GREASE_BRAND_FULL.match(name.strip())
+    ]
+    if candidates:
+        # 优先取真实浏览器品牌；仅剩 Chromium 时（Chromium 本体）也保留它
+        browser_name = next(
+            (name for name in candidates if name != "Chromium"),
+            candidates[0],
+        )
+        browser = brand_map.get(browser_name, browser_name)
     return DeviceFingerprint(model, platform, platform_version, browser, mobile)
 
 
@@ -113,9 +122,26 @@ def build_device_label(fp: DeviceFingerprint) -> str:
 
 
 def describe_session_device(device_name: str, user_agent: str) -> str:
-    """读取侧设备名：历史会话的 device_name 可能是原始 UA，解析为友好名。"""
+    """读取侧设备名：历史会话的 device_name 可能是原始 UA，解析为友好名。
+
+    同时修复历史脏数据：早期版本把 Client Hints 的 GREASE token（如
+    Not=A?Brand）当成浏览器名写入了 device_name。此时优先按原始 UA 重建，
+    无 UA 可用时剔除名称中的 GREASE 片段。
+    """
     name = (device_name or "").strip()
     if name and "Mozilla/" not in name:
+        if _GREASE_BRAND_ANY.search(name):
+            repaired = build_device_label(parse_user_agent(user_agent or ""))
+            if repaired != "未知设备":
+                return repaired[:120]
+            segments = [
+                segment.strip()
+                for segment in name.split("·")
+                if segment.strip() and not _GREASE_BRAND_FULL.match(segment.strip())
+            ]
+            name = " · ".join(segments)
+            if not name:
+                return "未知设备"
         return name[:120]
     label = build_device_label(parse_user_agent(user_agent or name))
     if label != "未知设备":
