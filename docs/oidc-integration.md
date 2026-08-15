@@ -82,7 +82,7 @@ Li&Pass 是一个符合 OIDC/OAuth2 授权码流程的身份提供商（IdP）�
 | --- | --- | --- | --- | --- | --- |
 | **必选** | 授权回调接口（`redirect_uri`） | `GET` | 门户 → 浏览器 → 你的网站 | 「回调地址」 | 接收授权码并完成登录，见 §2.2 |
 | **可选（推荐）** | 回程登出接口（`backchannel_logout_uri`） | `POST` | 门户服务器 → 你的服务器 | 「回程登出地址」 | 接收 `logout_token` 下线，见 §2.3.1 |
-| **可选（与回程二选一）** | 登出地址（`logout_uri`） | `GET` | 门户 → 浏览器 → 你的网站 | 「登出地址」 | 浏览器串跳清本地会话，见 §2.3.2 |
+| **可选（可与回程并存）** | 登出地址（`logout_uri`） | `GET` | 门户 → 浏览器 → 你的网站 | 「登出地址」 | 浏览器串跳清本地会话，见 §2.3.2 |
 | **可选（使用 RP 发起登出则必填）** | 登出回跳页（`post_logout_redirect_uri`） | `GET` | 门户 → 浏览器 | 「登出回跳白名单」 | SSO 登出后的落地页，见 §2.3.3 |
 
 硬性要求：
@@ -153,7 +153,7 @@ GET https://your-site.example/callback?error=access_denied&state=RANDOM_STATE
 
 #### 2.3.2 登出地址（浏览器串跳）
 
-未配置回程地址时，用户退出门户会经浏览器串跳到你登记的「登出地址」（取消授权不串跳），**请求方法：`GET`**：
+用户退出门户时，所有配置了「登出地址」的网站都会经浏览器串跳（取消授权不串跳；已配置回程地址的网站会同时收到服务器间通知），**请求方法：`GET`**：
 
 ```text
 GET https://your-site.example/logout?next=<下一目标或门户登录页的 URL 编码值>
@@ -503,7 +503,7 @@ curl -u CLIENT_ID:CLIENT_SECRET -X DELETE \
 
 1. **RP 发起登出（RP-Initiated Logout）**：仅用于「登出 SSO」，见 §8.2。
 2. **回程登出（Back-Channel Logout）**：用户从门户（或管理员强制下线）退出时，IdP 服务器间 POST `logout_token` 通知你下线。
-3. **浏览器串跳漏斗**：未实现回程通道的网站，门户登出时把各网站的 `logout_uri` 串成一条 `?next=` 链，由浏览器依次跳转清会话。
+3. **浏览器串跳漏斗**：门户登出时把所有配置了 `logout_uri` 的网站串成一条 `?next=` 链，由浏览器依次跳转清会话（已配置回程地址的网站会**同时**收到服务器间 `logout_token`，两者并存互不替代）。
 
 发现文档中的 `end_session_endpoint`、`backchannel_logout_supported: true`、`frontchannel_logout_supported: false` 描述了门户的支持情况。**门户不实现 front-channel iframe 登出**（第三方 Cookie 已被主流浏览器禁用），请勿依赖该机制。
 
@@ -566,9 +566,9 @@ https://your-site.example/?state=RANDOM_STATE
 - 终止本地与 `(sub, sid)` 匹配的会话；id_token 中的 `sid` 即门户会话标识，登录时请按 `(sub, sid)` 绑定本地会话。
 - 处理成功返回 2xx；门户对失败会有限重试，但仍以“尽力而为”为准，不能假设一定送达。
 
-### 8.4 浏览器串跳漏斗（无回程通道的网站）
+### 8.4 浏览器串跳漏斗
 
-如果你只配置了「登出地址」（`logout_uri`）而没有回程地址，门户登出时会向浏览器返回形如：
+门户登出时，所有配置了「登出地址」（`logout_uri`）的网站都会进入串跳（有回程地址的网站也会同时收到服务器间 `logout_token`），向浏览器返回形如：
 
 ```text
 https://your-site.example/logout?next=<下一个目标或门户登录页的 URL 编码值>
