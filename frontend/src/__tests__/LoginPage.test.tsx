@@ -8,12 +8,99 @@ import { renderWithProviders } from "../test/renderWithProviders";
 describe("LoginPage", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
+    window.localStorage.clear();
   });
 
   it("从注册跳转携带的邮箱参数预填账号", () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response("{}")));
     renderWithProviders(<LoginPage />, ["/login?email=a@example.com"]);
     expect(screen.getByLabelText("邮箱")).toHaveValue("a@example.com");
+  });
+
+  it("从 localStorage 回填记住的账号与密码", () => {
+    window.localStorage.setItem("lipass.remember.account", "a@example.com");
+    window.localStorage.setItem("lipass.remember.password", "password123");
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response("{}")));
+
+    renderWithProviders(<LoginPage />);
+
+    expect(screen.getByLabelText("邮箱")).toHaveValue("a@example.com");
+    expect(screen.getByLabelText("密码")).toHaveValue("password123");
+    expect(screen.getByLabelText("记住账号")).toBeChecked();
+    expect(screen.getByLabelText("记住密码")).toBeChecked();
+  });
+
+  it("登录成功后按勾选落盘记住的凭据", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            id: "1",
+            email: "a@example.com",
+            nickname: "Alice",
+            email_verified: true,
+            phone: null,
+            role: "user",
+            status: "active",
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } },
+        ),
+      ),
+    );
+    renderWithProviders(<LoginPage />);
+
+    fireEvent.change(screen.getByLabelText("邮箱"), {
+      target: { value: "a@example.com" },
+    });
+    fireEvent.change(screen.getByLabelText("密码"), {
+      target: { value: "password123" },
+    });
+    fireEvent.click(screen.getByLabelText("记住账号"));
+    fireEvent.click(screen.getByLabelText("记住密码"));
+    fireEvent.click(screen.getByRole("button", { name: "登录" }));
+
+    await waitFor(() =>
+      expect(
+        window.localStorage.getItem("lipass.remember.account"),
+      ).toBe("a@example.com")
+    );
+    expect(
+      window.localStorage.getItem("lipass.remember.password"),
+    ).toBe("password123");
+  });
+
+  it("登录失败不落盘记住的凭据", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        new Response(JSON.stringify({ detail: "邮箱或密码错误" }), {
+          status: 401,
+          headers: { "Content-Type": "application/json" },
+        }),
+      ),
+    );
+    renderWithProviders(<LoginPage />);
+
+    fireEvent.change(screen.getByLabelText("邮箱"), {
+      target: { value: "a@example.com" },
+    });
+    fireEvent.change(screen.getByLabelText("密码"), {
+      target: { value: "wrongpass" },
+    });
+    fireEvent.click(screen.getByLabelText("记住账号"));
+    fireEvent.click(screen.getByLabelText("记住密码"));
+    fireEvent.click(screen.getByRole("button", { name: "登录" }));
+
+    await waitFor(() =>
+      expect(screen.getByText("邮箱或密码错误")).toBeInTheDocument()
+    );
+    expect(
+      window.localStorage.getItem("lipass.remember.account"),
+    ).toBeNull();
+    expect(
+      window.localStorage.getItem("lipass.remember.password"),
+    ).toBeNull();
   });
 
   it("登录失败时展示错误信息", async () => {

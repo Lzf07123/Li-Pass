@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 
 import { auth2faApi, authApi } from "../api/client";
@@ -9,6 +9,11 @@ import { useAsyncAction } from "../hooks/useAsyncAction";
 import { useToast } from "../hooks/useToast";
 import { APP_NAME } from "../lib/brand";
 import { isSafeNext } from "../lib/navigation";
+import {
+  getRememberedAccount,
+  getRememberedPassword,
+  persistRememberedCredentials,
+} from "../lib/remember";
 
 const METHOD_LABELS: Record<string, string> = {
   email_otp: "邮箱验证码",
@@ -23,8 +28,13 @@ export function LoginPage() {
   const rawNext = searchParams.get("next");
   const next = isSafeNext(rawNext) ? rawNext : null;
   const emailParam = searchParams.get("email");
-  const [email, setEmail] = useState(emailParam ?? "");
-  const [password, setPassword] = useState("");
+  const rememberedAccount = getRememberedAccount();
+  const [email, setEmail] = useState(emailParam ?? rememberedAccount ?? "");
+  const [password, setPassword] = useState(
+    emailParam && emailParam !== rememberedAccount
+      ? ""
+      : (getRememberedPassword() ?? ""),
+  );
   const [challenge, setChallenge] = useState<{ id: string; methods: string[] } | null>(
     null
   );
@@ -34,6 +44,18 @@ export function LoginPage() {
   const [resendCountdown, setResendCountdown] = useState(0);
   const [emailRetryAfterSeconds, setEmailRetryAfterSeconds] = useState(3600);
   const [rememberMe, setRememberMe] = useState(false);
+  const [rememberAccount, setRememberAccount] = useState(
+    rememberedAccount !== null,
+  );
+  const [rememberPassword, setRememberPassword] = useState(
+    getRememberedPassword() !== null,
+  );
+  const pendingRemember = useRef<{
+    email: string;
+    password: string;
+    account: boolean;
+    pwd: boolean;
+  } | null>(null);
   const toast = useToast();
   const navigate = useNavigate();
 
@@ -44,13 +66,25 @@ export function LoginPage() {
   }, [resendCountdown]);
 
   const loginAction = useAsyncAction(
-    async (email: string, password: string, rememberMe: boolean) => {
+    async (
+      email: string,
+      password: string,
+      rememberMe: boolean,
+      rememberAccount: boolean,
+      rememberPassword: boolean,
+    ) => {
       const result = await authApi.login({
         email,
         password,
         remember_me: rememberMe,
       });
       if (result.requires_2fa && result.challenge_id) {
+        pendingRemember.current = {
+          email,
+          password,
+          account: rememberAccount,
+          pwd: rememberPassword,
+        };
         const methods = result.methods ?? [];
         setChallenge({ id: result.challenge_id, methods });
         setEmailStatus(result.email_status ?? null);
@@ -64,8 +98,20 @@ export function LoginPage() {
               : "recovery",
         );
       } else if (next) {
+        persistRememberedCredentials(
+          email,
+          password,
+          rememberAccount,
+          rememberPassword,
+        );
         window.location.href = next;
       } else {
+        persistRememberedCredentials(
+          email,
+          password,
+          rememberAccount,
+          rememberPassword,
+        );
         navigate("/");
       }
     },
@@ -77,12 +123,28 @@ export function LoginPage() {
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    await loginAction.run(email, password, rememberMe);
+    await loginAction.run(
+      email,
+      password,
+      rememberMe,
+      rememberAccount,
+      rememberPassword,
+    );
   }
 
   const verifyAction = useAsyncAction(
     async (challengeId: string, method: string, code: string) => {
       await auth2faApi.verify(challengeId, method, code);
+      if (pendingRemember.current) {
+        const pending = pendingRemember.current;
+        persistRememberedCredentials(
+          pending.email,
+          pending.password,
+          pending.account,
+          pending.pwd,
+        );
+        pendingRemember.current = null;
+      }
       if (next) window.location.href = next;
       else navigate("/");
     },
@@ -231,15 +293,43 @@ export function LoginPage() {
             required
           />
         </label>
-        <label className="flex cursor-pointer items-center gap-2 text-sm text-foreground">
-          <input
-            type="checkbox"
-            checked={rememberMe}
-            onChange={(e) => setRememberMe(e.target.checked)}
-            className="h-4 w-4 accent-primary"
-          />
-          记住我（30 天内免登录）
-        </label>
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-foreground">
+          <label className="flex cursor-pointer items-center gap-2">
+            <input
+              type="checkbox"
+              checked={rememberMe}
+              onChange={(e) => setRememberMe(e.target.checked)}
+              className="h-4 w-4 accent-primary"
+            />
+            记住我（30 天内免登录）
+          </label>
+          <label className="flex cursor-pointer items-center gap-2">
+            <input
+              type="checkbox"
+              checked={rememberAccount}
+              onChange={(e) => {
+                const checked = e.target.checked;
+                setRememberAccount(checked);
+                if (!checked) setRememberPassword(false);
+              }}
+              className="h-4 w-4 accent-primary"
+            />
+            记住账号
+          </label>
+          <label className="flex cursor-pointer items-center gap-2">
+            <input
+              type="checkbox"
+              checked={rememberPassword}
+              onChange={(e) => {
+                const checked = e.target.checked;
+                setRememberPassword(checked);
+                if (checked) setRememberAccount(true);
+              }}
+              className="h-4 w-4 accent-primary"
+            />
+            记住密码
+          </label>
+        </div>
         <AsyncButton
           type="submit"
           status={loginAction.status}
