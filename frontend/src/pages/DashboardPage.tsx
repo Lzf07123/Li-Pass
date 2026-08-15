@@ -63,6 +63,7 @@ export function DashboardPage() {
   const [recoveryCodes, setRecoveryCodes] = useState<string[] | null>(null);
   const [revokeTarget, setRevokeTarget] = useState<AppOut | null>(null);
   const [revokeAllOpen, setRevokeAllOpen] = useState(false);
+  const [logoutOpen, setLogoutOpen] = useState(false);
   const [revokeSessionId, setRevokeSessionId] = useState<string | null>(null);
   const [revokeTrustedId, setRevokeTrustedId] = useState<string | null>(null);
   const [twofaBusy, setTwofaBusy] = useState<
@@ -353,10 +354,17 @@ export function DashboardPage() {
     void revokeAppAction.run(revokeTarget.client_id, revokeTarget.name);
   }
 
-  async function logout() {
-    const result = await authApi.logout();
-    window.location.assign(result.redirect_to ?? "/login");
-  }
+  const logoutAction = useAsyncAction(
+    async () => {
+      const result = await authApi.logout();
+      setLogoutOpen(false);
+      window.location.assign(result.redirect_to ?? "/login");
+    },
+    {
+      onError: (err) =>
+        toast.error(err instanceof Error ? err.message : "退出登录失败"),
+    },
+  );
 
   async function toggleEmailTwofa() {
     if (twofaBusy !== null || twofa === null) return;
@@ -532,7 +540,7 @@ export function DashboardPage() {
                 管理后台
               </Link>
             )}
-            <button onClick={logout} className="btn btn-danger">
+            <button onClick={() => setLogoutOpen(true)} className="btn btn-danger">
               退出登录
             </button>
           </>
@@ -1146,6 +1154,22 @@ export function DashboardPage() {
         onConfirm={confirmRevoke}
         onCancel={() => {
           if (!revokeAppAction.pending) setRevokeTarget(null);
+        }}
+      />
+
+      <ConfirmDialog
+        open={logoutOpen}
+        title="退出登录"
+        message={
+          <span>
+            将撤销当前门户会话，并登出所有已授权网站（仅本设备）。确定继续吗？
+          </span>
+        }
+        status={logoutAction.status}
+        confirmLabel="退出登录"
+        onConfirm={() => void logoutAction.run()}
+        onCancel={() => {
+          if (!logoutAction.pending) setLogoutOpen(false);
         }}
       />
 
