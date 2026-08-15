@@ -4,6 +4,7 @@ import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { auth2faApi, authApi } from "../api/client";
 import { AsyncButton } from "../components/AsyncButton";
 import { AuthShell } from "../components/AuthShell";
+import { Notice } from "../components/Notice";
 import { PasswordInput } from "../components/PasswordInput";
 import { useAsyncAction } from "../hooks/useAsyncAction";
 import { useToast } from "../hooks/useToast";
@@ -27,6 +28,7 @@ export function LoginPage() {
   const [searchParams] = useSearchParams();
   const rawNext = searchParams.get("next");
   const next = isSafeNext(rawNext) ? rawNext : null;
+  const nextRejected = rawNext !== null && next === null;
   const emailParam = searchParams.get("email");
   const rememberedAccount = getRememberedAccount();
   const [email, setEmail] = useState(emailParam ?? rememberedAccount ?? "");
@@ -58,6 +60,12 @@ export function LoginPage() {
   } | null>(null);
   const toast = useToast();
   const navigate = useNavigate();
+
+  const rejectedNextNotice = nextRejected ? (
+    <Notice intent="warning">
+      无法验证返回原网站的链接（域名或协议与门户不一致），登录完成后将停留在门户个人中心。
+    </Notice>
+  ) : null;
 
   useEffect(() => {
     if (resendCountdown <= 0) return;
@@ -184,6 +192,7 @@ export function LoginPage() {
     return (
       <AuthShell title="二次验证" subtitle="为保护账号安全，请完成二次验证">
         <form key="verify" onSubmit={verifyCode} className="animate-fade-up space-y-4">
+          {rejectedNextNotice}
           <div className="space-y-2">
             {challenge.methods.map((item) => (
               <label
@@ -272,6 +281,7 @@ export function LoginPage() {
   return (
     <AuthShell title={`登录 ${APP_NAME}`} subtitle="一次注册，通行所有授权网站">
       <form key="login" onSubmit={handleSubmit} className="animate-fade-up space-y-4">
+        {rejectedNextNotice}
         <label className="block">
           <span className="label">邮箱</span>
           <input

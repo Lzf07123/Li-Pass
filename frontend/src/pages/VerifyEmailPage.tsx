@@ -4,6 +4,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { authApi } from "../api/client";
 import { AsyncButton } from "../components/AsyncButton";
 import { AuthShell } from "../components/AuthShell";
+import { Notice } from "../components/Notice";
 import { useAsyncAction } from "../hooks/useAsyncAction";
 import { useToast } from "../hooks/useToast";
 import { isSafeNext } from "../lib/navigation";
@@ -13,6 +14,7 @@ export function VerifyEmailPage() {
   const email = searchParams.get("email") ?? "";
   const rawNext = searchParams.get("next");
   const next = isSafeNext(rawNext) ? rawNext : null;
+  const nextRejected = rawNext !== null && next === null;
   const [code, setCode] = useState("");
   const [resendCountdown, setResendCountdown] = useState(0);
   const toast = useToast();
@@ -73,6 +75,11 @@ export function VerifyEmailPage() {
   return (
     <AuthShell title="验证邮箱" subtitle={`验证码已发送到 ${email || "你的邮箱"}`}>
       <form onSubmit={handleSubmit} className="space-y-4">
+        {nextRejected && (
+          <Notice intent="warning">
+            无法验证返回原网站的链接（域名或协议与门户不一致），验证完成后将停留在门户个人中心。
+          </Notice>
+        )}
         <p className="text-xs text-muted">
           验证码 10 分钟内有效；重新发送后旧验证码立即失效。
         </p>

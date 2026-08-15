@@ -70,9 +70,9 @@ docker compose -f docker-compose.yaml --env-file .env exec backend \
 | 变量 | 说明 |
 | --- | --- |
 | `ENVIRONMENT` | `development` 或 `production`（生产启动时强校验，拼写错误会直接拒绝启动） |
-| `PUBLIC_BASE_URL` | 对外门户地址（默认 `http://localhost`）；编排内自动派生 `FRONTEND_BASE_URL` / `JWT_ISSUER` |
+| `PUBLIC_BASE_URL` | 对外门户地址（默认 `http://localhost`）；编排内自动派生 `FRONTEND_BASE_URL` / `JWT_ISSUER`。**必须与浏览器实际访问的完整源一致（含协议）**，例如 TLS 已由外层网关终止时必须填 `https://...`，否则登录后的授权回跳会被前端静默丢弃、用户停留在个人中心 |
 | `FRONTEND_BASE_URL` | 门户前端地址（浏览器跳转用） |
-| `JWT_ISSUER` | 后端签发地址，必须与对外域名一致 |
+| `JWT_ISSUER` | 后端签发地址，必须与对外完整源（含协议）一致 |
 | `CORS_ORIGINS` | 允许的前端来源（JSON 数组） |
 | `ALLOWED_HOSTS` | 后端接受的 Host 白名单（JSON 数组；生产必填真实域名，防 Host 头注入/DNS rebinding） |
 | `SESSION_COOKIE_SECURE` | HTTPS 下必须 `true` |
@@ -442,7 +442,7 @@ sudo chmod +x /etc/letsencrypt/renewal-hooks/deploy/reload-nginx.sh
 - [ ] `ALLOWED_HOSTS` 仅含真实域名
 - [ ] PostgreSQL / Redis 使用长度 ≥12 的独立强口令；Redis 已启用 AUTH
 - [ ] `EMAIL_BACKEND=smtp` 且 SMTP 可真实发信（未验证邮箱的用户无法完成 OIDC 授权）
-- [ ] `PUBLIC_BASE_URL` 为真实对外地址（不是 `localhost`），否则邀请邮件链接无法访问；启动日志中不应出现“FRONTEND_BASE_URL 指向本机”警告
+- [ ] `PUBLIC_BASE_URL` 为真实对外地址（不是 `localhost`）且**与浏览器访问的完整源一致（含 https 协议）**；否则邀请邮件链接无法访问，且未登录时从授权网站发起登录会在认证后停留在门户个人中心而非回调网站；启动日志中不应出现“FRONTEND_BASE_URL 指向本机”警告
 - [ ] 发信域名已配置 SPF，并尽量开启 DKIM/DMARC（阿里企业邮箱控制台开启；缺失时邮件易进垃圾箱或被拒收）
 - [ ] 已按合规要求评估 `AUDIT_RETENTION_DAYS`（默认 180 天，审计日志到期自动删除）
 - [ ] 页脚已填入真实 ICP/公安备案号（`frontend/src/lib/brand.ts`；未配置时自动隐藏占位，不会展示假备案号）

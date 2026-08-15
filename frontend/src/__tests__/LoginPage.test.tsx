@@ -151,6 +151,18 @@ describe("LoginPage", () => {
     expect(isSafeNext("javascript:alert(1)")).toBe(false);
   });
 
+  it("next 参数不安全时展示告警，登录后停留个人中心", () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response("{}")));
+    renderWithProviders(<LoginPage />, [
+      "/login?next=https%3A%2F%2Fevil.example%2Foauth2%2Fauthorize",
+    ]);
+    expect(
+      screen.getByText(
+        "无法验证返回原网站的链接（域名或协议与门户不一致），登录完成后将停留在门户个人中心。",
+      ),
+    ).toBeInTheDocument();
+  });
+
   it("注册链接透传 next 参数以保留应用回跳", () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response("{}")));
     renderWithProviders(<LoginPage />, [
