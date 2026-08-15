@@ -1,4 +1,4 @@
-"""LinPass SSO 品牌风 HTML 邮件模板。
+"""Li&Pass 品牌风 HTML 邮件模板。
 
 依据 design-system/portal-oss/BRAND.md 的品牌令牌（安全蓝、石板灰、
 克制排版与 Z 形品牌暗线）生成五类邮件的 HTML 版本。所有动态内容
@@ -48,11 +48,11 @@ _SHELL = """<!doctype html>
             <table role="presentation" cellpadding="0" cellspacing="0" border="0">
               <tr>
                 <td width="52" style="width:52px;">
-                  <img src="cid:brand-logo" alt="LinPass SSO" width="40"
+                  <img src="cid:brand-logo" alt="Li&amp;Pass" width="40"
                     height="40" style="display:block;width:40px;height:40px;border:0;">
                 </td>
                 <td class="fg" style="font-size:15px;font-weight:600;
-                  color:#0F172A;letter-spacing:0.01em;">LinPass SSO</td>
+                  color:#0F172A;letter-spacing:0.01em;">Li&amp;Pass</td>
               </tr>
             </table>
             <div style="height:3px;margin-top:18px;line-height:0;">
@@ -151,9 +151,9 @@ def render_password_reset(code: str) -> str:
 
 def render_invite(link: str) -> str:
     return _shell(
-        "你被邀请加入 LinPass SSO",
+        "你被邀请加入 Li&Pass",
         '<p class="body" style="margin:0 0 12px;font-size:14px;'
-        "line-height:1.7;color:#334155;\">你好，你被邀请注册 LinPass SSO 账号，"
+        "line-height:1.7;color:#334155;\">你好，你被邀请注册 Li&amp;Pass 账号，"
         "一次注册即可通行所有授权网站。点击下方按钮完成注册（7 天内有效）：</p>"
         + _button(link, "完成注册"),
         _FOOTER_SYSTEM,
@@ -167,7 +167,7 @@ def render_account_deleted(email: str, nickname: str | None) -> str:
         '<p class="body" style="margin:0 0 12px;font-size:14px;'
         "line-height:1.7;color:#334155;\">" + greeting + "</p>"
         '<p class="body" style="margin:0 0 12px;font-size:14px;'
-        "line-height:1.7;color:#334155;\">你的 LinPass SSO 账号"
+        "line-height:1.7;color:#334155;\">你的 Li&amp;Pass 账号"
         f"（{html.escape(email)}）已被删除，将无法再登录相关网站。</p>"
         '<p class="muted" style="margin:16px 0 0;font-size:12px;'
         "line-height:1.6;color:#64748B;\">如非本人操作或对此有疑问，"

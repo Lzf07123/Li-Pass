@@ -1,6 +1,6 @@
 # 部署与运维
 
-LinPass SSO 使用 Docker Compose 部署。仓库内置 `gateway`（nginx）作为**唯一对外入口**：前端、后端与演示站都不向宿主机映射端口，仅在容器内网互通；生产环境的 HTTPS 与域名由部署环境（K8s Ingress、云负载均衡、外部网关）负责，终止后转发到 gateway 的 80 端口。
+Li&Pass 使用 Docker Compose 部署。仓库内置 `gateway`（nginx）作为**唯一对外入口**：前端、后端与演示站都不向宿主机映射端口，仅在容器内网互通；生产环境的 HTTPS 与域名由部署环境（K8s Ingress、云负载均衡、外部网关）负责，终止后转发到 gateway 的 80 端口。
 
 ## 架构
 
@@ -154,7 +154,7 @@ SMTP_PORT=587
 SMTP_USERNAME=noreply@example.com
 SMTP_PASSWORD=******
 SMTP_FROM=noreply@example.com
-SMTP_FROM_NAME=LinPass SSO
+SMTP_FROM_NAME=Li&Pass
 SMTP_USE_TLS=true
 SMTP_TIMEOUT_SECONDS=15
 SMTP_MAX_RETRIES=2

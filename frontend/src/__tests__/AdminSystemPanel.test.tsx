@@ -8,7 +8,7 @@ function systemInfo(overrides: Record<string, unknown> = {}) {
   return {
     collected_at: "2026-08-14T00:00:00Z",
     app: {
-      name: "LinPass SSO",
+      name: "Li&Pass",
       environment: "development",
       python_version: "3.12.13",
       fastapi_version: "0.115.6",

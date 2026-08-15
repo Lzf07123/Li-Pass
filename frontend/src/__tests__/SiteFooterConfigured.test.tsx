@@ -2,8 +2,8 @@ import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 vi.mock("../lib/brand", () => ({
-  APP_NAME: "LinPass SSO",
-  COPYRIGHT_HOLDER: "LinPass SSO",
+  APP_NAME: "Li&Pass",
+  COPYRIGHT_HOLDER: "Li&Pass",
   FOOTER_LINKS: [],
   ICP_FILING_ICON: "/badges/icp.webp",
   ICP_FILING_TEXT: "京ICP备12345678号-1",

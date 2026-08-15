@@ -1,6 +1,6 @@
 # 里程碑 1：项目骨架与基础账号体系 Implementation Plan
 
-> **状态：已完成（2026-08-12）** —— 最终实现与行为以仓库代码为准；项目品牌名为 **LinPass SSO**（Compose 等技术标识仍为 `portal-oss`），部署形态最终包含内置 `gateway`（nginx）单域名网关。部署/运维见 [docs/deployment.md](../../deployment.md)，OIDC 对接见 [docs/oidc-integration.md](../../oidc-integration.md)。本文件为历史实施计划，不替代当前文档。
+> **状态：已完成（2026-08-12）** —— 最终实现与行为以仓库代码为准；项目品牌名为 **Li&Pass**（Compose 等技术标识仍为 `portal-oss`），部署形态最终包含内置 `gateway`（nginx）单域名网关。部署/运维见 [docs/deployment.md](../../deployment.md)，OIDC 对接见 [docs/oidc-integration.md](../../oidc-integration.md)。本文件为历史实施计划，不替代当前文档。
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
@@ -102,7 +102,7 @@ class Settings(BaseSettings):
         env_file=".env", env_file_encoding="utf-8", extra="ignore"
     )
 
-    app_name: str = "LinPass SSO"
+    app_name: str = "Li&Pass"
     environment: str = "development"
     database_url: str = "postgresql+psycopg://portal:portal@localhost:5432/portal"
     redis_url: str = "redis://localhost:6379/0"
@@ -1589,7 +1589,7 @@ export function RegisterPage() {
   return (
     <main className="flex min-h-screen items-center justify-center bg-gray-50">
       <form onSubmit={handleSubmit} className="w-96 space-y-4 rounded-xl bg-white p-8 shadow">
-        <h1 className="text-2xl font-bold">注册 LinPass SSO 账号</h1>
+        <h1 className="text-2xl font-bold">注册 Li&Pass 账号</h1>
         <label className="block">
           邮箱
           <input
@@ -1661,7 +1661,7 @@ export function LoginPage() {
   return (
     <main className="flex min-h-screen items-center justify-center bg-gray-50">
       <form onSubmit={handleSubmit} className="w-96 space-y-4 rounded-xl bg-white p-8 shadow">
-        <h1 className="text-2xl font-bold">登录 LinPass SSO</h1>
+        <h1 className="text-2xl font-bold">登录 Li&Pass</h1>
         <label className="block">
           邮箱
           <input

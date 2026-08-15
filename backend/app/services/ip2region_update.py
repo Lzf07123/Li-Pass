@@ -27,7 +27,7 @@ from ip2region import util as ip2region_util
 
 logger = logging.getLogger(__name__)
 
-HTTP_USER_AGENT = "Mozilla/5.0 (compatible; LinPass-SSO/1.0)"
+HTTP_USER_AGENT = "Mozilla/5.0 (compatible; Li&Pass/1.0)"
 
 V4_FILENAME = "ip2region_v4.xdb"
 V6_FILENAME = "ip2region_v6.xdb"

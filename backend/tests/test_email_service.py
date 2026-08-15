@@ -47,7 +47,7 @@ def test_smtp_message_builds_with_from_and_code() -> None:
         username="user",
         password="pass",
         from_addr="noreply@example.com",
-        from_name="LinPass SSO",
+        from_name="Li&Pass",
         use_tls=True,
     )
     message = service._build_message(
@@ -57,7 +57,7 @@ def test_smtp_message_builds_with_from_and_code() -> None:
         "<html><body>123456</body></html>",
     )
     assert "noreply@example.com" in message["From"]
-    assert "LinPass SSO" in message["From"]
+    assert "Li&Pass" in message["From"]
     assert message["To"] == "a@example.com"
     assert "123456" in _part_content(message, "text/plain")
 
@@ -69,7 +69,7 @@ def test_smtp_message_has_date_and_message_id() -> None:
         username="noreply@example.com",
         password="pass",
         from_addr="noreply@example.com",
-        from_name="LinPass SSO",
+        from_name="Li&Pass",
         use_tls=True,
     )
     message = service._build_message(
@@ -89,8 +89,8 @@ def test_smtp_from_falls_back_to_username() -> None:
         port=587,
         username="user@example.com",
         password="pass",
-        from_addr="LinPass",
-        from_name="LinPass SSO",
+        from_addr="LiPass",
+        from_name="Li&Pass",
         use_tls=True,
     )
     message = service._build_message(
@@ -106,12 +106,12 @@ def test_verification_message_has_branded_html_alternative() -> None:
         username="user",
         password="pass",
         from_addr="noreply@example.com",
-        from_name="LinPass SSO",
+        from_name="Li&Pass",
         use_tls=True,
     )
     message = service._build_message(
         "a@example.com",
-        "LinPass SSO 邮箱验证码",
+        "Li&Pass 邮箱验证码",
         "你的验证码是 123456，10 分钟内有效。",
         render_verification("123456"),
     )
@@ -120,7 +120,7 @@ def test_verification_message_has_branded_html_alternative() -> None:
     assert "123456" in _part_content(message, "text/plain")
     assert "123456" in html_text
     assert "#0369A1" in html_text
-    assert "LinPass SSO" in html_text
+    assert "Li&amp;Pass" in html_text
     assert "验证你的邮箱" in html_text
     assert "prefers-color-scheme" in html_text
 
@@ -132,12 +132,12 @@ def test_message_embeds_brand_logo_as_cid() -> None:
         username="user",
         password="pass",
         from_addr="noreply@example.com",
-        from_name="LinPass SSO",
+        from_name="Li&Pass",
         use_tls=True,
     )
     message = service._build_message(
         "a@example.com",
-        "LinPass SSO 账号邀请",
+        "Li&Pass 账号邀请",
         "邀请正文",
         render_invite("https://portal.example.com/invite?token=abc"),
     )
@@ -191,8 +191,8 @@ def test_smtp_from_requires_email_address() -> None:
             port=587,
             username="user",
             password="pass",
-            from_addr="LinPass",
-            from_name="LinPass SSO",
+            from_addr="LiPass",
+            from_name="Li&Pass",
             use_tls=True,
         )
 
@@ -309,7 +309,7 @@ def test_smtp_port_465_uses_implicit_ssl(monkeypatch) -> None:
         username="user@example.com",
         password="pass",
         from_addr="user@example.com",
-        from_name="LinPass SSO",
+        from_name="Li&Pass",
         use_tls=True,
     )
     service.send_verification("a@example.com", "123456")
@@ -346,7 +346,7 @@ def test_smtp_port_587_uses_starttls(monkeypatch) -> None:
         username="user@example.com",
         password="pass",
         from_addr="user@example.com",
-        from_name="LinPass SSO",
+        from_name="Li&Pass",
         use_tls=True,
     )
     service.send_password_reset("a@example.com", "123456")
@@ -381,7 +381,7 @@ def test_smtp_retries_transient_failure_then_succeeds(monkeypatch) -> None:
         username="user@example.com",
         password="pass",
         from_addr="user@example.com",
-        from_name="LinPass SSO",
+        from_name="Li&Pass",
         use_tls=True,
         max_retries=2,
         retry_delay_seconds=0,
@@ -417,7 +417,7 @@ def test_smtp_raises_after_exhausting_retries(monkeypatch) -> None:
         username="user@example.com",
         password="pass",
         from_addr="user@example.com",
-        from_name="LinPass SSO",
+        from_name="Li&Pass",
         use_tls=True,
         max_retries=2,
         retry_delay_seconds=0,
@@ -454,7 +454,7 @@ def test_smtp_does_not_retry_authentication_error(monkeypatch) -> None:
         username="user@example.com",
         password="pass",
         from_addr="user@example.com",
-        from_name="LinPass SSO",
+        from_name="Li&Pass",
         use_tls=True,
         max_retries=2,
         retry_delay_seconds=0,
@@ -488,7 +488,7 @@ def test_smtp_logs_success(monkeypatch, caplog) -> None:
         username="user@example.com",
         password="pass",
         from_addr="user@example.com",
-        from_name="LinPass SSO",
+        from_name="Li&Pass",
         use_tls=True,
     )
     with caplog.at_level(logging.INFO, logger="app.services.email"):
@@ -528,7 +528,7 @@ def test_smtp_send_invite_batch_reuses_connection(monkeypatch) -> None:
         username="user@example.com",
         password="pass",
         from_addr="user@example.com",
-        from_name="LinPass SSO",
+        from_name="Li&Pass",
         use_tls=True,
     )
     results = service.send_invite_batch(
@@ -576,7 +576,7 @@ def test_smtp_send_invite_batch_isolates_failure(monkeypatch) -> None:
         username="user@example.com",
         password="pass",
         from_addr="user@example.com",
-        from_name="LinPass SSO",
+        from_name="Li&Pass",
         use_tls=True,
     )
     results = service.send_invite_batch(
@@ -599,7 +599,7 @@ def test_smtp_account_deleted_message_is_polite(monkeypatch) -> None:
         username="user@example.com",
         password="pass",
         from_addr="noreply@example.com",
-        from_name="LinPass SSO",
+        from_name="Li&Pass",
         use_tls=True,
     )
     captured: dict[str, str] = {}

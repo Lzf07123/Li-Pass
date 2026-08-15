@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
-**Goal:** 为 LinPass SSO 补全审计事件，并增加按分类/动作/操作者/时间筛选的后端接口与前端面板。
+**Goal:** 为 Li&Pass 补全审计事件，并增加按分类/动作/操作者/时间筛选的后端接口与前端面板。
 
 **Architecture:** 审计模型新增 `category` 列并迁移回填；`log_audit` 统一携带分类；现有与新增事件全部落库；`/api/v1/admin/audit-logs` 扩展筛选参数；前端审计面板提供分类下拉、动作筛选、加载更多。
 

@@ -6,7 +6,7 @@
  * 后期替换品牌图标时，直接覆盖对应文件，或修改下方变量指向新路径即可。
  */
 
-export const APP_NAME = "LinPass SSO";
+export const APP_NAME = "Li&Pass";
 export const APP_TAGLINE = "一次注册，通行所有授权网站";
 export const COPYRIGHT_HOLDER = APP_NAME;
 export const DOCUMENT_TITLE = `${APP_NAME} · 统一登录门户`;

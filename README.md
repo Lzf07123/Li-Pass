@@ -1,6 +1,6 @@
-# LinPass SSO — 统一登录门户
+# Li&Pass — 统一登录门户
 
-一次注册，通行所有授权网站。LinPass SSO 是一个基于 Python（FastAPI）和 React 的统一身份提供商（SSO），授权网站通过标准 OIDC/OAuth2 协议接入，用户使用一个账号即可登录所有被授权的网站。
+一次注册，通行所有授权网站。Li&Pass 是一个基于 Python（FastAPI）和 React 的统一身份提供商（SSO），授权网站通过标准 OIDC/OAuth2 协议接入，用户使用一个账号即可登录所有被授权的网站。
 
 ## 功能特性
 

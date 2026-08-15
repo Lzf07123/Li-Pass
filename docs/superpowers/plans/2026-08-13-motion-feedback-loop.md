@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** 为 LinPass SSO 前端补齐按钮波纹、数字滚动、Toast 增强、数据刷新呼吸动画与统一的请求状态闭环。
+**Goal:** 为 Li&Pass 前端补齐按钮波纹、数字滚动、Toast 增强、数据刷新呼吸动画与统一的请求状态闭环。
 
 **Architecture:** 全部能力做成可复用基础件（`ripple.ts`、`useAsyncAction`、`AsyncButton`、`AnimatedNumber`、`useBreathOnChange`），再由认证页、用户中心、管理后台逐个接线。不引入第三方依赖，动效只操作 `transform`/`opacity`。
 

@@ -1,6 +1,6 @@
 # 里程碑 2：OIDC 核心流程 Implementation Plan
 
-> **状态：已完成（2026-08-12）** —— 最终实现与行为以仓库代码为准；项目品牌名为 **LinPass SSO**（`urn:portal-oss:acr:*` 为代码中的固定技术标识），部署形态最终包含内置 `gateway`（nginx）单域名网关（示例网站经 `/demo/` 路由，不再独立对外暴露端口）。部署/运维见 [docs/deployment.md](../../deployment.md)，OIDC 对接见 [docs/oidc-integration.md](../../oidc-integration.md)。本文件为历史实施计划，不替代当前文档。
+> **状态：已完成（2026-08-12）** —— 最终实现与行为以仓库代码为准；项目品牌名为 **Li&Pass**（`urn:portal-oss:acr:*` 为代码中的固定技术标识），部署形态最终包含内置 `gateway`（nginx）单域名网关（示例网站经 `/demo/` 路由，不再独立对外暴露端口）。部署/运维见 [docs/deployment.md](../../deployment.md)，OIDC 对接见 [docs/oidc-integration.md](../../oidc-integration.md)。本文件为历史实施计划，不替代当前文档。
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 

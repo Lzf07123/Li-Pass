@@ -8,6 +8,7 @@ import { Notice } from "../components/Notice";
 import { LineIcon } from "../components/bits/LineIcon";
 import { useAsyncAction } from "../hooks/useAsyncAction";
 import { useToast } from "../hooks/useToast";
+import { APP_NAME } from "../lib/brand";
 
 export function LogoutConfirmPage() {
   const [searchParams] = useSearchParams();
@@ -59,7 +60,7 @@ export function LogoutConfirmPage() {
             </p>
           </div>
           <p className="text-sm text-foreground">
-            确认后，你将退出 LinPass SSO 以及所有通过门户登录的授权网站。
+            确认后，你将退出 {APP_NAME} 以及所有通过门户登录的授权网站。
           </p>
           <ul className="space-y-1.5 rounded-xl border border-border bg-surface-2/60 p-4 text-sm">
             <li className="flex items-center gap-1.5 text-foreground">

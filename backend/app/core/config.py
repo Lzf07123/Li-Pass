@@ -15,7 +15,7 @@ class Settings(BaseSettings):
         env_file=ENV_FILE, env_file_encoding="utf-8", extra="ignore"
     )
 
-    app_name: str = "LinPass SSO"
+    app_name: str = "Li&Pass"
     environment: str = "development"
     database_url: str = "postgresql+psycopg://portal:portal@localhost:5432/portal"
     redis_url: str = "redis://localhost:6379/0"
@@ -33,7 +33,7 @@ class Settings(BaseSettings):
     smtp_username: str = ""
     smtp_password: str = ""
     smtp_from: str = ""
-    smtp_from_name: str = "LinPass SSO"
+    smtp_from_name: str = "Li&Pass"
     smtp_use_tls: bool = True
     smtp_timeout_seconds: int = 15
     smtp_max_retries: int = 2

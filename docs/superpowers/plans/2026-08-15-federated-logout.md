@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** 为 LinPass SSO（自研 OIDC IdP）补齐联邦登出：接入网站可发起“退出网站同时退出 SSO”（RP-Initiated Logout），门户/管理员登出时通过 Back-Channel Logout 通知所有已登录网站下线，并为未实现回程通道的网站提供浏览器串跳漏斗兜底。
+**Goal:** 为 Li&Pass（自研 OIDC IdP）补齐联邦登出：接入网站可发起“退出网站同时退出 SSO”（RP-Initiated Logout），门户/管理员登出时通过 Back-Channel Logout 通知所有已登录网站下线，并为未实现回程通道的网站提供浏览器串跳漏斗兜底。
 
 **Architecture:** 复用现有“授权码 + PKCE + RS256”OIDC 栈。新增 `oidc_client_sessions` 表记录“门户会话登录过哪些网站”；`id_token` 增加 `sid`；新增 `GET /oauth2/end-session`（前端 `/logout/confirm` 确认页）+ 确认 API；登出令牌按 OIDC Back-Channel Logout 规范用现有 RS256 私钥签发，经 httpx 异步分发（后台任务 + 重试 + SSRF 防护）；门户登出响应改为携带串跳漏斗 URL。不做 Front-Channel Logout / Session Management iframe（第三方 Cookie 已被主流浏览器禁用）。
 

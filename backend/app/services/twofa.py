@@ -136,7 +136,7 @@ def create_challenge(
 
 
 def build_otpauth_uri(secret: str, email: str) -> str:
-    return pyotp.TOTP(secret).provisioning_uri(name=email, issuer_name="LinPass SSO")
+    return pyotp.TOTP(secret).provisioning_uri(name=email, issuer_name="Li&Pass")
 
 
 def qr_data_url(uri: str) -> str:

@@ -111,7 +111,7 @@ class SMTPEmailService(EmailService):
         retry_delay_seconds: float = 1.0,
     ) -> None:
         # SMTP_FROM 允许只填显示名：缺失邮箱地址时回退为认证邮箱，
-        # 避免 From 头变成 "LinPass <LinPass>" 这种无效地址。
+        # 避免 From 头变成 "LiPass <LiPass>" 这种无效地址。
         if "@" not in from_addr and username and "@" in username:
             from_addr = username
         if "@" not in from_addr:
@@ -215,7 +215,7 @@ class SMTPEmailService(EmailService):
     def send_verification(self, to: str, code: str) -> None:
         self._send_with_retry(
             to,
-            "LinPass SSO 邮箱验证码",
+            "Li&Pass 邮箱验证码",
             f"你的验证码是 {code}，10 分钟内有效。",
             render_verification(code),
         )
@@ -223,7 +223,7 @@ class SMTPEmailService(EmailService):
     def send_password_reset(self, to: str, code: str) -> None:
         self._send_with_retry(
             to,
-            "LinPass SSO 重置密码",
+            "Li&Pass 重置密码",
             f"你的重置验证码是 {code}，10 分钟内有效。",
             render_password_reset(code),
         )
@@ -231,7 +231,7 @@ class SMTPEmailService(EmailService):
     def send_invite(self, to: str, link: str) -> None:
         self._send_with_retry(
             to,
-            "LinPass SSO 账号邀请",
+            "Li&Pass 账号邀请",
             self._invite_body(link),
             render_invite(link),
         )
@@ -239,14 +239,14 @@ class SMTPEmailService(EmailService):
     @staticmethod
     def _invite_body(link: str) -> str:
         return (
-            "你被邀请注册 LinPass SSO 账号，"
+            "你被邀请注册 Li&Pass 账号，"
             f"请点击以下链接完成注册（7 天内有效）：\n{link}"
         )
 
     def _build_invite_message(self, to: str, link: str) -> EmailMessage:
         return self._build_message(
             to,
-            "LinPass SSO 账号邀请",
+            "Li&Pass 账号邀请",
             self._invite_body(link),
             render_invite(link),
         )

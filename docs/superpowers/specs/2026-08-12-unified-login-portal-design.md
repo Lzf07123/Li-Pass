@@ -1,4 +1,4 @@
-# 统一登录门户（LinPass SSO）设计文档
+# 统一登录门户（Li&Pass）设计文档
 
 - 日期：2026-08-12
 - 状态：已实施完成（2026-08-12）；最终行为以仓库代码与 [docs/deployment.md](../deployment.md)、[docs/oidc-integration.md](../oidc-integration.md) 为准

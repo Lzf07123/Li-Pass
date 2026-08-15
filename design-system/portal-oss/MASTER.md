@@ -9,10 +9,10 @@
 
 ---
 
-**Project:** LinPass SSO
+**Project:** Li&Pass
 **Generated:** 2026-08-12 10:23:37
 **Updated:** 2026-08-13（与 `frontend/src/index.css`、`frontend/src/components/` 对齐）
-**Category:** SSO 统一登录门户（LinPass SSO）
+**Category:** SSO 统一登录门户（Li&Pass）
 
 > **来源声明：** 本文件描述当前前端实现使用的视觉系统；最终以 `frontend/src/index.css` 的
 > Tailwind CSS 4 `@theme` 令牌与组件代码为准，本文件仅作设计约定速览。

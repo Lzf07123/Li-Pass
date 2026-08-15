@@ -27,7 +27,7 @@ def _download_and_verify(
     print(f"下载 {url}", file=sys.stderr)
     request = urllib.request.Request(
         url,
-        headers={"User-Agent": "Mozilla/5.0 (compatible; LinPass-SSO/1.0)"},
+        headers={"User-Agent": "Mozilla/5.0 (compatible; Li&Pass/1.0)"},
     )
     last_error = None
     for attempt in range(3):

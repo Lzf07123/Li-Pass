@@ -1,6 +1,6 @@
 # 里程碑 4：2FA 与安全加固 Implementation Plan
 
-> **状态：已完成（2026-08-12）** —— 最终实现与行为以仓库代码为准；项目品牌名为 **LinPass SSO**（TOTP issuer 也使用该名称），部署形态最终包含内置 `gateway`（nginx）单域名网关。部署/运维见 [docs/deployment.md](../../deployment.md)，OIDC 对接见 [docs/oidc-integration.md](../../oidc-integration.md)。本文件为历史实施计划，不替代当前文档。
+> **状态：已完成（2026-08-12）** —— 最终实现与行为以仓库代码为准；项目品牌名为 **Li&Pass**（TOTP issuer 也使用该名称），部署形态最终包含内置 `gateway`（nginx）单域名网关。部署/运维见 [docs/deployment.md](../../deployment.md)，OIDC 对接见 [docs/oidc-integration.md](../../oidc-integration.md)。本文件为历史实施计划，不替代当前文档。
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
@@ -369,7 +369,7 @@ def get_twofa_store():
 
 
 def build_otpauth_uri(secret: str, email: str) -> str:
-    return pyotp.TOTP(secret).provisioning_uri(name=email, issuer_name="LinPass SSO")
+    return pyotp.TOTP(secret).provisioning_uri(name=email, issuer_name="Li&Pass")
 
 
 def qr_data_url(uri: str) -> str:

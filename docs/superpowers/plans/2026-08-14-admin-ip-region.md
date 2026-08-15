@@ -641,7 +641,7 @@ _update_lock = threading.Lock()
 
 
 def _http_get_json(url: str, timeout: float) -> dict:
-    request = Request(url, headers={"User-Agent": "LinPass-SSO/1.0"})
+    request = Request(url, headers={"User-Agent": "Li&Pass/1.0"})
     with urlopen(request, timeout=timeout) as response:
         payload = json.loads(response.read().decode("utf-8"))
     if not isinstance(payload, dict):
@@ -662,7 +662,7 @@ def fetch_latest_version() -> str:
 
 
 def _download_to(url: str, destination: Path, timeout: float) -> None:
-    request = Request(url, headers={"User-Agent": "LinPass-SSO/1.0"})
+    request = Request(url, headers={"User-Agent": "Li&Pass/1.0"})
     with urlopen(request, timeout=timeout) as response, open(destination, "wb") as out:
         shutil.copyfileobj(response, out)
 
