@@ -30,12 +30,14 @@ def _clear_memory_state():
     必须在每个用例前清空，避免配额耗尽或跨测试数据串扰。"""
     from app.services.admin_stats import _CACHE as _stats_cache
     from app.services.ip2region_progress import reset_progress_store
+    from app.services.logout_requests import _memory_store as _logout_store
     from app.services.pending_requests import _memory_store as _pending_store
     from app.services.rate_limit import _memory_limiter
     from app.services.twofa import _memory_store as _twofa_store
 
     _memory_limiter._items.clear()
     _pending_store._items.clear()
+    _logout_store._items.clear()
     _twofa_store._items.clear()
     _stats_cache.clear()
     reset_progress_store()
