@@ -24,6 +24,9 @@ class AuthorizationCode(Base):
     code_challenge: Mapped[str | None] = mapped_column(String(255))
     code_challenge_method: Mapped[str] = mapped_column(String(10), default="S256")
     auth_method: Mapped[str] = mapped_column(String(20), default="password")
+    session_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("sessions.id", ondelete="CASCADE")
+    )
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     consumed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = mapped_column(

@@ -6,6 +6,7 @@ from app.models.client_user_block import ClientUserBlock
 from app.models.notification import Notification
 from app.models.notification_recipient import NotificationRecipient
 from app.models.oauth_client import OAuthClient
+from app.models.oidc_client_session import OIDCClientSession
 from app.models.otp import Otp, OtpPurpose
 from app.models.recovery_code import RecoveryCode
 from app.models.session import Session
@@ -22,6 +23,7 @@ __all__ = [
     "Notification",
     "NotificationRecipient",
     "OAuthClient",
+    "OIDCClientSession",
     "Otp",
     "OtpPurpose",
     "RecoveryCode",
