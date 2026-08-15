@@ -22,6 +22,56 @@ Li&Pass 是一个符合 OIDC/OAuth2 授权码流程的身份提供商（IdP）�
 
 支持范围：`openid`、`profile`、`email`；仅支持 `response_type=code` 与 PKCE `S256`。
 
+### 1.1 通用响应头
+
+所有端点响应都带 `Cache-Control: no-store` 与安全头（`X-Content-Type-Options: nosniff`、`X-Frame-Options: DENY`、`Referrer-Policy: no-referrer`、CSP）。接入方**不得缓存**令牌、userinfo、JWKS 以外的响应（JWKS 按 `kid` 动态选钥，可短缓存并按轮换刷新）。
+
+### 1.2 发现文档响应
+
+`GET /.well-known/openid-configuration` 返回 `200 application/json`：
+
+```json
+{
+  "issuer": "https://auth.example.com",
+  "authorization_endpoint": "https://auth.example.com/oauth2/authorize",
+  "token_endpoint": "https://auth.example.com/oauth2/token",
+  "userinfo_endpoint": "https://auth.example.com/oauth2/userinfo",
+  "jwks_uri": "https://auth.example.com/oauth2/jwks",
+  "response_types_supported": ["code"],
+  "grant_types_supported": ["authorization_code"],
+  "subject_types_supported": ["public"],
+  "id_token_signing_alg_values_supported": ["RS256"],
+  "scopes_supported": ["openid", "profile", "email"],
+  "code_challenge_methods_supported": ["S256"],
+  "end_session_endpoint": "https://auth.example.com/oauth2/end-session",
+  "backchannel_logout_supported": true,
+  "frontchannel_logout_supported": false
+}
+```
+
+接入方应从 `issuer` 与各端点字段读取地址并缓存（带 TTL），不要自行拼接；令牌校验一律以 `issuer` 原文为准。
+
+### 1.3 JWKS 响应
+
+`GET /oauth2/jwks` 返回 `200 application/json`：
+
+```json
+{
+  "keys": [
+    {
+      "kty": "RSA",
+      "use": "sig",
+      "alg": "RS256",
+      "kid": "lipass-rs256-1",
+      "n": "...",
+      "e": "AQAB"
+    }
+  ]
+}
+```
+
+密钥轮换期间会同时发布多把公钥；必须按令牌头部的 `kid` 选钥，不要只缓存单把。
+
 ## 2. 对接方接口契约（必选 / 可选）
 
 本节是接入的**硬性契约**。任何网站接入 Li&Pass 都必须实现「必选」接口，并按需提供「可选」接口；管理员创建应用时填写的地址即本节接口。缺失或行为不符的接入**不予验收**，门户在授权与登出时也会按本节校验和调用。
@@ -192,6 +242,20 @@ https://auth.example.com/verify-email?email=user%40example.com&next=https%3A%2F%
 
 用户完成邮箱验证后会自动回到原授权流程（`state` 与 PKCE 参数经 `next` 保留），随后按常规流程跳回 `redirect_uri`。未验证邮箱的用户仍可登录门户本身，只是不能完成含 `email` scope 的授权；不请求 `email` scope 的授权不受此限制。
 
+**授权端点返回（全部为 `302` 跳转，无 JSON 响应体）**：
+
+| 场景 | 跳转目标 | 参数 |
+| --- | --- | --- |
+| 授权成功 | `redirect_uri` | `code` + `state` |
+| 用户拒绝授权 | `redirect_uri` | `error=access_denied` + `state` |
+| 账号被该网站封禁 | `redirect_uri` | `error=access_denied&error_description=account_blocked` + `state` |
+| scope 非法 / 缺少 PKCE 等请求错误 | `redirect_uri` | `error=invalid_scope` / `invalid_request` + `state` |
+| `response_type` 非 `code` | 门户首页 | `?error=unsupported_response_type`（不回跳第三方） |
+| client_id 不存在/停用 | 门户首页 | `?error=unauthorized_client`（不回跳第三方） |
+| `redirect_uri` 不在白名单 | 门户首页 | `?error=invalid_redirect_uri`（不回跳第三方） |
+
+门户首页的错误提示以 `?error=` query 形式给出，不会回跳第三方地址。
+
 ### 3.3 换令牌
 
 公开客户端：
@@ -220,6 +284,33 @@ curl -X POST {issuer}/oauth2/token \
 
 `access_token` 15 分钟有效，`id_token` 5 分钟有效；当前不提供刷新令牌。
 
+**请求体**：`Content-Type: application/x-www-form-urlencoded`
+
+| 字段 | 必填 | 说明 |
+| --- | --- | --- |
+| `grant_type` | 是 | 仅支持 `authorization_code` |
+| `code` | 是 | 授权码 |
+| `redirect_uri` | 是 | 与发起授权时逐字符一致 |
+| `client_id` | 是 | 客户端标识 |
+| `code_verifier` | 公开客户端必填 | PKCE verifier（S256） |
+| `client_secret` | 机密客户端必填 | 服务端保管 |
+
+**成功响应**：`200 application/json`，字段如上（`access_token` / `token_type` / `expires_in` / `id_token`），无 `refresh_token`。
+
+**错误响应**：`application/json`，错误码在 `detail` 字段（注意：不是 OAuth 标准的 `error` 字段）：
+
+```json
+{"detail": "invalid_grant"}
+```
+
+| HTTP 状态 | `detail` 值 | 含义 |
+| --- | --- | --- |
+| `400` | `unsupported_grant_type` | `grant_type` 非法 |
+| `400` | `invalid_client` | client_id 不存在或停用 |
+| `401` | `invalid_client` | 机密客户端 secret 错误 |
+| `400` | `invalid_grant` | 授权码无效/过期/已使用、redirect_uri 不符或 PKCE 校验失败 |
+| `403` | `该账号已被此网站限制访问` | 账号在该网站的黑名单中（中文提示，非 OAuth 错误码） |
+
 ### 3.4 获取用户信息
 
 ```bash
@@ -238,6 +329,24 @@ curl {issuer}/oauth2/userinfo -H "Authorization: Bearer ACCESS_TOKEN"
 ```
 
 claims 按授权 scope 裁剪：`email` scope 才返回 `email` / `email_verified`，`profile` scope 才返回 `nickname` / `name` / `picture`。`picture` 为用户头像的绝对 URL（未设置头像时不返回）。
+
+**成功响应**：`200 application/json`，claims 表如下：
+
+| 字段 | 出现条件 | 说明 |
+| --- | --- | --- |
+| `sub` | 始终 | 用户唯一标识（UUID 字符串） |
+| `email` | 已授权 `email` scope | 邮箱地址 |
+| `email_verified` | 已授权 `email` scope | 布尔值，邮箱是否已验证 |
+| `nickname` | 已授权 `profile` scope | 昵称 |
+| `name` | 已授权 `profile` scope | 与昵称同值 |
+| `picture` | 已授权 `profile` scope 且用户设置了头像 | 头像绝对 URL |
+
+**错误响应**：`application/json`，错误码在 `detail` 字段：
+
+| HTTP 状态 | `detail` 值 | 含义 |
+| --- | --- | --- |
+| `401` | `invalid_token` | 缺少 Bearer 令牌、令牌无效或已过期 |
+| `403` | `该账号已被此网站限制访问` | 账号在该网站的黑名单中 |
 
 ### 3.5 令牌校验（audience 与密钥轮换）
 
@@ -345,18 +454,33 @@ curl -u CLIENT_ID:CLIENT_SECRET -X DELETE \
 
 > 换令牌与 userinfo 命中黑名单时返回的是 HTTP 403 + 中文提示（如“该账号已被此网站限制访问”），不是 OAuth 错误码；授权跳转阶段才使用标准 `access_denied` 错误。
 
+**响应说明**：
+
+| 操作 | 状态码与响应体 |
+| --- | --- |
+| 列表 `GET /blocks` | `200`，`[{id, user_id, email, reason, created_at}]` |
+| 封禁 `POST /blocks` | `200`，创建后的记录对象；重复封禁等冲突返回 `409` + `{"detail":"..."}` |
+| 解封 `DELETE /blocks/{id}` | `204`，无响应体；记录不存在返回 `404` + `{"detail":"封禁记录不存在"}` |
+| 认证失败（任一接口） | `401` + `{"detail":"invalid_client"}` |
+| 触发限流 | `429` + `{"detail":"请求过于频繁，请稍后再试"}` |
+
 ## 7. 常见错误
 
-| 错误 | 含义 |
-| --- | --- |
-| `invalid_request` | 参数缺失/非法（如缺少 PKCE） |
-| `invalid_scope` | scope 不在客户端允许范围或缺少 `openid` |
-| `unauthorized_client` | 客户端不存在/停用 |
-| `invalid_redirect_uri` | 回调地址不在白名单 |
-| `access_denied` | 用户拒绝或账号被该网站封禁 |
-| `invalid_grant` | 授权码无效/过期/已使用或 PKCE 校验失败 |
-| `invalid_client` | client_id/secret 错误 |
-| `invalid_token` | access token 无效或过期 |
+| 错误码 | 出现端点 | 返回方式与状态 | 含义 |
+| --- | --- | --- | --- |
+| `invalid_request` | authorize | `302` 到 `redirect_uri?error=...&state=...` | 参数缺失/非法（如缺少 PKCE） |
+| `invalid_scope` | authorize | `302` 到 `redirect_uri?error=...&state=...` | scope 不在客户端允许范围或缺少 `openid` |
+| `access_denied` | authorize | `302` 到 `redirect_uri?error=...&state=...` | 用户拒绝授权；封禁时另带 `error_description=account_blocked` |
+| `unsupported_response_type` | authorize | `302` 到门户首页 `?error=...` | `response_type` 非 `code`，不回跳第三方 |
+| `unauthorized_client` | authorize | `302` 到门户首页 `?error=...` | 客户端不存在/停用 |
+| `invalid_redirect_uri` | authorize | `302` 到门户首页 `?error=...` | 回调地址不在白名单 |
+| `unsupported_grant_type` | token | `400`，`{"detail":"unsupported_grant_type"}` | `grant_type` 非法 |
+| `invalid_client` | token | `400`（不存在/停用）或 `401`（secret 错误），`{"detail":"invalid_client"}` | client_id/secret 错误 |
+| `invalid_grant` | token | `400`，`{"detail":"invalid_grant"}` | 授权码无效/过期/已使用、redirect_uri 不符或 PKCE 校验失败 |
+| `invalid_token` | userinfo | `401`，`{"detail":"invalid_token"}` | 缺少 Bearer 令牌、令牌无效或已过期 |
+| `该账号已被此网站限制访问` | token / userinfo | `403`，`{"detail":"该账号已被此网站限制访问"}` | 账号在该网站的黑名单中（中文提示，非 OAuth 错误码） |
+
+注意：authorize 阶段的错误经 `302` 的 query 参数返回（标准 `error`/`error_description`/`state`）；token 与 userinfo 阶段的 JSON 错误统一放在 `detail` 字段（不是 OAuth 标准的 `error` 字段）。
 
 ## 8. 登出与联邦登出
 
@@ -407,6 +531,8 @@ https://your-site.example/?state=RANDOM_STATE
 - `post_logout_redirect_uri` 必须精确命中白名单，否则门户拒绝并跳到门户首页（不会回跳第三方地址）。
 - 即便门户当前没有会话（例如已超时），也会直接 302 回跳，而不是报错。
 - 校验 `state` 与发起时一致，防止跨站请求伪造。
+
+**响应说明**（全部为 `302`，无 JSON 响应体）：有门户会话 → 跳门户登出确认页；`post_logout_redirect_uri` 未命中白名单 → 跳门户首页；无门户会话 → 直接回跳 `post_logout_redirect_uri`（附带 `state`）。
 
 ### 8.3 回程登出（Back-Channel Logout）
 
