@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 
 import { authApi } from "../api/client";
@@ -16,8 +16,37 @@ export function InviteRegisterPage() {
   const [nickname, setNickname] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [checking, setChecking] = useState(token !== "");
+  const [statusError, setStatusError] = useState("");
+  const [inviteInfo, setInviteInfo] = useState<{
+    email: string;
+    email_taken: boolean;
+  } | null>(null);
   const toast = useToast();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    if (!token) return;
+    let cancelled = false;
+    authApi
+      .inviteStatus(token)
+      .then((info) => {
+        if (cancelled) return;
+        setInviteInfo({ email: info.email, email_taken: info.email_taken });
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        setStatusError(
+          err instanceof Error ? err.message : "邀请链接无效",
+        );
+      })
+      .finally(() => {
+        if (!cancelled) setChecking(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [token]);
 
   const submitAction = useAsyncAction(
     async (nickname: string, password: string) => {
@@ -61,8 +90,55 @@ export function InviteRegisterPage() {
     );
   }
 
+  if (checking) {
+    return (
+      <AuthShell title="受邀注册" subtitle="正在校验邀请链接…">
+        <div
+          className="shimmer h-40 w-full rounded-xl"
+          aria-busy="true"
+          aria-label="正在校验邀请链接"
+        />
+      </AuthShell>
+    );
+  }
+
+  if (statusError) {
+    return (
+      <AuthShell title="受邀注册" subtitle="邀请链接校验失败">
+        <Notice intent="error">{statusError}</Notice>
+        <p className="mt-4 text-center text-sm">
+          <Link to="/login" className="btn-link">
+            返回登录
+          </Link>
+        </p>
+      </AuthShell>
+    );
+  }
+
+  if (inviteInfo?.email_taken) {
+    return (
+      <AuthShell title="受邀注册" subtitle="该邮箱已有账号">
+        <Notice intent="info">
+          邀请邮箱 {inviteInfo.email} 已注册账号，请直接登录。
+        </Notice>
+        <p className="mt-4 text-center text-sm">
+          <Link to="/login" className="btn-link">
+            去登录
+          </Link>
+        </p>
+      </AuthShell>
+    );
+  }
+
   return (
-    <AuthShell title="受邀注册" subtitle="你已被邀请加入，设置密码即可激活账号">
+    <AuthShell
+      title="受邀注册"
+      subtitle={
+        inviteInfo
+          ? `邀请发送至 ${inviteInfo.email}，设置密码即可激活账号`
+          : "你已被邀请加入，设置密码即可激活账号"
+      }
+    >
       <form onSubmit={handleSubmit} className="space-y-4">
         <label className="block">
           <span className="label">昵称</span>

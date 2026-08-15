@@ -66,6 +66,15 @@ async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
 }
 
 export const authApi = {
+  inviteStatus: (token: string) =>
+    api<{
+      valid: boolean;
+      email: string;
+      email_taken: boolean;
+      expires_at: string;
+    }>(
+      `/api/v1/auth/invite/status?token=${encodeURIComponent(token)}`,
+    ),
   registerByInvite: (data: {
     token: string;
     nickname: string;
