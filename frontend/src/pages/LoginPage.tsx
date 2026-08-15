@@ -342,7 +342,10 @@ export function LoginPage() {
             忘记密码？
           </Link>
           <span className="text-border">|</span>
-          <Link to="/register" className="btn-link">
+          <Link
+            to={next ? `/register?next=${encodeURIComponent(next)}` : "/register"}
+            className="btn-link"
+          >
             注册新账号
           </Link>
         </div>

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 
 import { authApi } from "../api/client";
 import { AuthSkeleton } from "../components/AuthSkeleton";
@@ -11,8 +11,12 @@ import { PasswordStrength } from "../components/PasswordStrength";
 import { useAsyncAction } from "../hooks/useAsyncAction";
 import { useToast } from "../hooks/useToast";
 import { APP_NAME } from "../lib/brand";
+import { isSafeNext } from "../lib/navigation";
 
 export function RegisterPage() {
+  const [searchParams] = useSearchParams();
+  const rawNext = searchParams.get("next");
+  const next = isSafeNext(rawNext) ? rawNext : null;
   const [email, setEmail] = useState("");
   const [nickname, setNickname] = useState("");
   const [password, setPassword] = useState("");
@@ -46,7 +50,11 @@ export function RegisterPage() {
     async (email: string, nickname: string, password: string) => {
       await authApi.register({ email, nickname, password });
       toast.success("注册成功，请登录");
-      navigate(`/login?email=${encodeURIComponent(email)}`);
+      navigate(
+        `/login?email=${encodeURIComponent(email)}${
+          next ? `&next=${encodeURIComponent(next)}` : ""
+        }`,
+      );
     },
     {
       onError: (err) =>

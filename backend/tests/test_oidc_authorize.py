@@ -1,3 +1,5 @@
+from urllib.parse import parse_qs, urlparse
+
 from sqlalchemy import select
 
 from app.models.user import User
@@ -85,7 +87,12 @@ def test_authorize_requires_verified_email_for_email_scope(
         params=authorize_params({"scope": "openid email"}),
     )
     assert response.status_code == 302
-    assert (
-        "/verify-email?email=unverified%40example.com"
-        in response.headers["location"]
+    location = response.headers["location"]
+    assert location.startswith(
+        "http://localhost:5173/verify-email?email=unverified%40example.com&next="
     )
+    # 验证页应保留原授权请求：验证成功后前端据此回到授权流程并最终跳回应用。
+    next_url = parse_qs(urlparse(location).query)["next"][0]
+    assert next_url.startswith("http://localhost:8000/oauth2/authorize?")
+    assert "code_challenge=" in next_url
+    assert "scope=openid+email" in next_url
