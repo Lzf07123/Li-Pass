@@ -23,3 +23,6 @@ class Session(Base):
     revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     last_used_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    # 敏感操作 step-up 复核通过时刻：自此刻起 STEPUP_WINDOW_MINUTES 内，
+    # 本会话执行敏感操作可免再次输入密码。登录成功不写此列（不自动授窗）。
+    stepup_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
