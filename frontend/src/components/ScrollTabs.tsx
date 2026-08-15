@@ -13,11 +13,14 @@ export function ScrollTabs({
   children,
   className = "",
   activeSelector = '[aria-current="page"], [aria-selected="true"]',
+  fadeColor = "var(--portal-bg)",
 }: {
   children: ReactNode;
   /** 作用在外层容器；管理后台等页面可传入负外边距实现移动端通栏。 */
   className?: string;
   activeSelector?: string;
+  /** 边缘渐隐的起始色；置于轨道背景之上时传入轨道颜色保持统一。 */
+  fadeColor?: string;
 }) {
   const scrollerRef = useRef<HTMLDivElement>(null);
   const lastActiveRef = useRef<Element | null>(null);
@@ -75,15 +78,21 @@ export function ScrollTabs({
       </div>
       <div
         aria-hidden="true"
-        className={`pointer-events-none absolute inset-y-0 left-0 z-10 w-8 bg-[linear-gradient(to_right,var(--portal-bg),transparent)] transition-opacity duration-200 ${
+        className={`pointer-events-none absolute inset-y-0 left-0 z-10 w-8 transition-opacity duration-200 ${
           fadeStart ? "opacity-100" : "opacity-0"
         }`}
+        style={{
+          backgroundImage: `linear-gradient(to right, ${fadeColor}, transparent)`,
+        }}
       />
       <div
         aria-hidden="true"
-        className={`pointer-events-none absolute inset-y-0 right-0 z-10 w-8 bg-[linear-gradient(to_left,var(--portal-bg),transparent)] transition-opacity duration-200 ${
+        className={`pointer-events-none absolute inset-y-0 right-0 z-10 w-8 transition-opacity duration-200 ${
           fadeEnd ? "opacity-100" : "opacity-0"
         }`}
+        style={{
+          backgroundImage: `linear-gradient(to left, ${fadeColor}, transparent)`,
+        }}
       />
     </div>
   );

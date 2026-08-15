@@ -6,7 +6,7 @@ import type { UserOut } from "../api/types";
 import { AppHeader } from "../components/AppHeader";
 import { FloatingBackground } from "../components/FloatingBackground";
 import { PageSkeleton } from "../components/PageSkeleton";
-import { ScrollTabs } from "../components/ScrollTabs";
+import { PillTabs } from "../components/PillTabs";
 import { SiteFooter } from "../components/SiteFooter";
 import { FadeIn } from "../components/bits/FadeIn";
 import { AdminAuditPanel } from "./AdminAuditPanel";
@@ -30,6 +30,12 @@ const TABS = [
 ] as const;
 
 type AdminTab = (typeof TABS)[number]["key"];
+
+const TAB_LINKS = TABS.map((item) => ({
+  key: item.key,
+  label: item.label,
+  to: `/admin/${item.key}`,
+}));
 
 export function AdminPage() {
   const [me, setMe] = useState<UserOut | null>(null);
@@ -89,18 +95,11 @@ export function AdminPage() {
       />
 
       <main className="relative mx-auto w-full max-w-7xl flex-1 space-y-6 px-4 py-8 sm:px-6 lg:px-8">
-        <ScrollTabs className="-mx-4 px-4 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
-          {TABS.map((item) => (
-            <Link
-              key={item.key}
-              to={`/admin/${item.key}`}
-              aria-current={tab === item.key ? "page" : undefined}
-              className={`btn ${tab === item.key ? "btn-primary" : "btn-secondary"}`}
-            >
-              {item.label}
-            </Link>
-          ))}
-        </ScrollTabs>
+        <PillTabs
+          items={TAB_LINKS}
+          activeKey={tab}
+          className="-mx-4 px-4 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8"
+        />
         <FadeIn key={tab} inView={false} delay={0.04}>
           {tab === "users" && <AdminUsersPanel currentAdminId={me.id} />}
           {tab === "sessions" && <AdminSessionsPanel />}

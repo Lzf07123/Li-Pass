@@ -93,6 +93,13 @@ WCAG AA（正文 ≥ 4.5:1）。深色模式使用去饱和浅色调变体，而
 - 输入框：`bg-surface`、`rounded-lg`、`px-3 py-2.5`、`text-sm`。
 - focus：主色边框 + `ring-2 ring-primary/20`；placeholder 用 `text-muted`。
 
+### 胶囊标签（`PillTabs` / `.pill-tab`）
+
+- 位置：`frontend/src/components/PillTabs.tsx` + `PillTabs.css`，管理后台顶部标签栏使用；基于 gsap，移植 React Bits PillNav 的圆环展开效果。
+- 结构：`PillTabs` 内部渲染 `ScrollTabs`（`fadeColor="var(--portal-surface-2)"`），轨道为 surface-2 背景 + 9999px 圆角；每颗 `.pill-tab` 含 `.pill-tab-circle`（主色圆环）与 `.pill-tab-stack`（双层文案）。
+- 交互：hover / 键盘聚焦时圆环从胶囊底部中心放大覆盖整颗胶囊，旧文案上滑、主色前景文案从下方滑入（进入 300ms / 离开 200ms）；活动标签固定为主色背景 + 主色前景。`prefers-reduced-motion` 下瞬切。
+- 保留 ScrollTabs 的横向滑动、边缘渐隐与深链居中能力。
+
 ### 徽章 / 提示条 / 弹窗 / Toast
 
 - `.badge-*`：`rounded-full` 的语义状态徽章（success/warning/danger/muted/primary）。
@@ -141,7 +148,7 @@ WCAG AA（正文 ≥ 4.5:1）。深色模式使用去饱和浅色调变体，而
 - **认证/引导页（登录、注册、邀请注册、找回/重置密码、邮箱验证、授权确认）：** `AuthShell`
   —— 居中单卡片（`max-w-md`）、极光背景（`AuroraBackground`）、顶部品牌 + 标语、底部备案信息。
 - **已登录页（用户中心、管理后台）：** `AppHeader`（品牌 + 主题切换 + 操作按钮）+ 内容区 + `SiteFooter`。
-- **管理后台：** 顶部标签页切换「用户管理 / 应用管理 / 审计日志」。
+- **管理后台：** 顶部胶囊标签页切换（`PillTabs`）。
 - **深色模式：** `useTheme` 读取 `localStorage("portal-theme")`，首帧渲染前在 `index.html` 内联脚本应用 `html.dark`。
 
 ---

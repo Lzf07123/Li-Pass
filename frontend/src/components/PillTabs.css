@@ -1,0 +1,72 @@
+/* React Bits PillNav 风格标签：表面色胶囊置于表面 2 色轨道上，
+   hover 圆环（主色）从底部展开并切换文案，活动项固定为主色。 */
+.pill-tabs .scroll-tabs {
+  width: fit-content;
+  max-width: 100%;
+  gap: 3px;
+  padding: 5px;
+  background: var(--portal-surface-2);
+  border: 1px solid var(--portal-border);
+  border-radius: 9999px;
+}
+
+.pill-tab {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 38px;
+  padding: 0 17px;
+  border-radius: 9999px;
+  background: var(--portal-surface);
+  color: var(--portal-muted);
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 0;
+  white-space: nowrap;
+  cursor: pointer;
+  overflow: hidden;
+}
+
+.pill-tab-circle {
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  border-radius: 50%;
+  background: var(--portal-primary);
+  z-index: 0;
+  display: block;
+  pointer-events: none;
+  will-change: transform;
+}
+
+.pill-tab-stack {
+  position: relative;
+  display: inline-block;
+  line-height: 1;
+  z-index: 1;
+}
+
+.pill-tab-label,
+.pill-tab-label-hover {
+  display: inline-block;
+  line-height: 1;
+  will-change: transform, opacity;
+}
+
+.pill-tab-label-hover {
+  position: absolute;
+  left: 0;
+  top: 0;
+  color: var(--portal-primary-fg);
+}
+
+.pill-tab.is-active {
+  background: var(--portal-primary);
+  color: var(--portal-primary-fg);
+}
+
+.pill-tab.is-active .pill-tab-circle {
+  display: none;
+}
