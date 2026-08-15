@@ -1,4 +1,4 @@
-import { act, fireEvent, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { DashboardPage } from "../pages/DashboardPage";
@@ -589,6 +589,71 @@ describe("DashboardPage", () => {
       document.dispatchEvent(new Event("visibilitychange"));
     });
     await waitFor(() => expect(screen.getByText("New")).toBeInTheDocument());
+  });
+
+  it("退出登录需二次确认且无需重新认证", async () => {
+    const originalLocation = window.location;
+    const assign = vi.fn();
+    Object.defineProperty(window, "location", {
+      value: { href: "", assign },
+      writable: true,
+      configurable: true,
+    });
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ unread: 0 }), { status: 200 })
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            id: "1",
+            email: "a@example.com",
+            nickname: "Alice",
+            email_verified: true,
+            phone: null,
+            role: "user",
+            status: "active",
+          }),
+          { status: 200 }
+        )
+      )
+      .mockResolvedValueOnce(new Response(JSON.stringify([]), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify([]), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify([]), { status: 200 }))
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            email_otp_enabled: false,
+            totp_enabled: false,
+            recovery_codes_remaining: 0,
+          }),
+          { status: 200 }
+        )
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ redirect_to: null }), { status: 200 })
+      );
+    vi.stubGlobal("fetch", fetchMock);
+    renderWithProviders(<DashboardPage />);
+
+    await waitFor(() =>
+      expect(
+        screen.getByRole("button", { name: "退出登录" }),
+      ).toBeInTheDocument()
+    );
+    fireEvent.click(screen.getByRole("button", { name: "退出登录" }));
+    const dialog = await screen.findByRole("dialog", { name: "退出登录" });
+    expect(
+      within(dialog).getByText(/将撤销当前门户会话，并登出所有已授权网站/),
+    ).toBeInTheDocument();
+    expect(within(dialog).queryByLabelText(/密码|验证码/)).toBeNull();
+    fireEvent.click(within(dialog).getByRole("button", { name: "退出登录" }));
+    await waitFor(() => expect(assign).toHaveBeenCalledWith("/login"));
+    Object.defineProperty(window, "location", {
+      value: originalLocation,
+      configurable: true,
+    });
   });
 
   it("管理员可见管理后台入口", async () => {
