@@ -21,6 +21,7 @@ from app.core.config import get_settings
 from app.core.db import get_db
 from app.models.client_user_block import ClientUserBlock
 from app.models.oauth_client import OAuthClient
+from app.models.oidc_client_session import OIDCClientSession
 from app.models.otp import OtpPurpose
 from app.models.session import Session as SessionModel
 from app.models.user import User, UserRole
@@ -534,6 +535,19 @@ def revoke_app(
     targets = collect_logout_targets_for_user_client(db, user.id, client.id)
     if targets:
         background_tasks.add_task(dispatch_backchannel_logout, targets)
+    # 撤销授权后同步吊销该用户在此客户端上的门户会话链接：
+    # 一方面与「已取消授权」保持一致，另一方面避免后续门户登出继续向
+    # 已取消授权的网站派发回程登出通知。
+    db.execute(
+        update(OIDCClientSession)
+        .where(
+            OIDCClientSession.user_id == user.id,
+            OIDCClientSession.client_id == client.id,
+            OIDCClientSession.revoked_at.is_(None),
+        )
+        .values(revoked_at=datetime.now(timezone.utc))
+    )
+    db.commit()
     log_audit(
         db,
         "user",
@@ -543,7 +557,10 @@ def revoke_app(
         target_type="oauth_client",
         target_id=str(client.id),
     )
-    return {"logout_uri": client.logout_uri}
+    return {
+        "logout_uri": client.logout_uri,
+        "backchannel_notified": bool(targets),
+    }
 
 
 @router.post("/me/avatar", response_model=UserOut)

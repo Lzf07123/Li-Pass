@@ -263,10 +263,17 @@ export function DashboardPage() {
       const result = await appsApi.revoke(clientId);
       setApps((prev) => prev.filter((app) => app.client_id !== clientId));
       setRevokeTarget(null);
-      toast.success(`已取消对“${name}”的授权`);
       if (result.logout_uri) {
+        toast.success(`已取消对“${name}”的授权，正在退出该网站…`);
         const next = encodeURIComponent(`${window.location.origin}/`);
         window.location.href = `${result.logout_uri}?next=${next}`;
+      } else if (result.backchannel_notified) {
+        toast.success(`已取消对“${name}”的授权，已通知该网站退出登录`);
+      } else {
+        toast.warning(
+          `已取消对“${name}”的授权，但该网站未配置登出通道，门户无法通知其下线；如仍显示已登录请在该网站手动退出`,
+          { duration: 8000 },
+        );
       }
     },
     {

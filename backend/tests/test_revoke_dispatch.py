@@ -132,5 +132,39 @@ def test_consent_revoke_dispatches_backchannel(
     )
     resp = client.delete(f"/api/v1/apps/{oauth_client.client_id}")
     assert resp.status_code == 200
+    assert resp.json()["backchannel_notified"] is True
+    assert resp.json()["logout_uri"] is None
     assert len(calls) == 1
     assert calls[0][0].client_id == "cli_bc"
+    # 撤销授权后，该用户在此客户端上的门户会话链接应同步吊销。
+    revoked_link = db_session.scalar(
+        select(OIDCClientSession).where(
+            OIDCClientSession.client_id == oauth_client.id,
+        )
+    )
+    assert revoked_link is not None
+    assert revoked_link.revoked_at is not None
+
+
+def test_consent_revoke_without_logout_channels_returns_false(
+    client, db_session, captured_email
+) -> None:
+    register_and_login(client, captured_email)
+    user = db_session.scalar(select(User))
+    oauth_client = create_client(
+        db_session,
+        client_id="cli_none",
+        redirect_uris=["http://x/cb"],
+    )
+    db_session.add(
+        UserConsent(
+            user_id=user.id, client_id=oauth_client.id, scopes=["openid"]
+        )
+    )
+    db_session.commit()
+    resp = client.delete("/api/v1/apps/cli_none")
+    assert resp.status_code == 200
+    assert resp.json() == {
+        "logout_uri": None,
+        "backchannel_notified": False,
+    }

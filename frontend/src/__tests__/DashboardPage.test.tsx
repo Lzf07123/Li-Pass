@@ -257,10 +257,16 @@ describe("DashboardPage", () => {
         )
       )
       .mockResolvedValueOnce(
-        new Response(JSON.stringify({ logout_uri: "http://localhost:3001/logout" }), {
-          status: 200,
-          headers: { "Content-Type": "application/json" },
-        })
+        new Response(
+          JSON.stringify({
+            logout_uri: "http://localhost:3001/logout",
+            backchannel_notified: false,
+          }),
+          {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          }
+        )
       );
     vi.stubGlobal("fetch", fetchMock);
     renderWithProviders(<DashboardPage />);
@@ -276,6 +282,164 @@ describe("DashboardPage", () => {
       expect(window.location.href).toContain("http://localhost:3001/logout?next=")
     );
     Object.defineProperty(window, "location", { value: originalLocation, configurable: true });
+  });
+
+  it("仅回程登出的网站取消授权后提示已通知退出", async () => {
+    vi.spyOn(window, "confirm").mockReturnValue(true);
+    const originalLocation = window.location;
+    Object.defineProperty(window, "location", {
+      value: { href: "", origin: "http://localhost" },
+      writable: true,
+      configurable: true,
+    });
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ unread: 0 }), { status: 200 })
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            id: "1",
+            email: "a@example.com",
+            nickname: "Alice",
+            email_verified: true,
+            phone: null,
+            role: "user",
+            status: "active",
+          }),
+          { status: 200 }
+        )
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify([
+            {
+              client_id: "cli_demo",
+              name: "Demo",
+              description: "",
+              logo_url: null,
+              home_url: "http://localhost:3001",
+            },
+          ]),
+          { status: 200 }
+        )
+      )
+      .mockResolvedValueOnce(new Response(JSON.stringify([]), { status: 200 }))
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            email_otp_enabled: false,
+            totp_enabled: false,
+            recovery_codes_remaining: 0,
+          }),
+          { status: 200 }
+        )
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            logout_uri: null,
+            backchannel_notified: true,
+          }),
+          { status: 200 }
+        )
+      );
+    vi.stubGlobal("fetch", fetchMock);
+    renderWithProviders(<DashboardPage />);
+    await waitFor(() => expect(screen.getByText("Demo")).toBeInTheDocument());
+    fireEvent.click(screen.getByRole("button", { name: "取消授权" }));
+    fireEvent.click(screen.getByRole("button", { name: "确认取消" }));
+    await waitFor(() =>
+      expect(
+        screen.getByText("已取消对“Demo”的授权，已通知该网站退出登录"),
+      ).toBeInTheDocument()
+    );
+    expect(window.location.href).toBe("");
+    Object.defineProperty(window, "location", {
+      value: originalLocation,
+      configurable: true,
+    });
+  });
+
+  it("未配置登出通道的网站取消授权后给出警告", async () => {
+    vi.spyOn(window, "confirm").mockReturnValue(true);
+    const originalLocation = window.location;
+    Object.defineProperty(window, "location", {
+      value: { href: "", origin: "http://localhost" },
+      writable: true,
+      configurable: true,
+    });
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ unread: 0 }), { status: 200 })
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            id: "1",
+            email: "a@example.com",
+            nickname: "Alice",
+            email_verified: true,
+            phone: null,
+            role: "user",
+            status: "active",
+          }),
+          { status: 200 }
+        )
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify([
+            {
+              client_id: "cli_demo",
+              name: "Demo",
+              description: "",
+              logo_url: null,
+              home_url: "http://localhost:3001",
+            },
+          ]),
+          { status: 200 }
+        )
+      )
+      .mockResolvedValueOnce(new Response(JSON.stringify([]), { status: 200 }))
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            email_otp_enabled: false,
+            totp_enabled: false,
+            recovery_codes_remaining: 0,
+          }),
+          { status: 200 }
+        )
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            logout_uri: null,
+            backchannel_notified: false,
+          }),
+          { status: 200 }
+        )
+      );
+    vi.stubGlobal("fetch", fetchMock);
+    renderWithProviders(<DashboardPage />);
+    await waitFor(() => expect(screen.getByText("Demo")).toBeInTheDocument());
+    fireEvent.click(screen.getByRole("button", { name: "取消授权" }));
+    fireEvent.click(screen.getByRole("button", { name: "确认取消" }));
+    await waitFor(() =>
+      expect(
+        screen.getByText(
+          "已取消对“Demo”的授权，但该网站未配置登出通道，门户无法通知其下线；如仍显示已登录请在该网站手动退出",
+        ),
+      ).toBeInTheDocument()
+    );
+    expect(window.location.href).toBe("");
+    Object.defineProperty(window, "location", {
+      value: originalLocation,
+      configurable: true,
+    });
   });
 
   it("管理员可见管理后台入口", async () => {
