@@ -11,14 +11,14 @@ Li&Pass 是一个符合 OIDC/OAuth2 授权码流程的身份提供商（IdP）�
 - 单域名网关部署（推荐）：`http://localhost`（浏览器与后端同源，经网关 `/oauth2/` 转发）
 - 宿主机直连后端开发：`http://localhost:8000`（前端经 `VITE_API_BASE_URL` 直连）
 
-| 端点 | 说明 |
-| --- | --- |
-| `GET /.well-known/openid-configuration` | 发现文档（推荐从这里读取所有端点） |
-| `GET /oauth2/authorize` | 发起授权（授权码 + PKCE S256） |
-| `POST /oauth2/token` | 用授权码换令牌 |
-| `GET /oauth2/userinfo` | 获取用户信息（Bearer 令牌） |
-| `GET /oauth2/jwks` | 令牌签名公钥 |
-| `GET /oauth2/end-session` | RP 发起登出（联邦登出入口） |
+| 方法 | 端点 | 说明 |
+| --- | --- | --- |
+| `GET` | `/.well-known/openid-configuration` | 发现文档（推荐从这里读取所有端点） |
+| `GET` | `/oauth2/authorize` | 发起授权（授权码 + PKCE S256） |
+| `POST` | `/oauth2/token` | 用授权码换令牌（`application/x-www-form-urlencoded`） |
+| `GET` | `/oauth2/userinfo` | 获取用户信息（Bearer 令牌） |
+| `GET` | `/oauth2/jwks` | 令牌签名公钥 |
+| `GET` | `/oauth2/end-session` | RP 发起登出（联邦登出入口） |
 
 支持范围：`openid`、`profile`、`email`；仅支持 `response_type=code` 与 PKCE `S256`。
 
@@ -28,12 +28,12 @@ Li&Pass 是一个符合 OIDC/OAuth2 授权码流程的身份提供商（IdP）�
 
 ### 2.1 接口总览
 
-| 优先级 | 接口（在你的网站上） | 调用方向 | 门户应用配置 | 说明 |
-| --- | --- | --- | --- | --- |
-| **必选** | 授权回调接口（`redirect_uri`） | 门户 → 浏览器 → 你的网站 | 「回调地址」 | 接收授权码并完成登录，见 §2.2 |
-| **可选（推荐）** | 回程登出接口（`backchannel_logout_uri`） | 门户服务器 → 你的服务器 | 「回程登出地址」 | 接收 `logout_token` 下线，见 §2.3.1 |
-| **可选（与回程二选一）** | 登出地址（`logout_uri`） | 门户 → 浏览器 → 你的网站 | 「登出地址」 | 浏览器串跳清本地会话，见 §2.3.2 |
-| **可选（使用 RP 发起登出则必填）** | 登出回跳页（`post_logout_redirect_uri`） | 门户 → 浏览器 | 「登出回跳白名单」 | SSO 登出后的落地页，见 §2.3.3 |
+| 优先级 | 接口（在你的网站上） | 方法 | 调用方向 | 门户应用配置 | 说明 |
+| --- | --- | --- | --- | --- | --- |
+| **必选** | 授权回调接口（`redirect_uri`） | `GET` | 门户 → 浏览器 → 你的网站 | 「回调地址」 | 接收授权码并完成登录，见 §2.2 |
+| **可选（推荐）** | 回程登出接口（`backchannel_logout_uri`） | `POST` | 门户服务器 → 你的服务器 | 「回程登出地址」 | 接收 `logout_token` 下线，见 §2.3.1 |
+| **可选（与回程二选一）** | 登出地址（`logout_uri`） | `GET` | 门户 → 浏览器 → 你的网站 | 「登出地址」 | 浏览器串跳清本地会话，见 §2.3.2 |
+| **可选（使用 RP 发起登出则必填）** | 登出回跳页（`post_logout_redirect_uri`） | `GET` | 门户 → 浏览器 | 「登出回跳白名单」 | SSO 登出后的落地页，见 §2.3.3 |
 
 硬性要求：
 
@@ -43,7 +43,7 @@ Li&Pass 是一个符合 OIDC/OAuth2 授权码流程的身份提供商（IdP）�
 
 ### 2.2 必选：授权回调接口
 
-在「回调地址」登记一个 HTTPS（本地开发可用 HTTP）GET 端点，门户在两种情况下经浏览器跳回：
+在「回调地址」登记一个 HTTPS（本地开发可用 HTTP）端点，**请求方法：`GET`**。门户在两种情况下经浏览器跳回：
 
 成功：
 
@@ -74,9 +74,9 @@ GET https://your-site.example/callback?error=access_denied&state=RANDOM_STATE
 
 #### 2.3.1 回程登出接口（推荐）
 
-在「回程登出地址」登记一个服务器间 POST 端点：
+在「回程登出地址」登记一个服务器间端点，**请求方法：`POST`**：
 
-- 请求：`POST application/x-www-form-urlencoded`，字段 `logout_token`（JWT，示例见 §8.3）。
+- 请求体：`application/x-www-form-urlencoded`，字段 `logout_token`（JWT，示例见 §8.3）。
 - 地址约束：生产环境必须 `https` 且不得指向回环/私网/链路本地地址（门户强制校验）。
 - 必须校验：JWKS `kid` 选钥验签；`iss` 等于 issuer；`aud` 等于自身 `client_id`；`iat`/`exp` 在 120 秒新鲜窗口内；维护 `jti` 已见缓存防重放；`events` 含 `http://schemas.openid.net/event/backchannel-logout`。
 - 必须动作：终止本地与 `(sub, sid)` 匹配的会话；处理成功返回 2xx。
@@ -84,7 +84,7 @@ GET https://your-site.example/callback?error=access_denied&state=RANDOM_STATE
 
 #### 2.3.2 登出地址（浏览器串跳）
 
-未配置回程地址时，门户登出会经浏览器串跳到你登记的「登出地址」：
+未配置回程地址时，门户登出会经浏览器串跳到你登记的「登出地址」，**请求方法：`GET`**：
 
 ```text
 GET https://your-site.example/logout?next=<下一目标或门户登录页的 URL 编码值>
@@ -94,20 +94,20 @@ GET https://your-site.example/logout?next=<下一目标或门户登录页的 URL
 
 #### 2.3.3 登出回跳页
 
-若你的网站发起 RP 发起登出（`end-session`，见 §8.2），需在「登出回跳白名单」登记一个站内页面作为登出后的落地页。门户登出完成后原样回跳并附带 `state`，页面校验 `state` 后展示登出完成。仅使用门户侧登出、不发起 RP 登出的网站可以不填。
+若你的网站发起 RP 发起登出（`end-session`，见 §8.2），需在「登出回跳白名单」登记一个站内页面作为登出后的落地页，**请求方法：`GET`**（普通页面，无需接口逻辑）。门户登出完成后原样回跳并附带 `state`，页面校验 `state` 后展示登出完成。仅使用门户侧登出、不发起 RP 登出的网站可以不填。
 
 ### 2.4 接入验收清单
 
 申请上线前逐项自检，全部满足方可申请：
 
-- [ ] 回调地址已登记，且与代码实际使用值**逐字符一致**（含协议、路径与端口）
+- [ ] 回调地址已登记为 `GET` 端点，且与代码实际使用值**逐字符一致**（含协议、路径与端口）
 - [ ] 回调端点校验 `state`；`error=access_denied`（含 `account_blocked`）按失败处理
 - [ ] 换令牌带 PKCE `code_verifier`（机密客户端另带 `client_secret`）；授权码一次性使用
 - [ ] `id_token` 校验完整（验签 / `kid` 选钥 / `iss` / `aud` / `nonce` / `iat` / `exp`）；`access_token` 仅用于 userinfo，且不按 `client_id` 校验其 `aud`
 - [ ] 本地会话绑定 `(sub, sid)`（`sid` 取自 `id_token`）
 - [ ] 登出通道二选一：已实现回程登出，或已提供登出地址（浏览器串跳）
-- [ ] 回程登出（如选）：验签、`iss`/`aud`、120 秒新鲜窗口、`jti` 防重放、`events` 检查、按 `(sub, sid)` 下线、成功返回 2xx；生产 https 且公网可达
-- [ ] 登出地址（如选）：清本地会话后仅跳转相对路径/自有域名，拒绝 `//`
+- [ ] 回程登出（如选，`POST` 端点）：验签、`iss`/`aud`、120 秒新鲜窗口、`jti` 防重放、`events` 检查、按 `(sub, sid)` 下线、成功返回 2xx；生产 https 且公网可达
+- [ ] 登出地址（如选，`GET` 端点）：清本地会话后仅跳转相对路径/自有域名，拒绝 `//`
 - [ ] 使用 RP 发起登出时，已登记登出回跳白名单（精确匹配）
 - [ ] 使用网站黑名单时：授权跳回 `access_denied`、换令牌与 userinfo 返回 403，均按失败处理
 
