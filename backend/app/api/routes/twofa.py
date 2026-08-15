@@ -66,6 +66,11 @@ def disable_email_otp(
 ) -> dict:
     session = get_current_session(request, db)
     authorize_stepup(request, db, user, session, payload.current_password)
+    if user.totp_secret_encrypted is None:
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST,
+            "至少保留一种二次验证方式，请先开启 TOTP 认证器",
+        )
     user.email_otp_enabled = False
     db.commit()
     log_audit(db, "user", str(user.id), "2fa_email_disable", category="2fa")
@@ -113,6 +118,11 @@ def totp_disable(
 ) -> dict:
     session = get_current_session(request, db)
     authorize_stepup(request, db, user, session, payload.current_password)
+    if not user.email_otp_enabled:
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST,
+            "至少保留一种二次验证方式，请先开启邮箱验证码",
+        )
     user.totp_secret_encrypted = None
     user.totp_enabled_at = None
     codes = db.scalars(

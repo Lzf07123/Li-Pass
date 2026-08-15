@@ -700,7 +700,9 @@ def reset_twofa(
         session.revoked_at = now
     user.totp_secret_encrypted = None
     user.totp_enabled_at = None
-    user.email_otp_enabled = False
+    # 强制 2FA：管理端重置不把账号清成 1FA，
+    # 而是恢复默认邮箱验证码方案（TOTP 与恢复码全部清空）。
+    user.email_otp_enabled = True
     codes = db.scalars(
         select(RecoveryCode).where(RecoveryCode.user_id == user.id)
     ).all()
