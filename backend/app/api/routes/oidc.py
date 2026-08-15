@@ -329,11 +329,12 @@ def confirm_logout_request(
     }
 
 
-@router.post("/api/v1/oauth/logout-requests/{request_id}/cancel")
-def cancel_logout_request(
+@router.post("/api/v1/oauth/logout-requests/{request_id}/local-only")
+def local_only_logout_request(
     request_id: str,
     db: Session = Depends(get_db),
 ) -> dict:
+    """仅登出本网站：保留门户会话，删除待确认请求并回跳发起方。"""
     pending = _get_pending_logout_or_404(request_id)
     get_logout_request_store().delete(request_id)
     return {

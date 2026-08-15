@@ -9,7 +9,7 @@ describe("LogoutConfirmPage", () => {
     vi.unstubAllGlobals();
   });
 
-  it("确认退出后跳转到回跳地址", async () => {
+  it("登出 SSO 后跳转到回跳地址", async () => {
     const fetchMock = vi
       .fn()
       .mockResolvedValueOnce(
@@ -34,7 +34,7 @@ describe("LogoutConfirmPage", () => {
 
     renderWithProviders(<LogoutConfirmPage />, ["/logout/confirm?request_id=r1"]);
     await waitFor(() => expect(screen.getByText("Demo")).toBeInTheDocument());
-    fireEvent.click(screen.getByRole("button", { name: "确认退出" }));
+    fireEvent.click(screen.getByRole("button", { name: "登出 SSO" }));
     await waitFor(() =>
       expect(window.location.href).toBe("https://x.example/after?state=st-1")
     );
@@ -44,7 +44,7 @@ describe("LogoutConfirmPage", () => {
     });
   });
 
-  it("取消后跳回回跳地址且不触发确认接口", async () => {
+  it("仅登出本网站时保留门户会话且不触发确认接口", async () => {
     const fetchMock = vi
       .fn()
       .mockResolvedValueOnce(
@@ -69,7 +69,7 @@ describe("LogoutConfirmPage", () => {
 
     renderWithProviders(<LogoutConfirmPage />, ["/logout/confirm?request_id=r1"]);
     await waitFor(() => expect(screen.getByText("Demo")).toBeInTheDocument());
-    fireEvent.click(screen.getByRole("button", { name: "取消" }));
+    fireEvent.click(screen.getByRole("button", { name: "仅登出本网站" }));
     await waitFor(() =>
       expect(window.location.href).toBe("https://x.example/after")
     );
@@ -77,6 +77,10 @@ describe("LogoutConfirmPage", () => {
       String(call[0]).includes("/confirm")
     );
     expect(confirmCall).toBeUndefined();
+    const localOnlyCall = fetchMock.mock.calls.find((call) =>
+      String(call[0]).includes("/local-only")
+    );
+    expect(localOnlyCall).toBeDefined();
     Object.defineProperty(window, "location", {
       value: original,
       configurable: true,

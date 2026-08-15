@@ -141,9 +141,9 @@ export const oauthApi = {
       `/api/v1/oauth/logout-requests/${requestId}/confirm`,
       { method: "POST" }
     ),
-  cancelLogoutRequest: (requestId: string) =>
+  localOnlyLogoutRequest: (requestId: string) =>
     api<{ redirect_url: string }>(
-      `/api/v1/oauth/logout-requests/${requestId}/cancel`,
+      `/api/v1/oauth/logout-requests/${requestId}/local-only`,
       { method: "POST" }
     ),
 };

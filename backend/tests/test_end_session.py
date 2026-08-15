@@ -119,7 +119,7 @@ def test_confirm_revokes_session_and_returns_redirect(
     assert client.get("/api/v1/me").status_code == 401
 
 
-def test_cancel_returns_redirect_without_logout(
+def test_local_only_keeps_portal_session_and_returns_redirect(
     client, db_session, captured_email
 ) -> None:
     register_and_login(client, captured_email)
@@ -138,7 +138,7 @@ def test_cancel_returns_redirect_without_logout(
         },
     )
     request_id = _request_id_from_location(started.headers["location"])
-    resp = client.post(f"/api/v1/oauth/logout-requests/{request_id}/cancel")
+    resp = client.post(f"/api/v1/oauth/logout-requests/{request_id}/local-only")
     assert resp.status_code == 200
     assert resp.json()["redirect_url"] == "https://x/after-logout?state=st-9"
     assert client.get("/api/v1/me").status_code == 200

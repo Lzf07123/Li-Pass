@@ -35,8 +35,12 @@ INDEX_HTML = """
         <li>昵称：{{ user.nickname }}</li>
         <li>邮箱已验证：{{ user.email_verified }}</li>
       </ul>
+      <p>退出方式（两种语义，演示用）：</p>
+      <form method="post" action="{{ prefix }}/local-logout">
+        <button type="submit">登出本网站</button>
+      </form>
       <form method="post" action="{{ prefix }}/logout">
-        <button type="submit">退出登录</button>
+        <button type="submit">登出 SSO（退出所有网站）</button>
       </form>
     {% else %}
       <p><a href="{{ prefix }}/login">通过门户登录</a></p>
@@ -141,9 +145,16 @@ def logout():
     return redirect(next_url)
 
 
+@app.post("/local-logout")
+def local_logout():
+    """登出本网站：只清本地会话，不打扰门户 SSO 与其它授权网站。"""
+    session.clear()
+    return redirect(f"{DEMO_PATH_PREFIX}/")
+
+
 @app.post("/logout")
 def logout_initiate():
-    """RP 发起登出：清本地会话后引导用户到 IdP 统一退出。"""
+    """登出 SSO：清本地会话后引导用户到 IdP 统一退出全部网站。"""
     session.clear()
     post_logout_redirect_uri = DEMO_HOME_URL or f"{ISSUER}{DEMO_PATH_PREFIX}/"
     state = secrets.token_urlsafe(24)

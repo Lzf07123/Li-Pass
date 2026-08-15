@@ -5,7 +5,6 @@ import { oauthApi } from "../api/client";
 import { AsyncButton } from "../components/AsyncButton";
 import { AuthShell } from "../components/AuthShell";
 import { Notice } from "../components/Notice";
-import { LineIcon } from "../components/bits/LineIcon";
 import { useAsyncAction } from "../hooks/useAsyncAction";
 import { useToast } from "../hooks/useToast";
 import { APP_NAME } from "../lib/brand";
@@ -31,10 +30,11 @@ export function LogoutConfirmPage() {
   }, [requestId]);
 
   const decideAction = useAsyncAction(
-    async (confirm: boolean) => {
-      const result = confirm
-        ? await oauthApi.confirmLogoutRequest(requestId)
-        : await oauthApi.cancelLogoutRequest(requestId);
+    async (scope: "sso" | "local") => {
+      const result =
+        scope === "sso"
+          ? await oauthApi.confirmLogoutRequest(requestId)
+          : await oauthApi.localOnlyLogoutRequest(requestId);
       window.location.href = result.redirect_url;
     },
     {
@@ -46,7 +46,7 @@ export function LogoutConfirmPage() {
   return (
     <AuthShell
       title="退出登录"
-      subtitle="确认退出 SSO 与已登录的授权网站"
+      subtitle="请选择退出范围：仅当前网站，还是 SSO 与全部授权网站"
       ambientShapeCount={4}
     >
       {clientName ? (
@@ -60,35 +60,45 @@ export function LogoutConfirmPage() {
             </p>
           </div>
           <p className="text-sm text-foreground">
-            确认后，你将退出 {APP_NAME} 以及所有通过门户登录的授权网站。
+            退出登录有两种范围，请按需选择：
           </p>
-          <ul className="space-y-1.5 rounded-xl border border-border bg-surface-2/60 p-4 text-sm">
-            <li className="flex items-center gap-1.5 text-foreground">
-              <LineIcon name="check" className="h-4 w-4 shrink-0 text-primary" />
-              <span>退出当前设备上的门户会话</span>
-            </li>
-            <li className="flex items-center gap-1.5 text-foreground">
-              <LineIcon name="check" className="h-4 w-4 shrink-0 text-primary" />
-              <span>通知已登录的授权网站一并退出</span>
-            </li>
-          </ul>
-          <div className="flex gap-3">
-            <AsyncButton
-              type="button"
-              status={decideAction.status}
-              onClick={() => void decideAction.run(true)}
-              className="btn btn-danger flex-1"
-            >
-              确认退出
-            </AsyncButton>
-            <AsyncButton
-              type="button"
-              status={decideAction.status}
-              onClick={() => void decideAction.run(false)}
-              className="btn btn-secondary flex-1"
-            >
-              取消
-            </AsyncButton>
+          <div className="space-y-3">
+            <div className="rounded-xl border border-border bg-surface-2/60 p-4">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="min-w-0 space-y-1">
+                  <p className="font-semibold text-foreground">登出 SSO</p>
+                  <p className="text-sm text-muted">
+                    退出 {APP_NAME} 登录，并通知所有通过门户登录的授权网站一并退出。
+                  </p>
+                </div>
+                <AsyncButton
+                  type="button"
+                  status={decideAction.status}
+                  onClick={() => void decideAction.run("sso")}
+                  className="btn btn-danger shrink-0"
+                >
+                  登出 SSO
+                </AsyncButton>
+              </div>
+            </div>
+            <div className="rounded-xl border border-border bg-surface-2/60 p-4">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="min-w-0 space-y-1">
+                  <p className="font-semibold text-foreground">仅登出本网站</p>
+                  <p className="text-sm text-muted">
+                    保留 {APP_NAME} 与其它网站的登录状态，仅返回「{clientName}」；当前网站的本地会话由该网站自行结束。
+                  </p>
+                </div>
+                <AsyncButton
+                  type="button"
+                  status={decideAction.status}
+                  onClick={() => void decideAction.run("local")}
+                  className="btn btn-secondary shrink-0"
+                >
+                  仅登出本网站
+                </AsyncButton>
+              </div>
+            </div>
           </div>
         </div>
       ) : error ? (
