@@ -59,6 +59,17 @@ GET https://your-site.example/callback?error=access_denied&state=RANDOM_STATE
 # error_description=account_blocked
 ```
 
+**请求方式与参数**：`GET`，参数经 query string 传递，无请求体。
+
+| 参数 | 出现场景 | 说明 |
+| --- | --- | --- |
+| `code` | 授权成功 | 一次性授权码 |
+| `state` | 成功与失败都会携带 | 发起授权时的原值，必须逐字符校验 |
+| `error` | 用户拒绝 / 账号被封禁 | `access_denied` |
+| `error_description` | 账号被该网站封禁 | 额外携带 `account_blocked` |
+
+**响应要求**：处理完成后返回 `200` 展示登录结果页，或 `302` 跳回站内页面即可；门户不解析响应体。失败场景不得返回成功页面。
+
 该端点必须做到：
 
 - 校验 `state` 与发起时一致；不一致立即中止，不得继续登录流程。
@@ -76,10 +87,16 @@ GET https://your-site.example/callback?error=access_denied&state=RANDOM_STATE
 
 在「回程登出地址」登记一个服务器间端点，**请求方法：`POST`**：
 
-- 请求体：`application/x-www-form-urlencoded`，字段 `logout_token`（JWT，示例见 §8.3）。
+- **请求体格式**：`Content-Type: application/x-www-form-urlencoded`
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| `logout_token` | string（JWT） | 登出令牌，完整结构见 §8.3 |
+
+- **响应要求**：处理成功返回 `2xx`（如 `200` 或 `204`，响应体内容门户不解析）；校验失败可返回 `4xx`。
 - 地址约束：生产环境必须 `https` 且不得指向回环/私网/链路本地地址（门户强制校验）。
 - 必须校验：JWKS `kid` 选钥验签；`iss` 等于 issuer；`aud` 等于自身 `client_id`；`iat`/`exp` 在 120 秒新鲜窗口内；维护 `jti` 已见缓存防重放；`events` 含 `http://schemas.openid.net/event/backchannel-logout`。
-- 必须动作：终止本地与 `(sub, sid)` 匹配的会话；处理成功返回 2xx。
+- 必须动作：终止本地与 `(sub, sid)` 匹配的会话。
 - 送达语义：门户对失败会有限重试，但仍为“尽力而为”，不得假设一定送达；本地会话必须另有自己的过期机制。
 
 #### 2.3.2 登出地址（浏览器串跳）
@@ -90,11 +107,25 @@ GET https://your-site.example/callback?error=access_denied&state=RANDOM_STATE
 GET https://your-site.example/logout?next=<下一目标或门户登录页的 URL 编码值>
 ```
 
-必须：清掉本地会话后 302 到 `next`；只允许相对路径或自己的域名，拒绝 `//` 开头的外部协议重定向。
+**请求方式与参数**：`GET`，无请求体。
+
+| 参数 | 说明 |
+| --- | --- |
+| `next` | URL 编码的下一跳目标（下一个网站的登出地址，或门户登录页） |
+
+**响应要求**：清掉本地会话后 `302` 到 `next`；只允许相对路径或自己的域名，拒绝 `//` 开头的外部协议重定向。
 
 #### 2.3.3 登出回跳页
 
 若你的网站发起 RP 发起登出（`end-session`，见 §8.2），需在「登出回跳白名单」登记一个站内页面作为登出后的落地页，**请求方法：`GET`**（普通页面，无需接口逻辑）。门户登出完成后原样回跳并附带 `state`，页面校验 `state` 后展示登出完成。仅使用门户侧登出、不发起 RP 登出的网站可以不填。
+
+**请求方式与参数**：`GET`，无请求体。
+
+| 参数 | 说明 |
+| --- | --- |
+| `state` | 发起 RP 登出时的原值，校验一致后展示登出完成页 |
+
+**响应要求**：返回 `200` 展示登出完成页。
 
 ### 2.4 接入验收清单
 
