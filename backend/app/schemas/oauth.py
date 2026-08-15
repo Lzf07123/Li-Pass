@@ -33,15 +33,29 @@ class ClientCreate(BaseModel):
     logo_url: str | None = Field(default=None, max_length=500)
     home_url: str | None = Field(default=None, max_length=500)
     logout_uri: str | None = Field(default=None, max_length=500)
+    post_logout_redirect_uris: list[str] = Field(default_factory=list)
+    backchannel_logout_uri: str | None = Field(default=None, max_length=500)
     redirect_uris: list[str] = Field(min_length=1)
     scopes: list[str] = Field(default=["openid", "profile", "email"])
     require_consent_every_time: bool = False
     public: bool = True
 
-    @field_validator("logo_url", "home_url", "logout_uri")
+    @field_validator(
+        "logo_url", "home_url", "logout_uri", "backchannel_logout_uri"
+    )
     @classmethod
     def _check_url(cls, value: str | None) -> str | None:
         return _validate_web_url(value, "站点地址")
+
+    @field_validator("post_logout_redirect_uris")
+    @classmethod
+    def _check_post_logout_redirect_uris(cls, value: list[str]) -> list[str]:
+        normalized = [
+            _validate_web_url(uri, "登出回跳地址") or "" for uri in value
+        ]
+        if len(normalized) != len(set(normalized)):
+            raise ValueError("登出回跳地址不能重复")
+        return normalized
 
     @field_validator("redirect_uris")
     @classmethod
@@ -58,15 +72,33 @@ class ClientUpdate(BaseModel):
     logo_url: str | None = Field(default=None, max_length=500)
     home_url: str | None = Field(default=None, max_length=500)
     logout_uri: str | None = Field(default=None, max_length=500)
+    post_logout_redirect_uris: list[str] | None = None
+    backchannel_logout_uri: str | None = Field(default=None, max_length=500)
     redirect_uris: list[str] | None = None
     scopes: list[str] | None = None
     require_consent_every_time: bool | None = None
     is_active: bool | None = None
 
-    @field_validator("logo_url", "home_url", "logout_uri")
+    @field_validator(
+        "logo_url", "home_url", "logout_uri", "backchannel_logout_uri"
+    )
     @classmethod
     def _check_url(cls, value: str | None) -> str | None:
         return _validate_web_url(value, "站点地址")
+
+    @field_validator("post_logout_redirect_uris")
+    @classmethod
+    def _check_post_logout_redirect_uris(
+        cls, value: list[str] | None
+    ) -> list[str] | None:
+        if value is None:
+            return value
+        normalized = [
+            _validate_web_url(uri, "登出回跳地址") or "" for uri in value
+        ]
+        if len(normalized) != len(set(normalized)):
+            raise ValueError("登出回跳地址不能重复")
+        return normalized
 
     @field_validator("redirect_uris")
     @classmethod
@@ -87,6 +119,8 @@ class ClientOut(BaseModel):
     logo_url: str | None
     home_url: str | None
     logout_uri: str | None
+    post_logout_redirect_uris: list[str]
+    backchannel_logout_uri: str | None
     redirect_uris: list[str]
     scopes: list[str]
     require_consent_every_time: bool
@@ -123,6 +157,8 @@ def serialize_client(client) -> dict:
         "logo_url": client.logo_url,
         "home_url": client.home_url,
         "logout_uri": client.logout_uri,
+        "post_logout_redirect_uris": client.post_logout_redirect_uris,
+        "backchannel_logout_uri": client.backchannel_logout_uri,
         "redirect_uris": client.redirect_uris,
         "scopes": client.scopes,
         "require_consent_every_time": client.require_consent_every_time,
