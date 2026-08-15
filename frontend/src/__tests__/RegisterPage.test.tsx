@@ -1,15 +1,17 @@
 import { fireEvent, screen, waitFor } from "@testing-library/react";
+import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { render } from "@testing-library/react";
 
 import { RegisterPage } from "../pages/RegisterPage";
-import { renderWithProviders } from "../test/renderWithProviders";
+import { ToastProvider } from "../components/ToastProvider";
 
 describe("RegisterPage", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
   });
 
-  it("提交注册请求并跳转到验证页", async () => {
+  it("提交注册请求并跳转到登录页", async () => {
     const fetchMock = vi.fn((input: RequestInfo | URL, _init?: RequestInit) => {
       const url = String(input);
       if (url.includes("/api/v1/auth/register/status")) {
@@ -36,7 +38,16 @@ describe("RegisterPage", () => {
     });
     vi.stubGlobal("fetch", fetchMock);
 
-    renderWithProviders(<RegisterPage />);
+    render(
+      <MemoryRouter initialEntries={["/register"]}>
+        <ToastProvider>
+          <Routes>
+            <Route path="/register" element={<RegisterPage />} />
+            <Route path="/login" element={<div>登录页占位</div>} />
+          </Routes>
+        </ToastProvider>
+      </MemoryRouter>
+    );
 
     await screen.findByLabelText("邮箱");
     fireEvent.change(screen.getByLabelText("邮箱"), { target: { value: "a@example.com" } });
@@ -59,5 +70,8 @@ describe("RegisterPage", () => {
       nickname: "Alice",
       password: "password123",
     });
+    await waitFor(() =>
+      expect(screen.getByText("登录页占位")).toBeInTheDocument()
+    );
   });
 });

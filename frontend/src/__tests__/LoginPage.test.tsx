@@ -10,6 +10,12 @@ describe("LoginPage", () => {
     vi.restoreAllMocks();
   });
 
+  it("从注册跳转携带的邮箱参数预填账号", () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response("{}")));
+    renderWithProviders(<LoginPage />, ["/login?email=a@example.com"]);
+    expect(screen.getByLabelText("邮箱")).toHaveValue("a@example.com");
+  });
+
   it("登录失败时展示错误信息", async () => {
     const fetchMock = vi.fn().mockResolvedValue(
       new Response(JSON.stringify({ detail: "邮箱或密码错误" }), {

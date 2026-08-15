@@ -19,7 +19,11 @@ const METHOD_LABELS: Record<string, string> = {
 type EmailSendStatus = "sent" | "failed" | "rate_limited" | "skipped";
 
 export function LoginPage() {
-  const [email, setEmail] = useState("");
+  const [searchParams] = useSearchParams();
+  const rawNext = searchParams.get("next");
+  const next = isSafeNext(rawNext) ? rawNext : null;
+  const emailParam = searchParams.get("email");
+  const [email, setEmail] = useState(emailParam ?? "");
   const [password, setPassword] = useState("");
   const [challenge, setChallenge] = useState<{ id: string; methods: string[] } | null>(
     null
@@ -32,9 +36,6 @@ export function LoginPage() {
   const [rememberMe, setRememberMe] = useState(false);
   const toast = useToast();
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
-  const rawNext = searchParams.get("next");
-  const next = isSafeNext(rawNext) ? rawNext : null;
 
   useEffect(() => {
     if (resendCountdown <= 0) return;

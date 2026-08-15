@@ -45,7 +45,8 @@ export function RegisterPage() {
   const submitAction = useAsyncAction(
     async (email: string, nickname: string, password: string) => {
       await authApi.register({ email, nickname, password });
-      navigate(`/verify-email?email=${encodeURIComponent(email)}`);
+      toast.success("注册成功，请登录");
+      navigate(`/login?email=${encodeURIComponent(email)}`);
     },
     {
       onError: (err) =>
