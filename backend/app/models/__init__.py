@@ -11,6 +11,7 @@ from app.models.otp import Otp, OtpPurpose
 from app.models.recovery_code import RecoveryCode
 from app.models.session import Session
 from app.models.site_setting import SiteSetting
+from app.models.trusted_device import TrustedDevice
 from app.models.user import User, UserRole, UserStatus
 from app.models.user_consent import UserConsent
 
@@ -29,6 +30,7 @@ __all__ = [
     "RecoveryCode",
     "Session",
     "SiteSetting",
+    "TrustedDevice",
     "User",
     "UserConsent",
     "UserRole",
