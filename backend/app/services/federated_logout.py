@@ -156,6 +156,36 @@ def collect_logout_targets_for_user_client(
     ]
 
 
+def collect_logout_targets_for_user(
+    db: Session, user_id: uuid.UUID
+) -> list[LogoutTarget]:
+    """门户登出时按用户收集全部未撤销链接：跨会话通知所有已授权网站。
+
+    不要求门户会话仍活跃：RP 本地会话绑定的是历史 sid，门户会话结束后
+    可能仍存活，登出门户时同样要通知下线。
+    """
+    rows = db.execute(
+        select(OIDCClientSession, OAuthClient)
+        .join(OAuthClient, OIDCClientSession.client_id == OAuthClient.id)
+        .where(
+            OIDCClientSession.user_id == user_id,
+            OIDCClientSession.revoked_at.is_(None),
+            OAuthClient.is_active.is_(True),
+            OAuthClient.backchannel_logout_uri.is_not(None),
+            OAuthClient.backchannel_logout_uri != "",
+        )
+    ).all()
+    return [
+        LogoutTarget(
+            uri=client.backchannel_logout_uri,
+            client_id=client.client_id,
+            sid=link.sid,
+            sub=str(link.user_id),
+        )
+        for link, client in rows
+    ]
+
+
 def dispatch_backchannel_logout(
     targets: list[LogoutTarget], *, transport: httpx.BaseTransport | None = None
 ) -> dict[str, bool]:

@@ -54,7 +54,7 @@ from app.services.otps import create_otp, otp_attempts_exhausted, verify_otp
 from app.services.audit import log_audit, log_rate_limit_rejected_once
 from app.services.federated_logout import (
     build_logout_funnel,
-    collect_logout_targets,
+    collect_logout_targets_for_user,
     dispatch_backchannel_logout,
 )
 from app.services.rate_limit import get_rate_limiter
@@ -719,7 +719,11 @@ def verify_twofa(
 
 
 def _funnel_uris(db: Session, session_id: uuid.UUID) -> list[str]:
-    """该会话登录过、且只支持浏览器串跳（无回程通道）的网站登出入口。"""
+    """该会话登录过、且配置了登出地址的网站登出入口。
+
+    有回程地址的网站也会进入串跳：浏览器 Cookie 型会话只能靠浏览器访问
+    清掉，服务器间回程通知无法清当前浏览器里的会话（两者并存时同时执行）。
+    """
     rows = db.execute(
         select(OAuthClient.logout_uri)
         .join(OIDCClientSession, OIDCClientSession.client_id == OAuthClient.id)
@@ -729,8 +733,6 @@ def _funnel_uris(db: Session, session_id: uuid.UUID) -> list[str]:
             OAuthClient.is_active.is_(True),
             OAuthClient.logout_uri.is_not(None),
             OAuthClient.logout_uri != "",
-            (OAuthClient.backchannel_logout_uri.is_(None))
-            | (OAuthClient.backchannel_logout_uri == ""),
         )
         .order_by(OAuthClient.created_at.asc())
     ).all()
@@ -767,7 +769,7 @@ def logout(
                 ip=request.client.host if request.client else None,
                 user_agent=request.headers.get("user-agent"),
             )
-            targets = collect_logout_targets(db, [session.id])
+            targets = collect_logout_targets_for_user(db, session.user_id)
             if targets:
                 background_tasks.add_task(dispatch_backchannel_logout, targets)
             funnel_uris = _funnel_uris(db, session.id)
