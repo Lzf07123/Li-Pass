@@ -3,6 +3,7 @@ from urllib.parse import parse_qs, urlparse
 from sqlalchemy import select
 
 from app.core.config import get_settings
+from app.models.oidc_client_session import OIDCClientSession
 from app.models.user import User
 from app.security.jwt import decode_token, userinfo_audience
 from tests.helpers import TEST_VERIFIER, authorize_params, create_client, register_and_login
@@ -66,6 +67,20 @@ def test_token_and_userinfo_flow(client, captured_email, db_session) -> None:
     id_claims = decode_token(body["id_token"], audience="cli_demo")
     assert id_claims["nonce"] == "n-1"
     assert id_claims["aud"] == "cli_demo"
+
+
+def test_id_token_contains_sid_and_records_client_session(
+    client, captured_email, db_session
+) -> None:
+    code = get_code(client, captured_email, db_session)
+    response = exchange(client, code)
+    assert response.status_code == 200
+    claims = decode_token(response.json()["id_token"], audience="cli_demo")
+    assert claims["sid"]
+    link = db_session.scalar(select(OIDCClientSession))
+    assert link is not None
+    assert link.sid == claims["sid"]
+    assert link.client_id is not None
 
 
 def test_code_is_single_use(client, captured_email, db_session) -> None:

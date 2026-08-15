@@ -79,6 +79,7 @@ def approve(
         pending.code_challenge,
         pending.code_challenge_method,
         session.auth_method,
+        session.id,
     )
     consent = db.scalar(
         select(UserConsent).where(

@@ -1,6 +1,7 @@
 import base64
 import hashlib
 import secrets
+import uuid
 from datetime import datetime, timedelta, timezone
 from urllib.parse import urlencode
 
@@ -56,6 +57,7 @@ def create_authorization_code(
     code_challenge: str | None = None,
     code_challenge_method: str = "S256",
     auth_method: str = "password",
+    session_id: uuid.UUID | None = None,
 ) -> str:
     settings = get_settings()
     code = secrets.token_urlsafe(32)
@@ -70,6 +72,7 @@ def create_authorization_code(
             code_challenge=code_challenge,
             code_challenge_method=code_challenge_method,
             auth_method=auth_method,
+            session_id=session_id,
             expires_at=datetime.now(timezone.utc)
             + timedelta(minutes=settings.oauth_code_ttl_minutes),
         )

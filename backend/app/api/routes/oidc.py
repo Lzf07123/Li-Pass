@@ -14,6 +14,7 @@ from app.core.config import get_settings
 from app.core.db import get_db
 from app.models.authorization_code import AuthorizationCode
 from app.models.oauth_client import OAuthClient
+from app.models.oidc_client_session import OIDCClientSession
 from app.models.user import User, UserStatus
 from app.models.user_consent import UserConsent
 from app.security.jwt import (
@@ -119,6 +120,7 @@ def authorize(
             code_challenge,
             code_challenge_method,
             session.auth_method,
+            session.id,
         )
         log_audit(
             db,
@@ -234,6 +236,23 @@ def token(
     if find_block(db, client.id, user) is not None:
         raise HTTPException(status.HTTP_403_FORBIDDEN, "该账号已被此网站限制访问")
 
+    if record.session_id is not None:
+        link = db.scalar(
+            select(OIDCClientSession).where(
+                OIDCClientSession.session_id == record.session_id,
+                OIDCClientSession.client_id == client.id,
+            )
+        )
+        if link is None:
+            db.add(
+                OIDCClientSession(
+                    session_id=record.session_id,
+                    client_id=client.id,
+                    user_id=user.id,
+                )
+            )
+            db.commit()
+
     settings = get_settings()
     return {
         "access_token": create_access_token(user, client.client_id, record.scope),
@@ -247,6 +266,7 @@ def token(
             "urn:portal-oss:acr:2fa"
             if record.auth_method in ("email_otp", "totp", "recovery")
             else "urn:portal-oss:acr:1fa",
+            sid=str(record.session_id) if record.session_id else None,
         ),
     }
 

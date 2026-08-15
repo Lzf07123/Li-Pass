@@ -138,6 +138,7 @@ def create_id_token(
     nonce: str | None,
     scope: str,
     acr: str = "urn:portal-oss:acr:1fa",
+    sid: str | None = None,
 ) -> str:
     settings = get_settings()
     now = _now()
@@ -152,6 +153,8 @@ def create_id_token(
         "acr": acr,
         "scope": scope,
     }
+    if sid:
+        payload["sid"] = sid
     # 按授权 scope 裁剪 claims（与 userinfo 保持一致）。
     if "email" in scopes:
         payload["email"] = user.email
