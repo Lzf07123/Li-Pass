@@ -89,6 +89,9 @@ docker compose -f docker-compose.yaml --env-file .env exec backend \
 | `LOGIN_RATE_LIMIT` / `LOGIN_RATE_WINDOW_SECONDS` | 按邮箱+IP 的登录失败次数限流（默认 5 次/15 分钟，第 6 次失败返回 429） |
 | `LOGIN_IP_RATE_LIMIT` / `LOGIN_IP_RATE_WINDOW_SECONDS` | 按来源 IP 的登录尝试次数限流（默认 20 次/15 分钟，在 Argon2 之前前置拦截） |
 | `LOGIN_EMAIL_RATE_LIMIT` / `LOGIN_EMAIL_RATE_WINDOW_SECONDS` | 全局限邮箱登录限流，防分布式 IP 爆破（默认 10 次/15 分钟）。注意这是短时账号级锁定：窗口内对同一邮箱的尝试超过阈值后，无论来源 IP 都会被拒绝，攻击者可用错误密码尝试暂时锁住目标账号；需在防爆破与可用性之间权衡 |
+| `STEPUP_WINDOW_MINUTES` | 敏感操作 step-up 复核窗口时长（默认 `30` 分钟）：一次密码复核后，该会话窗口内执行其它敏感操作免再次输入密码；`0` 关闭窗口（每操作必验）。窗口按会话隔离且固定时长，登录成功不自动授窗 |
+| `STEPUP_RATE_LIMIT` / `STEPUP_RATE_WINDOW_SECONDS` | 按邮箱+IP 的敏感操作复核失败限流（默认 5 次/15 分钟，第 6 次失败返回 429） |
+| `STEPUP_EMAIL_RATE_LIMIT` / `STEPUP_EMAIL_RATE_WINDOW_SECONDS` | 全局限邮箱复核尝试限流，防持有会话的分布式爆破（默认 10 次/15 分钟；短时账号锁定权衡与登录邮箱限流一致） |
 | `CLIENT_BLOCK_RATE_LIMIT` / `CLIENT_BLOCK_RATE_WINDOW_SECONDS` | OAuth 客户端黑名单接口限流（默认 100 次/小时/client_id）。计数包含列表（GET）接口，高频轮询同样计入 |
 | `AUDIT_RETENTION_DAYS` | 审计日志保留天数，超期由后台维护任务删除（默认 180，且必须 ≥1 无法关闭）。安全审计痕迹到期即删，合规要求长期留存时请显式调大 |
 | `SESSION_RETENTION_DAYS` | 已吊销/已过期会话保留天数，超期由后台维护任务删除（默认 30）。空闲超时会话在访问时惰性吊销，此处按过期时间兜底删除 |
@@ -168,6 +171,7 @@ SMTP_RETRY_DELAY_SECONDS=1
 
 - 登录后 2FA 验证码、手机绑定验证码：`OTP_SEND_LIMIT=5` 次/小时/邮箱；2FA 进入二次验证页不自动发信，需用户点击“获取验证码”，重发最小间隔 `OTP_RESEND_COOLDOWN_SECONDS`（默认 60 秒）
 - 登录失败：每邮箱+IP `LOGIN_RATE_LIMIT=5` 次/15 分钟（第 6 次失败返回 429），每 IP `LOGIN_IP_RATE_LIMIT=20` 次/15 分钟，全局限邮箱 `LOGIN_EMAIL_RATE_LIMIT=10` 次/15 分钟；邮箱级限流附带短时账号锁定权衡，见上表说明
+- 敏感操作复核失败：每邮箱+IP `STEPUP_RATE_LIMIT=5` 次/15 分钟、全局限邮箱 `STEPUP_EMAIL_RATE_LIMIT=10` 次/15 分钟（复核窗口见 `STEPUP_WINDOW_MINUTES`）
 - 邮箱激活验证码重发与验证尝试：`EMAIL_VERIFY_RATE_LIMIT=30` 次/小时/邮箱（不按 IP 限流，避免办公网/NAT 共享出口误伤）
 - 注册/邀请注册接口：`REGISTER_RATE_LIMIT=10` 次/小时/IP
 - 找回密码：`PASSWORD_RESET_RATE_LIMIT=5` 次/小时/邮箱（不按 IP 限流）
