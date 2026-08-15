@@ -5,10 +5,10 @@ from tests.helpers import register_and_login
 
 def test_email_2fa_enable_disable(client, captured_email) -> None:
     register_and_login(client, captured_email)
-    # 开启/关闭都必须提供当前密码
-    assert (
-        client.post("/api/v1/me/2fa/email/enable").status_code == 422
-    )
+    # 开启/关闭都必须提供当前密码或处于 step-up 窗口内
+    response = client.post("/api/v1/me/2fa/email/enable", json={})
+    assert response.status_code == 403
+    assert response.json()["detail"] == "需要重新验证密码"
     response = client.post(
         "/api/v1/me/2fa/email/enable",
         json={"current_password": "password123"},

@@ -41,7 +41,8 @@ def test_admin_reset_password_requires_current_password(
         f"/api/v1/admin/users/{user.id}/reset-password",
         json={"new_password": "newpass123"},
     )
-    assert response.status_code == 422
+    assert response.status_code == 403
+    assert response.json()["detail"] == "需要重新验证密码"
 
     response = client.post(
         f"/api/v1/admin/users/{user.id}/reset-password",
@@ -63,7 +64,8 @@ def test_admin_reset_twofa_requires_current_password(
     user = _make_user(db_session)
 
     response = client.post(f"/api/v1/admin/users/{user.id}/reset-2fa", json={})
-    assert response.status_code == 422
+    assert response.status_code == 403
+    assert response.json()["detail"] == "需要重新验证密码"
 
     response = client.post(
         f"/api/v1/admin/users/{user.id}/reset-2fa",
@@ -139,7 +141,8 @@ def test_admin_role_promotion_requires_current_password(
         f"/api/v1/admin/users/{user.id}",
         json={"role": "admin"},
     )
-    assert response.status_code == 400
+    assert response.status_code == 403
+    assert response.json()["detail"] == "需要重新验证密码"
 
     response = client.patch(
         f"/api/v1/admin/users/{user.id}",

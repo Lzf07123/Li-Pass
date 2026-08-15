@@ -36,7 +36,7 @@ from app.schemas.auth import (
     UserOut,
     serialize_user,
 )
-from app.security.passwords import hash_password, verify_password
+from app.security.passwords import hash_password
 from app.services.account_deletion import delete_user_account
 from app.services.device_info import describe_session_device
 from app.services.avatar_cleanup import delete_avatar_file
@@ -150,10 +150,10 @@ def change_password(
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> dict:
-    if not verify_password(payload.current_password, user.password_hash):
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, "当前密码错误")
+    session = get_current_session(request, db)
+    authorize_stepup(request, db, user, session, payload.current_password)
     user.password_hash = hash_password(payload.new_password)
-    current = get_current_session(request, db)
+    current = session
     others = db.scalars(
         select(SessionModel).where(
             SessionModel.user_id == user.id,
@@ -175,9 +175,10 @@ def delete_own_account(
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> dict:
-    # 注销账号不可逆：必须本人当前密码复核，防止会话被窃取后静默注销。
-    if not verify_password(payload.current_password, user.password_hash):
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, "当前密码错误")
+    # 注销账号不可逆：必须本人复核（密码或 30 分钟窗口），
+    # 防止会话被窃取后静默注销。
+    session = get_current_session(request, db)
+    authorize_stepup(request, db, user, session, payload.current_password)
     if user.role == UserRole.admin:
         admin_count = db.scalar(
             select(func.count()).select_from(User).where(User.role == UserRole.admin)

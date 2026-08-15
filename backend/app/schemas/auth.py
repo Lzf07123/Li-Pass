@@ -79,7 +79,8 @@ class ProfileUpdate(BaseModel):
 
 
 class PasswordChange(BaseModel):
-    current_password: str = Field(min_length=1, max_length=128)
+    # 处于 step-up 窗口内时可省略：30 分钟内已复核过密码。
+    current_password: str | None = Field(default=None, min_length=1, max_length=128)
     new_password: str = Field(min_length=8, max_length=128)
 
 
@@ -141,11 +142,11 @@ class TwoFaTotpEnable(BaseModel):
         max_length=128,
         pattern=r"^[A-Za-z2-7]+$",
     )
-    current_password: str = Field(min_length=1, max_length=128)
+    current_password: str | None = Field(default=None, min_length=1, max_length=128)
 
 
 class PasswordConfirm(BaseModel):
-    current_password: str = Field(min_length=1, max_length=128)
+    current_password: str | None = Field(default=None, min_length=1, max_length=128)
 
 
 class StepUpVerifyRequest(BaseModel):
