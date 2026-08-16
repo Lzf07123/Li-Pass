@@ -24,6 +24,8 @@ export type MagicBentoItem = {
   footer?: ReactNode;
   /** 内部路由地址：传入后整卡渲染为可点击链接 */
   href?: string;
+  /** 卡片级强调色：rgb 为辉光/粒子用的 RGB 三元组，hex 为标签/图标文字色 */
+  accent?: { rgb: string; hex: string };
 };
 
 export type MagicBentoProps = {
@@ -582,8 +584,11 @@ export function MagicBento({
           const baseClassName = `magic-bento-card ${
             textAutoHide ? "magic-bento-card--text-autohide" : ""
           } ${enableBorderGlow ? "magic-bento-card--border-glow" : ""}`.trim();
+          const cardAccent = card.accent;
+          const cardGlow = cardAccent?.rgb ?? resolvedGlowColor;
           const cardStyle = {
-            "--glow-color": resolvedGlowColor,
+            "--glow-color": cardGlow,
+            ...(cardAccent?.hex ? { "--bento-label": cardAccent.hex } : {}),
           } as CSSProperties;
 
           const content = (
@@ -622,7 +627,7 @@ export function MagicBento({
                 style={cardStyle}
                 disableAnimations={shouldDisableAnimations}
                 particleCount={particleCount}
-                glowColor={resolvedGlowColor}
+                glowColor={cardGlow}
                 enableTilt={enableTilt}
                 clickEffect={clickEffect}
                 enableMagnetism={enableMagnetism}

@@ -67,6 +67,33 @@
   color: var(--portal-primary-fg);
 }
 
+/* 活动标签流动扫光：与主按钮同一节奏，标签文字始终压在光层之上 */
+.pill-tab.is-active::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(
+    105deg,
+    transparent 42%,
+    rgba(255, 255, 255, 0.32) 50%,
+    transparent 58%
+  );
+  transform: translateX(-130%);
+  animation: btn-sheen 5s var(--ease-out) 1.5s infinite;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.dark .pill-tab.is-active::after {
+  background: linear-gradient(
+    105deg,
+    transparent 42%,
+    rgba(8, 47, 73, 0.22) 50%,
+    transparent 58%
+  );
+}
+
 .pill-tab.is-active .pill-tab-circle {
   display: none;
 }

@@ -16,6 +16,10 @@ export function AppHeader({
 }) {
   return (
     <header className="sticky top-0 z-20 border-b border-border bg-surface/85 backdrop-blur">
+      <span
+        aria-hidden="true"
+        className="flow-rule absolute inset-x-0 bottom-0 h-px rounded-none"
+      />
       <div className="mx-auto flex h-16 max-w-7xl items-center gap-3 px-4 sm:px-6 lg:px-8">
         <Link
           to="/"

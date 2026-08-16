@@ -8,6 +8,7 @@ import { FloatingBackground } from "../components/FloatingBackground";
 import { PageSkeleton } from "../components/PageSkeleton";
 import { PillTabs } from "../components/PillTabs";
 import { SiteFooter } from "../components/SiteFooter";
+import { AuroraBackground } from "../components/bits/AuroraBackground";
 import { FadeIn } from "../components/bits/FadeIn";
 import { useSessionIdle } from "../hooks/useSessionIdle";
 
@@ -118,6 +119,8 @@ export function AdminPage() {
         shapeCount={4}
         opacity={0.5}
       />
+      {/* 流动光层：后台浓度再降一档，仅作极淡的色彩呼吸 */}
+      <AuroraBackground className="aurora-soft" />
       <AppHeader
         title="管理后台"
         actions={
