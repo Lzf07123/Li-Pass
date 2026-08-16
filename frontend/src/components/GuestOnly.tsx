@@ -17,7 +17,7 @@ export function GuestOnly({ children }: { children: ReactNode }) {
   useEffect(() => {
     let cancelled = false;
     authApi
-      .me()
+      .meSilent()
       .then(() => {
         if (!cancelled) setStatus("authed");
       })

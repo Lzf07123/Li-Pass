@@ -32,7 +32,19 @@ import type {
 const BASE_URL: string = import.meta.env.VITE_API_BASE_URL ?? "";
 export const API_BASE_URL = BASE_URL;
 
-async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
+interface ApiOptions {
+  /**
+   * 静默会话探针：401 视为预期结果（如访客守卫的 me 探测），
+   * 不派发全局 lipass:unauthorized 跳转事件。
+   */
+  silent401?: boolean;
+}
+
+async function api<T>(
+  path: string,
+  init: RequestInit = {},
+  options: ApiOptions = {},
+): Promise<T> {
   const response = await fetch(`${BASE_URL}${path}`, {
     ...init,
     credentials: "include",
@@ -43,7 +55,11 @@ async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
       ...(init.headers ?? {}),
     },
   });
-  if (response.status === 401 && isSessionGuardedPath(path)) {
+  if (
+    response.status === 401 &&
+    isSessionGuardedPath(path) &&
+    !options.silent401
+  ) {
     // 会话被吊销/过期：通知全局监听器清空用户态并带 next 跳登录。
     // 登录/找回密码等认证端点自身的 401 不触发，避免误跳。
     window.dispatchEvent(new Event("lipass:unauthorized"));
@@ -137,6 +153,8 @@ export const authApi = {
       method: "POST",
     }),
   me: () => api<UserOut>("/api/v1/me"),
+  meSilent: () =>
+    api<UserOut>("/api/v1/me", {}, { silent401: true }),
   requestPasswordReset: (data: { email: string }) =>
     api<{ message: string }>("/api/v1/auth/password/reset", {
       method: "POST",
