@@ -21,6 +21,9 @@
   --color-primary-soft: var(--portal-primary-soft);
   --color-primary-foreground: var(--portal-primary-fg);
 
+  --color-secondary: var(--portal-secondary);
+  --color-secondary-soft: var(--portal-secondary-soft);
+
   --color-success: var(--portal-success);
   --color-success-soft: var(--portal-success-soft);
   --color-warning: var(--portal-warning);
@@ -28,6 +31,19 @@
   --color-destructive: var(--portal-destructive);
   --color-destructive-soft: var(--portal-destructive-soft);
   --color-destructive-foreground: var(--portal-destructive-fg);
+
+  --color-accent-cyan: var(--portal-accent-cyan);
+  --color-accent-cyan-soft: var(--portal-accent-cyan-soft);
+  --color-accent-teal: var(--portal-accent-teal);
+  --color-accent-teal-soft: var(--portal-accent-teal-soft);
+  --color-accent-indigo: var(--portal-accent-indigo);
+  --color-accent-indigo-soft: var(--portal-accent-indigo-soft);
+  --color-accent-violet: var(--portal-accent-violet);
+  --color-accent-violet-soft: var(--portal-accent-violet-soft);
+  --color-accent-amber: var(--portal-accent-amber);
+  --color-accent-amber-soft: var(--portal-accent-amber-soft);
+  --color-accent-rose: var(--portal-accent-rose);
+  --color-accent-rose-soft: var(--portal-accent-rose-soft);
 
   --color-ring: var(--portal-ring);
 }
@@ -49,6 +65,9 @@
   --portal-primary-soft: #e0f2fe;
   --portal-primary-fg: #ffffff;
 
+  --portal-secondary: #0ea5e9;
+  --portal-secondary-soft: #e0f2fe;
+
   --portal-success: #15803d;
   --portal-success-soft: #f0fdf4;
   --portal-warning: #b45309;
@@ -56,6 +75,19 @@
   --portal-destructive: #dc2626;
   --portal-destructive-soft: #fef2f2;
   --portal-destructive-fg: #ffffff;
+
+  --portal-accent-cyan: #0e7490;
+  --portal-accent-cyan-soft: #cffafe;
+  --portal-accent-teal: #0f766e;
+  --portal-accent-teal-soft: #ccfbf1;
+  --portal-accent-indigo: #4338ca;
+  --portal-accent-indigo-soft: #e0e7ff;
+  --portal-accent-violet: #6d28d9;
+  --portal-accent-violet-soft: #ede9fe;
+  --portal-accent-amber: #b45309;
+  --portal-accent-amber-soft: #fef3c7;
+  --portal-accent-rose: #be123c;
+  --portal-accent-rose-soft: #ffe4e6;
 
   --portal-ring: #0369a1;
 
@@ -97,6 +129,9 @@
   --portal-primary-soft: rgba(56, 189, 248, 0.14);
   --portal-primary-fg: #082f49;
 
+  --portal-secondary: #7dd3fc;
+  --portal-secondary-soft: rgba(125, 211, 252, 0.14);
+
   --portal-success: #4ade80;
   --portal-success-soft: rgba(74, 222, 128, 0.12);
   --portal-warning: #fbbf24;
@@ -104,6 +139,19 @@
   --portal-destructive: #f87171;
   --portal-destructive-soft: rgba(248, 113, 113, 0.12);
   --portal-destructive-fg: #450a0a;
+
+  --portal-accent-cyan: #67e8f9;
+  --portal-accent-cyan-soft: rgba(103, 232, 249, 0.14);
+  --portal-accent-teal: #5eead4;
+  --portal-accent-teal-soft: rgba(94, 234, 212, 0.14);
+  --portal-accent-indigo: #a5b4fc;
+  --portal-accent-indigo-soft: rgba(165, 180, 252, 0.16);
+  --portal-accent-violet: #c4b5fd;
+  --portal-accent-violet-soft: rgba(196, 181, 253, 0.16);
+  --portal-accent-amber: #fcd34d;
+  --portal-accent-amber-soft: rgba(252, 211, 77, 0.14);
+  --portal-accent-rose: #fda4af;
+  --portal-accent-rose-soft: rgba(253, 164, 175, 0.14);
 
   --portal-ring: #38bdf8;
 
@@ -181,6 +229,12 @@
           rgba(3, 105, 161, 0.5) 100%
         )
         border-box;
+    /* 描边渐变缓慢流动：只动 background-position（第二层），
+       避免 transform 破坏 padding-box 表面。 */
+    background-size:
+      100% 100%,
+      300% 300%;
+    animation: signature-flow 14s linear infinite;
   }
   .dark .card-signature {
     background:
@@ -227,6 +281,34 @@
       background-position var(--motion-base) var(--ease-out),
       box-shadow var(--motion-fast) var(--ease-out),
       transform var(--motion-base) var(--ease-spring);
+  }
+  /* 主按钮流动扫光：斜向高光从左到右扫过并长时间停顿，
+     仅动 transform（GPU 合成），disabled 不发光。 */
+  .btn-primary::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: linear-gradient(
+      105deg,
+      transparent 42%,
+      rgba(255, 255, 255, 0.38) 50%,
+      transparent 58%
+    );
+    transform: translateX(-130%);
+    animation: btn-sheen 5s var(--ease-out) 1.5s infinite;
+    pointer-events: none;
+  }
+  .dark .btn-primary::after {
+    background: linear-gradient(
+      105deg,
+      transparent 42%,
+      rgba(8, 47, 73, 0.22) 50%,
+      transparent 58%
+    );
+  }
+  .btn-primary:disabled::after {
+    display: none;
   }
   .btn-primary:not(:disabled):hover {
     background-position: 50% 100%;
@@ -315,6 +397,25 @@
   }
   .notice-info .notice-icon {
     @apply bg-primary/10 text-primary;
+  }
+
+  /* 流光规则线：分区标题下的短装饰线或顶栏底部的全长渐变线，
+     背景位移制造「颜色在流动」的呼吸感。 */
+  .flow-rule {
+    display: block;
+    height: 3px;
+    border-radius: 9999px;
+    background: linear-gradient(
+      90deg,
+      var(--portal-primary),
+      var(--portal-secondary),
+      var(--portal-accent-indigo),
+      var(--portal-accent-violet),
+      var(--portal-accent-teal),
+      var(--portal-primary)
+    );
+    background-size: 250% 100%;
+    animation: flow-line-shift 8s linear infinite;
   }
 
   /* ========== Toast 弹窗通知 ========== */
@@ -806,6 +907,14 @@
     opacity: 0.5;
     will-change: transform;
   }
+  /* 已登录页的极光层：同一批光斑，但浓度减半，作为页面「流动光」底；
+     认证页保持默认浓度，不套用此包装类。 */
+  .aurora-soft .aurora-blob {
+    opacity: 0.3;
+  }
+  .dark .aurora-soft .aurora-blob {
+    opacity: 0.24;
+  }
   .aurora-blob-1 {
     top: -16rem;
     left: 50%;
@@ -873,6 +982,35 @@
 }
 
 @layer utilities {
+  @keyframes signature-flow {
+    from {
+      background-position:
+        0 0,
+        0% 50%;
+    }
+    to {
+      background-position:
+        0 0,
+        100% 50%;
+    }
+  }
+
+  @keyframes btn-sheen {
+    0% {
+      transform: translateX(-130%);
+    }
+    45%,
+    100% {
+      transform: translateX(130%);
+    }
+  }
+
+  @keyframes flow-line-shift {
+    to {
+      background-position: -250% 0;
+    }
+  }
+
   @keyframes portal-shiny-flow {
     0% {
       background-position: 150% center;
