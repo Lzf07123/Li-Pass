@@ -29,12 +29,20 @@ export function LogoutConfirmPage() {
       );
   }, [requestId]);
 
-  const decideAction = useAsyncAction(
-    async (scope: "sso" | "local") => {
-      const result =
-        scope === "sso"
-          ? await oauthApi.confirmLogoutRequest(requestId)
-          : await oauthApi.localOnlyLogoutRequest(requestId);
+  const ssoLogoutAction = useAsyncAction(
+    async () => {
+      const result = await oauthApi.confirmLogoutRequest(requestId);
+      window.location.href = result.redirect_url;
+    },
+    {
+      onError: (err) =>
+        toast.error(err instanceof Error ? err.message : "操作失败"),
+    },
+  );
+
+  const localLogoutAction = useAsyncAction(
+    async () => {
+      const result = await oauthApi.localOnlyLogoutRequest(requestId);
       window.location.href = result.redirect_url;
     },
     {
@@ -73,8 +81,9 @@ export function LogoutConfirmPage() {
                 </div>
                 <AsyncButton
                   type="button"
-                  status={decideAction.status}
-                  onClick={() => void decideAction.run("sso")}
+                  status={ssoLogoutAction.status}
+                  disabled={localLogoutAction.pending}
+                  onClick={() => void ssoLogoutAction.run()}
                   className="btn btn-danger shrink-0"
                 >
                   登出 SSO
@@ -91,8 +100,9 @@ export function LogoutConfirmPage() {
                 </div>
                 <AsyncButton
                   type="button"
-                  status={decideAction.status}
-                  onClick={() => void decideAction.run("local")}
+                  status={localLogoutAction.status}
+                  disabled={ssoLogoutAction.pending}
+                  onClick={() => void localLogoutAction.run()}
                   className="btn btn-secondary shrink-0"
                 >
                   仅登出本网站

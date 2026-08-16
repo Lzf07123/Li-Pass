@@ -93,4 +93,37 @@ describe("ConsentPage", () => {
       configurable: true,
     });
   });
+
+  it("处理中状态只出现在被点击的按钮上", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            request_id: "r1",
+            client: { name: "Demo", logo_url: null, description: "" },
+            scopes: ["openid"],
+            user: { email: "a@example.com", nickname: "Alice" },
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } }
+        )
+      )
+      .mockImplementationOnce(() => new Promise(() => {}));
+    vi.stubGlobal("fetch", fetchMock);
+
+    renderWithProviders(<ConsentPage />, ["/consent?request_id=r1"]);
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "同意授权" })).toBeInTheDocument()
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "同意授权" }));
+    const pendingButton = await screen.findByRole("button", {
+      name: "处理中…",
+    });
+    expect(pendingButton).toHaveAttribute("aria-busy", "true");
+
+    const denyButton = screen.getByRole("button", { name: "拒绝" });
+    expect(denyButton).not.toHaveAttribute("aria-busy");
+    expect(denyButton).toBeDisabled();
+  });
 });

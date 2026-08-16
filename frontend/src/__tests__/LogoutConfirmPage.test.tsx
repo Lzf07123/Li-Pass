@@ -94,4 +94,34 @@ describe("LogoutConfirmPage", () => {
       expect(screen.getByText("缺少登出请求参数")).toBeInTheDocument()
     );
   });
+
+  it("处理中状态只出现在被点击的按钮上", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ client_name: "Demo" }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        })
+      )
+      .mockImplementationOnce(() => new Promise(() => {}));
+    vi.stubGlobal("fetch", fetchMock);
+
+    renderWithProviders(<LogoutConfirmPage />, [
+      "/logout/confirm?request_id=r1",
+    ]);
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "登出 SSO" })).toBeInTheDocument()
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "登出 SSO" }));
+    const pendingButton = await screen.findByRole("button", {
+      name: "处理中…",
+    });
+    expect(pendingButton).toHaveAttribute("aria-busy", "true");
+
+    const localButton = screen.getByRole("button", { name: "仅登出本网站" });
+    expect(localButton).not.toHaveAttribute("aria-busy");
+    expect(localButton).toBeDisabled();
+  });
 });
