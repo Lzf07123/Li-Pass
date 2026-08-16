@@ -27,6 +27,7 @@
 
 ### 安全加固
 
+- 黑名单接口参数类型收紧：`ClientBlockCreate.user_id` 改为 UUID 类型校验，畸形 `user_id` 返回 422（此前被 `except ValueError` 误捕获为语义错位的 409，错误文案为 UUID 解析异常）。客户端自助接口与管理端接口同步生效。
 - OIDC 客户端 scope 收口：`ClientCreate/ClientUpdate` 只接受 `openid/profile/email` 且必须包含 `openid`，与发现文档的 `scopes_supported` 一致，杜绝注册 `phone` 等本 IdP 不会输出的 scope 造成 RP 误解；`ClientUpdate` 同时拒绝把 `redirect_uris`/`scopes` 清成空列表（此前会立刻使客户端不可用）。
 - token 端点参数长度上限：`code`（512）、`redirect_uri`（1000）、`client_id`（128）、`client_secret`（256）、`code_verifier`（200）与 authorize 端点对齐，避免直连后端部署形态下超长表单字段造成内存/CPU 放大；PKCE 校验补全 RFC 7636——`code_verifier` 长度窗口 43–128，`code_challenge` 必须为 43–128 字符 base64url。
 - 登出确认请求绑定发起会话：`POST /api/v1/oauth/logout-requests/{id}/confirm` 与 `/local-only` 校验待确认请求的 `sid` 与当前门户会话一致，跨会话确认返回 404；`local-only` 不再允许无会话调用，堵住他人会话确认并混用发起者回跳地址/state 的串号路径。

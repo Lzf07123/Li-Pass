@@ -6,6 +6,7 @@
 
 import shutil
 import urllib.parse
+import base64
 
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import sessionmaker
@@ -13,8 +14,10 @@ from sqlalchemy.orm import sessionmaker
 from app.core.config import get_settings
 from app.core.db import get_db
 from app.main import create_app
+from app.models.oauth_client import OAuthClient
 from app.models.user import User, UserRole
 from app.security.passwords import hash_password
+from app.security.tokens import hash_token
 from app.services.oidc import create_authorization_code
 from tests.helpers import (
     authorize_params,
@@ -127,6 +130,26 @@ def test_bind_phone_duplicate_returns_409(client, captured_email) -> None:
         json={"phone": "+8613800000001", "code": code},
     )
     assert resp.status_code == 409
+
+
+def test_client_block_rejects_malformed_user_id(client, db_session) -> None:
+    """畸形 user_id 应在参数校验层返回 422，而不是语义错位的 409。"""
+    db_session.add(
+        OAuthClient(
+            client_id="cli_bad",
+            client_secret_hash=hash_token("secret123"),
+            name="Bad",
+            redirect_uris=["http://x/cb"],
+        )
+    )
+    db_session.commit()
+    token = base64.b64encode(b"cli_bad:secret123").decode()
+    resp = client.post(
+        "/oauth2/client/blocks",
+        headers={"Authorization": f"Basic {token}"},
+        json={"user_id": "not-a-uuid", "reason": "x"},
+    )
+    assert resp.status_code == 422
 
 
 def _login_admin(client, db_session) -> None:

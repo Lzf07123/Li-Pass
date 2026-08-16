@@ -30,6 +30,35 @@ OIDC 授权回跳、RP 登出回跳、401 兜底、邀请注册、找回密码�
 B6（密码复杂度策略）与 B8（状态变更纳入 step-up）属产品策略取舍，未在本次改动；
 B7 的 PKCE 格式校验已随 B3 一并落地。本机 SMTP 凭据（526 认证失败）需运维侧更换。
 
+## 0.1 第二轮全量审查补充（2026-08-16）
+
+覆盖面：后端剩余服务（email/geoip/device_info/blocks/site_settings/notifications/
+maintenance/avatar_cleanup/system_info/admin_stats/ip2region_update）、core/db 与
+redis、剩余模型、全部 19 个 Alembic 迁移（含 downgrade）、运维脚本
+（make_admin/demote/rotate_jwt_key/download_ip2region/backup/restore）、CI、
+前端 DashboardPage 全量与 8 个管理面板、Modal/ConfirmDialog/MessageBell/
+StepUp2faForm/useStepUp/useAsyncAction/ToastProvider、vite/package 构建配置。
+
+结论：未发现新的中/高危问题；认证与数据层防护扎实。新增低危项与观察：
+
+- ✅ 已修复：黑名单接口畸形 `user_id` 返回语义错位的 409（UUID 转换异常被
+  `except ValueError` 误捕获）。现 `ClientBlockCreate.user_id` 用 UUID 类型校验，
+  畸形输入返回 422；TDD 红绿验证 + 全量 474 测试通过。
+- [P4] 管理后台统计「在线会话」只按 `expires_at` 判断，未剔除空闲超时但尚未
+  过期的会话，统计口径偏大（仅展示层）。
+- [P4] 迁移 `a1b2c3d4e5f6` 将 timestamp→timestamptz 时按数据库会话时区
+  （容器 TZ=Asia/Shanghai）重解释存量 naive 时间；若历史写入的是 UTC naive 值，
+  会引入 8 小时偏移。已在线存量环境执行，建议人工抽检历史会话/审计时间。
+- [P4] `ClientBlockCreate.email` 无邮箱格式校验（任意字符串可落库；仅做等值
+  比较，无实际风险）。
+- [观察] 「站点设置/公开注册开关」「禁用/启用用户」「修改客户端配置」不需要
+  step-up 密码复核（与既有敏感操作清单一致，属设计取舍）。
+
+正向确认：邮件 HTML 模板对动态内容全量转义；Modal 有焦点陷阱/Escape/背景关闭；
+AsyncButton 防重复提交；useStepUp 以后端为权威判定；geoip/设备解析对损坏数据
+容错；全部迁移 downgrade 完整（1 处文档化的 no-op）；备份脚本 `set -euo pipefail`、
+恢复需交互确认。第二轮验证证据：后端 pytest 474 通过、前端 tsc/lint/145 测试通过。
+
 ## 1. 审计范围与方法
 
 - 事实来源：README / CHANGELOG / docs/deployment.md / docs/oidc-integration.md / git 历史。
