@@ -30,31 +30,31 @@
 
 | 角色 | 浅色 | 深色 | Tailwind 令牌 |
 | --- | --- | --- | --- |
-| 背景 | `#F6FBF9` | `#172321` | `bg-background` |
-| 表面 | `#FFFFFF` | `#21302C` | `bg-surface` |
-| 表面 2 | `#EEF6F3` | `#2A3B36` | `bg-surface-2` |
-| 前景 | `#35423F` | `#E9F2EF` | `text-foreground` |
-| 弱化文本 | `#71807A` | `#9FB4AE` | `text-muted` |
-| 边框 | `#E1ECE8` | `#324640` | `border-border` |
+| 背景 | `#F6FBF9` | `#3A3F45` | `bg-background` |
+| 表面 | `#FFFFFF` | `#434950` | `bg-surface` |
+| 表面 2 | `#EEF6F3` | `#4B5259` | `bg-surface-2` |
+| 前景 | `#35423F` | `#F0F2F4` | `text-foreground` |
+| 弱化文本 | `#71807A` | `#B8C0C7` | `text-muted` |
+| 边框 | `#E1ECE8` | `#545C64` | `border-border` |
 | 主色 | `#2F7F74` | `#7FD4C6` | `bg-primary / text-primary` |
 | 主色悬停 | `#27685F` | `#A5E4D9` | `hover:bg-primary-hover` |
-| 主色前景 | `#FFFFFF` | `#12312B` | `text-primary-foreground` |
-| 次级色 | `#4A8FBF` | `#8FC7F0` | `text-secondary / bg-secondary-soft` |
-| 成功 | `#2F8F5F` | `#67DCA8` | `text-success / bg-success-soft` |
-| 警告 | `#A16207` | `#F5D67B` | `text-warning / bg-warning-soft` |
-| 危险 | `#CF3D3D` | `#F27E6E` | `text-destructive / bg-destructive-soft` |
+| 主色前景 | `#FFFFFF` | `#17332E` | `text-primary-foreground` |
+| 次级色 | `#4A8FBF` | `#A8D4F0` | `text-secondary / bg-secondary-soft` |
+| 成功 | `#2F8F5F` | `#86D6AC` | `text-success / bg-success-soft` |
+| 警告 | `#A16207` | `#EAD48E` | `text-warning / bg-warning-soft` |
+| 危险 | `#CF3D3D` | `#E8A49A` | `text-destructive / bg-destructive-soft` |
 | 焦点环 | `#2F7F74` | `#7FD4C6` | `focus:ring-primary/20` |
 
 **强调色板（信息分层，装饰性小面积使用）：**
 
 | 色相 | 浅色 strong / soft | 深色 strong / soft | Tailwind 令牌 |
 | --- | --- | --- | --- |
-| ice | `#4A8FBF` / `#DFF1FA` | `#8FC7F0` / `rgba(143,199,240,.16)` | `text-accent-ice / bg-accent-ice-soft` |
+| ice | `#4A8FBF` / `#DFF1FA` | `#A8CBE8` / `rgba(168,203,232,.16)` | `text-accent-ice / bg-accent-ice-soft` |
 | aqua | `#2F7F74` / `#D9F4EE` | `#7FD4C6` / `rgba(127,212,198,.16)` | `text-accent-aqua / bg-accent-aqua-soft` |
-| lilac | `#7A6FC4` / `#EDEAFB` | `#A9A2E8` / `rgba(169,162,232,.18)` | `text-accent-lilac / bg-accent-lilac-soft` |
-| sage | `#6E8F5E` / `#EAF2E3` | `#A9CC8F` / `rgba(169,204,143,.18)` | `text-accent-sage / bg-accent-sage-soft` |
-| mint | `#3F8F63` / `#E3F6E9` | `#8FE3A3` / `rgba(143,227,163,.16)` | `text-accent-mint / bg-accent-mint-soft` |
-| sand | `#A9865B` / `#F7EFE0` | `#D9BE94` / `rgba(217,190,148,.16)` | `text-accent-sand / bg-accent-sand-soft` |
+| lilac | `#7A6FC4` / `#EDEAFB` | `#B0A8DE` / `rgba(176,168,222,.18)` | `text-accent-lilac / bg-accent-lilac-soft` |
+| sage | `#6E8F5E` / `#EAF2E3` | `#B0C79E` / `rgba(176,199,158,.18)` | `text-accent-sage / bg-accent-sage-soft` |
+| mint | `#3F8F63` / `#E3F6E9` | `#9ADFAD` / `rgba(154,223,173,.16)` | `text-accent-mint / bg-accent-mint-soft` |
+| sand | `#A9865B` / `#F7EFE0` | `#D9C49E` / `rgba(217,196,158,.16)` | `text-accent-sand / bg-accent-sand-soft` |
 
 stable 哈希分配见 `frontend/src/lib/accent.ts` 的 `accentFor(id)`；Bento 深色卡标签色
 （明暗主题共用，卡面恒为深色）另设 `--portal-bento-{ice,aqua,lilac,sage,mint,sand}[-rgb]` 令牌。
@@ -62,8 +62,9 @@ stable 哈希分配见 `frontend/src/lib/accent.ts` 的 `accentFor(id)`；Bento 
 **色彩说明：** 海玻璃（Sea Glass）——磨砂浅水绿 + 冰蓝 + 蛋白石；全淡色系、**无粉色、无重色**。
 前景/背景对比满足 WCAG AA（正文 ≥ 4.5:1）。强调色 strong 均取雾面 600 级（浅色）/300 级（深色），
 配 soft 底时文本对比 ≥ 4.5:1；强调色只做装饰（瓦片/图例/规则线），状态语义色不被替代。
-按钮/签名描边/流光线统一使用粉彩渐变（`--brand-gradient`/`--flow-gradient`），按钮文字用深青
-`--brand-fg` 保证对比。深色模式为柔和的深水绿夜色（不压黑），而非简单反色。
+签名描边与流光线使用粉彩渐变（`--flow-gradient`）；主按钮改为半透明单色着色
+（`--btn-primary-bg`，浅色 10% / 深色 13% 透明度）+ 细描边，文字用 `--brand-fg` 保证对比。
+深色模式为「D1 雾灰」柔和中间调（不压黑），而非简单反色。
 
 ### 字体
 
@@ -109,7 +110,8 @@ stable 哈希分配见 `frontend/src/lib/accent.ts` 的 `accentFor(id)`；Bento 
 
 ### 按钮（`.btn` 系列）
 
-- `.btn-primary`：海玻璃粉彩渐变（`--brand-gradient`）+ 深青文字（`--brand-fg`）；hover 渐变平移并抬升阴影（`background-position` 过渡）。
+- `.btn-primary`：半透明单色着色（`--btn-primary-bg`，浅色 `rgba(47,127,116,.10)`、深色
+  `rgba(127,212,198,.13)`）+ 1px 细描边 + `--brand-fg` 文字；hover 加深底色并抬升阴影，不做多色渐变色块。
 - `.btn-primary::after`：斜向流光扫过按钮并长时间停顿，明暗主题各配不同亮度扫光；`disabled` 关闭。
 - `.btn-secondary`：透明/表面背景 + 边框；hover 换 `surface-2`。
 - `.btn-danger`：危险色背景 + 白色前景；hover 透明度降低。
