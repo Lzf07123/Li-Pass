@@ -4,6 +4,10 @@
 
 ### 破坏性变更
 
+- **OIDC token 端点错误格式对齐 RFC 6749**：`POST /oauth2/token` 的错误响应由 `{"detail": "..."}` 改为标准 `{"error": "...", "error_description": "..."}`（HTTP 状态码不变）。此前按 `detail` 字段解析错误的对接方需同步更新（authorize 回跳、userinfo 与 `/oauth2/client/*` 管理接口不受影响）。详见 [对接指南 §3.3/§7](docs/oidc-integration.md)。
+- **PKCE 对全部客户端强制**：`/oauth2/token` 不再对机密客户端豁免 `code_verifier` 校验（OAuth 2.1 对齐）。authorize 端点本就要求 `code_challenge`，因此新接入方无影响；已有机密客户端换码时必须携带 `code_verifier`。
+- **会话空闲超时配置改名**：`SESSION_IDLE_DAYS`（整数天）→ `SESSION_IDLE_MINUTES`（整数分钟，默认 720，≥5）。旧环境变量不再生效，升级时请把原值换算为分钟写入 `.env`。
+- **移除「记住密码」**：登录页不再提供明文密码 localStorage 持久化，仅保留「记住账号」；历史已落盘的 `lipass.remember.password` 会在下次保存时自动清理。需要免密登录请使用浏览器密码管理器；「记住我」的服务端会话 TTL 不受影响。
 - **强制二次验证（2FA）**：注册验证邮箱后自动启用「邮箱验证码」作为默认第二方案；所有已验证邮箱的账号登录都必须完成 2FA（新迁移 `a2b3c4d5e6f7` 会把历史「已验证且无任何 2FA」的用户批量启用邮箱验证码）。账号必须至少保留一种 2FA 方案：关闭最后一种会被拒绝；管理端「重置 2FA」不再清空，而是恢复默认邮箱验证码。未验证邮箱的账号仍可密码登录，验证邮箱后立即强制。若邮箱不可达，用户可用 TOTP 或恢复码完成登录；需灰度或回滚时参见 [设计文档](docs/superpowers/specs/2026-08-16-mandatory-2fa-design.md)。
 - OIDC `access_token` 的 `aud` 从 `client_id` 改为 `{issuer}/oauth2/userinfo`，并已在 userinfo 端点强制校验。`id_token` 的 `aud` 仍为 `client_id`，不受影响。此前若对接方校验过 `access_token` 的 `aud == client_id`，发布后需同步更新为 userinfo 端点地址。详见 [对接指南 §3.5](docs/oidc-integration.md)。
 - 技术标识统一为 `lipass`：Compose 项目/镜像/网络/命名卷由 `account-service` 系列改为 `lipass` 系列，从旧版升级需先按 [部署文档 §标识迁移](docs/deployment.md) 迁移数据卷；`acr` 声明由 `urn:portal-oss:acr:1fa/2fa` 改为 `urn:lipass:acr:1fa/2fa`，接入方在升级期按“两套值等价”校验，窗口过后只保留新值。
@@ -16,13 +20,25 @@
 - 注销/删除账号升级为「密码 + 任意 2FA」双因素复核：注销账号、管理端删除用户与批量删除必须同时提供当前密码与一种二次验证码（邮箱验证码或 TOTP），且**不享受 30 分钟免复核窗口**（每次必验）；新增 `POST /api/v1/me/step-up/send` 发送复核邮箱验证码（与登录 2FA 共用发送冷却与每小时配额），前端新增通用双因素复核表单（获取验证码 + 60 秒重发冷却）。设计见 [账号安全与体验改进设计](docs/superpowers/specs/2026-08-16-account-ux-security-improvements-design.md)。
 - 密码输入实时强度显示（弱/中/强三段色条）：接入注册、邀请注册、找回密码、用户中心修改密码与管理员代建账号；按长度、大小写、数字、符号评分，仅显示、不改变后端密码策略。
 - 注册完成自动跳转登录页并预填邮箱；未验证邮箱的用户登录后仍可在用户中心继续完成验证。
-- 登录页新增「记住账号」「记住密码」选项：默认关闭、仅在登录成功后按勾选写入 localStorage（取消勾选即清除；勾选「记住密码」自动勾选「记住账号」）。密码本地明文保存存在同源 XSS 读取风险，已通过 CSP `script-src 'self'` 等缓解，仍建议优先使用浏览器密码管理器；权衡说明见设计文档。
+- 登录页新增「记住账号」选项：默认关闭、仅在登录成功后按勾选写入 localStorage，取消勾选即清除。明文「记住密码」已移除（见破坏性变更），请使用浏览器密码管理器。
 - 强制 2FA 落地：验证邮箱（普通注册验证、邀请注册、管理员代建）后直接启用邮箱验证码作为默认第一方案；用户可升级到 TOTP 认证器，并可在两种方案并存时关闭其一，但不可清空全部。管理端「重置 2FA」恢复默认邮箱方案并清空 TOTP/恢复码。设计见 [强制二次验证设计](docs/superpowers/specs/2026-08-16-mandatory-2fa-design.md)，实施计划见 [实施计划](docs/superpowers/plans/2026-08-16-mandatory-2fa.md)。
 - 敏感操作 step-up 复核窗口：新增 `GET/POST /api/v1/me/step-up`（复核窗口状态与显式密码复核端点）；一次密码复核成功后，该会话在 **30 分钟**内执行其它敏感操作免再次输入密码。窗口为固定时长、按会话隔离（一台设备复核不豁免其它设备）、**登录成功不自动授窗**。用户中心（修改密码/注销账号）、2FA 开关（邮箱验证码/TOTP）与全部管理端敏感操作（角色变更/重置密码/重置 2FA/删除用户/批量删除/删除客户端/重置密钥）统一接入；窗口时长与限流阈值可配置（`STEPUP_WINDOW_MINUTES=0` 可关闭窗口回到每操作必验）。设计见 [敏感操作 step-up 认证窗口设计](docs/superpowers/specs/2026-08-16-sensitive-stepup-window-design.md)，实施计划见 [实施计划](docs/superpowers/plans/2026-08-16-sensitive-stepup-window.md)。
 - 联邦登出完整落地：RP 发起登出（`GET /oauth2/end-session` + 确认页 `/logout/confirm` + 精确匹配回跳白名单）、回程登出（`logout_token` 签发/异步分发/重试/SSRF 防护）、无回程网站的浏览器串跳漏斗、用户/管理员会话撤销与取消授权联动下线；`id_token` 新增 `sid`，发现文档新增 `end_session_endpoint`/`backchannel_logout_supported`；管理端新增「登出回跳白名单」「回程登出地址」配置，演示站实现对应 RP 侧示例。详见 [对接指南 §8](docs/oidc-integration.md) 与 [实施计划](docs/superpowers/plans/2026-08-15-federated-logout.md)。
 
 ### 安全加固
 
+- 登录账号枚举时序抹平：邮箱不存在时同样执行一次同参数 Argon2 校验，消除「无此账号」与「密码错误」的响应耗时差异。
+- 登录/注册跨站校验：`POST /api/v1/auth/login` 与 `/register` 在携带 Origin 且不在 `CORS_ORIGINS` 白名单时返回 403，阻断登录 CSRF 与跨站注册滥用（缺失 Origin 的 curl 等非浏览器客户端不受影响）。
+- 密码/2FA 重置统一吊销可信设备：自我重置密码、管理员重置密码与管理员重置 2FA 三条路径与「修改密码/退出所有设备」一致，全部调用 `revoke_all_trusted_devices` 并记 `trusted_device_revoked` 审计，堵住「重置后旧可信设备仍免 2FA」的旁路。
+- 恢复码熵 64 bit → 128 bit（`token_hex(16)`），HMAC 落库方式不变。
+- OIDC 合规加固：token 端点错误对齐 RFC 6749；`id_token` 新增 `at_hash`（token 端点同时返回 access_token 时的 OIDC 必填项）；`nonce` 为空时不再输出 `null`；authorize 参数（nonce/state/code_challenge/redirect_uri/client_id/scope）增加长度上限，杜绝 PostgreSQL VARCHAR 超长导致 500；发现文档补齐 `token_endpoint_auth_methods_supported` 与 `claims_supported`。
+- `/oauth2/authorize` 与 `/oauth2/token` 增加按 IP 限流（`AUTHORIZE_RATE_LIMIT`/`TOKEN_RATE_LIMIT`，默认 120/分钟），token 超限按 `{"error":"rate_limited"}` 返回。
+- 授权请求绑定发起用户：`PendingAuthRequest` 记录 `user_id`，同意/拒绝校验与当前会话用户一致，防止多账号场景下的串号授权。
+- 回调地址拼接修复：redirect_uri 已含查询串时用 `&` 追加 `code`/`error`/`state`，修复 `?foo=bar?code=...` 导致的 RP 解析失败。
+- 回程登出 DNS 固定：生产环境把安全校验解析出的公网 IP 列表固定到连接层（httpcore 自定义 backend，SNI/证书校验仍用原域名），消除「校验解析」与「实际连接」间的 DNS rebinding 窗口；回程地址拒绝 `#` 片段。
+- 后端 CSP 追加 `object-src 'none'`、`base-uri 'self'`、`form-action 'self'`、`frame-ancestors 'none'`。
+- 会话守护补全：新增 `GET /api/v1/me/session` 与 `/me` 内的会话生命周期字段；新增 `POST /api/v1/auth/logout/local`（仅吊销当前门户会话，不派发回程登出、不串跳，供授权确认页切换账号）；前端 API 客户端对会话保护端点的 401 派发 `lipass:unauthorized` 事件并带 `next` 跳登录；前端按会话空闲倒计时做 5 分钟提示与到期兜底。
+- 前端生产 CSP 修复与收紧：主题初始化脚本与兜底样式由内联改为外链（`theme-init.js`/`preflight.css`），生产 CSP 明确 `script-src 'self'`；`img-src` 放行 `https:` 以加载授权应用 logo（配合 `Referrer-Policy: no-referrer`）。
 - 回程登出地址校验加固：拒绝携带用户名/密码的 URL；生产环境除强制 https 外，进一步限定只能使用 443 端口；域名经 IDNA 规范化后再做公网解析校验（防回环/私网/链路本地绕过）。管理员创建/修改授权网站时立即校验「回程登出地址」，非法地址当场返回 400，不再等到登出分发时才跳过。
 - 登录兜底强制 2FA：对「已验证邮箱却没有任何 2FA 方案」的历史账号（迁移遗漏、异常数据），登录时自动启用邮箱验证码并记审计 `2fa_email_auto_enabled`，保证「至少一种 2FA」不变式不被绕过。
 - 敏感操作的密码复核统一收敛到 `app/services/stepup.py`：此前散落各路由的 `current_password` 校验无独立限流，现新增按邮箱+IP 与全局邮箱的双层复核失败限流（默认 5/10 次每 15 分钟），并落 `stepup_verify_success`/`stepup_failed`/`stepup_required` 审计（category=`security`），复核被拒与疑似会话窃取的免密尝试可追踪。
@@ -39,6 +55,9 @@
 
 ### 行为变更
 
+- 授权确认页新增「正在以 xxx 登录」身份展示与「使用其他账号登录」（本地登出后带 `next` 回到原授权流程）。
+- 站内信铃铛在窗口重新可见/聚焦时刷新未读数；登录页邮箱输入 `autoComplete="username"`；弹窗新增 Tab 焦点陷阱。
+- 用户中心与管理后台接入会话空闲提醒：剩余 5 分钟提示一次，倒计时归零自动跳转登录（`next` 保留）。
 - 门户「退出登录」纳入二次确认：点击后弹出确认框（撤销当前门户会话并登出所有已授权网站），确认即退出；确认环节**不要求重新认证**（不输入密码/验证码）。
 - 应用广场取消授权反馈更准确：撤销响应新增 `backchannel_configured`，前端据此区分三种结果——已派发回程通知 / 配置了回程登出但未找到活跃登录关系 / 未配置回程登出，不再把「未找到登录关系」误报成「未配置回程登出」；撤销后应用列表改为重新拉取服务端数据。
 - 用户中心（应用广场/登录设备/可信设备）每次进入页面自动刷新一次：除首次挂载外，切回标签页或窗口重新可见时自动重新拉取列表（防抖 500ms），无需手动刷新。

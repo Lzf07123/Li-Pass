@@ -5,6 +5,8 @@ from sqlalchemy import select
 from app.models.session import Session as SessionModel
 from app.models.user import User, UserStatus
 from tests.helpers import login_with_email_2fa
+from app.core.config import get_settings
+import app.api.routes.auth as auth_module
 
 
 def _as_utc(dt: datetime) -> datetime:
@@ -117,6 +119,37 @@ def test_login_wrong_password(client, captured_email) -> None:
     assert response.status_code == 401
 
 
+def test_login_unknown_email_still_runs_password_hash(
+    client, monkeypatch
+) -> None:
+    """账号枚举时序侧信道：邮箱不存在时也必须执行一次 Argon2 校验。"""
+    calls = []
+    real_verify = auth_module.verify_password
+
+    def spy(password, password_hash):
+        calls.append(password_hash)
+        return real_verify(password, password_hash)
+
+    monkeypatch.setattr(auth_module, "verify_password", spy)
+    response = client.post(
+        "/api/v1/auth/login",
+        json={"email": "missing@example.com", "password": "wrongpass"},
+    )
+    assert response.status_code == 401
+    assert len(calls) == 1
+    # 与真实用户路径一致：都走同一 Argon2 校验，抹平耗时差异。
+
+
+def test_login_cross_site_origin_rejected(client) -> None:
+    response = client.post(
+        "/api/v1/auth/login",
+        json={"email": "a@example.com", "password": "password123"},
+        headers={"Origin": "http://evil.example"},
+    )
+    assert response.status_code == 403
+    assert response.json()["detail"] == "跨站请求被拒绝"
+
+
 def test_disabled_user_cannot_login(client, db_session, captured_email) -> None:
     register_and_verify(client, captured_email)
     user = db_session.scalar(select(User).where(User.email == "a@example.com"))
@@ -155,7 +188,10 @@ def test_session_idle_timeout_revokes(client, db_session, captured_email) -> Non
     assert client.get("/api/v1/me").status_code == 200
 
     session = db_session.scalar(select(SessionModel))
-    session.last_used_at = datetime.now(timezone.utc) - timedelta(days=8)
+    idle_minutes = get_settings().session_idle_minutes
+    session.last_used_at = datetime.now(timezone.utc) - timedelta(
+        minutes=idle_minutes + 60
+    )
     db_session.commit()
 
     assert client.get("/api/v1/me").status_code == 401

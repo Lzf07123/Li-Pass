@@ -44,7 +44,7 @@ def _load_identity(request: Request, db: Session) -> tuple[SessionModel, User]:
         select(SessionModel).where(SessionModel.token_hash == hash_token(token))
     )
     now = datetime.now(timezone.utc)
-    idle_cutoff = now - timedelta(days=settings.session_idle_days)
+    idle_cutoff = now - timedelta(minutes=settings.session_idle_minutes)
     if (
         session is None
         or session.revoked_at is not None

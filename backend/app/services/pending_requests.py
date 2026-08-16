@@ -12,6 +12,7 @@ class PendingAuthRequest:
     client_id: str
     redirect_uri: str
     scope: str
+    user_id: str | None = None
     state: str | None = None
     nonce: str | None = None
     code_challenge: str | None = None

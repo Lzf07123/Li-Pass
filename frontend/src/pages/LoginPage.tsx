@@ -12,8 +12,7 @@ import { APP_NAME } from "../lib/brand";
 import { isSafeNext } from "../lib/navigation";
 import {
   getRememberedAccount,
-  getRememberedPassword,
-  persistRememberedCredentials,
+  persistRememberedAccount,
 } from "../lib/remember";
 
 const METHOD_LABELS: Record<string, string> = {
@@ -32,11 +31,7 @@ export function LoginPage() {
   const emailParam = searchParams.get("email");
   const rememberedAccount = getRememberedAccount();
   const [email, setEmail] = useState(emailParam ?? rememberedAccount ?? "");
-  const [password, setPassword] = useState(
-    emailParam && emailParam !== rememberedAccount
-      ? ""
-      : (getRememberedPassword() ?? ""),
-  );
+  const [password, setPassword] = useState("");
   const [challenge, setChallenge] = useState<{ id: string; methods: string[] } | null>(
     null
   );
@@ -50,14 +45,9 @@ export function LoginPage() {
   const [rememberAccount, setRememberAccount] = useState(
     rememberedAccount !== null,
   );
-  const [rememberPassword, setRememberPassword] = useState(
-    getRememberedPassword() !== null,
-  );
   const pendingRemember = useRef<{
     email: string;
-    password: string;
     account: boolean;
-    pwd: boolean;
   } | null>(null);
   const toast = useToast();
   const navigate = useNavigate();
@@ -80,7 +70,6 @@ export function LoginPage() {
       password: string,
       rememberMe: boolean,
       rememberAccount: boolean,
-      rememberPassword: boolean,
     ) => {
       const result = await authApi.login({
         email,
@@ -90,9 +79,7 @@ export function LoginPage() {
       if (result.requires_2fa && result.challenge_id) {
         pendingRemember.current = {
           email,
-          password,
           account: rememberAccount,
-          pwd: rememberPassword,
         };
         const methods = result.methods ?? [];
         setChallenge({ id: result.challenge_id, methods });
@@ -107,20 +94,10 @@ export function LoginPage() {
               : "recovery",
         );
       } else if (next) {
-        persistRememberedCredentials(
-          email,
-          password,
-          rememberAccount,
-          rememberPassword,
-        );
+        persistRememberedAccount(email, rememberAccount);
         window.location.href = next;
       } else {
-        persistRememberedCredentials(
-          email,
-          password,
-          rememberAccount,
-          rememberPassword,
-        );
+        persistRememberedAccount(email, rememberAccount);
         navigate("/");
       }
     },
@@ -137,7 +114,6 @@ export function LoginPage() {
       password,
       rememberMe,
       rememberAccount,
-      rememberPassword,
     );
   }
 
@@ -146,12 +122,7 @@ export function LoginPage() {
       await auth2faApi.verify(challengeId, method, code, trust);
       if (pendingRemember.current) {
         const pending = pendingRemember.current;
-        persistRememberedCredentials(
-          pending.email,
-          pending.password,
-          pending.account,
-          pending.pwd,
-        );
+        persistRememberedAccount(pending.email, pending.account);
         pendingRemember.current = null;
       }
       if (next) window.location.href = next;
@@ -299,7 +270,7 @@ export function LoginPage() {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             className="input"
-            autoComplete="email"
+            autoComplete="username"
             required
           />
         </label>
@@ -327,27 +298,10 @@ export function LoginPage() {
             <input
               type="checkbox"
               checked={rememberAccount}
-              onChange={(e) => {
-                const checked = e.target.checked;
-                setRememberAccount(checked);
-                if (!checked) setRememberPassword(false);
-              }}
+              onChange={(e) => setRememberAccount(e.target.checked)}
               className="h-4 w-4 accent-primary"
             />
             记住账号
-          </label>
-          <label className="flex cursor-pointer items-center gap-2">
-            <input
-              type="checkbox"
-              checked={rememberPassword}
-              onChange={(e) => {
-                const checked = e.target.checked;
-                setRememberPassword(checked);
-                if (checked) setRememberAccount(true);
-              }}
-              className="h-4 w-4 accent-primary"
-            />
-            记住密码
           </label>
         </div>
         <AsyncButton

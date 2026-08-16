@@ -108,6 +108,19 @@ export function AppRoutes() {
 }
 
 export default function App() {
+  useEffect(() => {
+    const onUnauthorized = () => {
+      const { pathname, search } = window.location;
+      if (pathname === "/login") return;
+      const next = encodeURIComponent(`${pathname}${search}`);
+      window.location.replace(`/login?next=${next}`);
+    };
+    window.addEventListener("lipass:unauthorized", onUnauthorized);
+    return () => {
+      window.removeEventListener("lipass:unauthorized", onUnauthorized);
+    };
+  }, []);
+
   return (
     <BrowserRouter>
       <AppRoutes />

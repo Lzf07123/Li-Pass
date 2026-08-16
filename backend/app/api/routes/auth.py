@@ -74,11 +74,16 @@ from app.services.trusted_devices import (
     TRUSTED_DEVICE_COOKIE,
     find_valid,
     grant,
+    revoke_all as revoke_all_trusted_devices,
 )
 
 router = APIRouter(prefix="/api/v1/auth", tags=["auth"])
 settings = get_settings()
 logger = logging.getLogger(__name__)
+
+# 登录账号枚举时序防护：邮箱不存在时也执行一次同参数的 Argon2 校验，
+# 使「无此账号」与「密码错误」两条路径耗时一致。哈希在进程启动时生成一次。
+_DUMMY_PASSWORD_HASH = hash_password("lipass-dummy-timing-equalizer")
 
 
 def _as_utc(dt: datetime) -> datetime:
@@ -470,7 +475,13 @@ def login(
         raise HTTPException(status.HTTP_429_TOO_MANY_REQUESTS, "尝试次数过多，请稍后再试")
     user_agent = request.headers.get("user-agent")
     user = db.scalar(select(User).where(User.email == email_for_limit))
-    if user is None or not verify_password(payload.password, user.password_hash):
+    password_ok = user is not None and verify_password(
+        payload.password, user.password_hash
+    )
+    if user is None:
+        # 防枚举：不存在的邮箱同样跑一遍 Argon2，避免响应时间泄露账号是否存在。
+        verify_password(payload.password, _DUMMY_PASSWORD_HASH)
+    if not password_ok:
         count = get_rate_limiter().hit(
             "login",
             f"{payload.email.lower()}:{ip}",
@@ -824,6 +835,42 @@ def logout(
     return {"redirect_to": redirect_to}
 
 
+@router.post("/logout/local", response_model=dict)
+def local_logout(
+    request: Request,
+    response: Response,
+    db: Session = Depends(get_db),
+) -> dict:
+    """仅退出当前门户会话（用于授权确认页「使用其他账号登录」）。
+
+    与全局登出不同：不派发回程登出、不串跳网站、不吊销客户端登录链接——
+    用户只是在本浏览器切换账号，其它网站与设备的登录状态保持不变。
+    """
+    token = request.cookies.get(settings.session_cookie_name) or request.cookies.get(
+        LEGACY_SESSION_COOKIE_NAME
+    )
+    if token:
+        session = db.scalar(
+            select(SessionModel).where(SessionModel.token_hash == hash_token(token))
+        )
+        if session is not None and session.revoked_at is None:
+            session.revoked_at = datetime.now(timezone.utc)
+            db.commit()
+            log_audit(
+                db,
+                "user",
+                str(session.user_id),
+                "logout_local",
+                category="auth",
+                target_type="user",
+                target_id=str(session.user_id),
+                ip=request.client.host if request.client else None,
+                user_agent=request.headers.get("user-agent"),
+            )
+    clear_session_cookie(response)
+    return {"message": "已退出当前账号"}
+
+
 @router.post("/password/reset", status_code=status.HTTP_202_ACCEPTED)
 def request_password_reset(
     payload: PasswordResetRequest,
@@ -898,6 +945,16 @@ def confirm_password_reset(
     ).all()
     for session in sessions:
         session.revoked_at = now
+    revoked_trusted = revoke_all_trusted_devices(db, user.id)
     db.commit()
     log_audit(db, "user", str(user.id), "password_reset", category="auth")
+    if revoked_trusted:
+        log_audit(
+            db,
+            "user",
+            str(user.id),
+            "trusted_device_revoked",
+            category="security",
+            detail={"reason": "password_reset", "count": revoked_trusted},
+        )
     return {"message": "密码已重置"}

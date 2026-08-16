@@ -9,6 +9,7 @@ from app.models.session import Session as SessionModel
 from app.models.user import User
 from app.security.tokens import generate_token, hash_token
 from app.services.federated_logout import build_logout_funnel
+from app.models.audit_log import AuditLog
 from tests.helpers import create_client, register_and_login
 
 
@@ -87,6 +88,35 @@ def test_portal_logout_dispatches_backchannel_for_linked_clients(
         )
     )
     assert link is not None and link.revoked_at is not None
+
+
+def test_local_logout_revokes_only_current_session(
+    client, db_session, captured_email, monkeypatch
+) -> None:
+    register_and_login(client, captured_email)
+    oauth_client = create_client(
+        db_session,
+        client_id="cli_local",
+        redirect_uris=["http://x/cb"],
+        backchannel_logout_uri="https://x/backchannel",
+    )
+    _link_current_session(db_session, oauth_client)
+    calls: list[list] = []
+    monkeypatch.setattr(
+        "app.api.routes.auth.dispatch_backchannel_logout",
+        lambda targets: calls.append(targets) or {},
+    )
+
+    resp = client.post("/api/v1/auth/logout/local")
+    assert resp.status_code == 200
+    assert "redirect_to" not in resp.json()
+    assert len(calls) == 0
+    assert client.get("/api/v1/me").status_code == 401
+    link = db_session.scalar(select(OIDCClientSession))
+    assert link.revoked_at is None
+    assert "logout_local" in set(
+        db_session.scalars(select(AuditLog.action)).all()
+    )
 
 
 def test_portal_logout_dispatches_backchannel_across_sessions(

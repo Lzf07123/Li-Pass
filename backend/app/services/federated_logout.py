@@ -6,9 +6,11 @@ import socket
 import uuid
 from dataclasses import dataclass
 from datetime import datetime, timezone
+from typing import Iterable
 from urllib.parse import quote, urlparse
 
 import httpx
+import httpcore
 from sqlalchemy import select, update
 from sqlalchemy.orm import Session
 
@@ -31,13 +33,12 @@ def _is_unsafe_ip(ip: ipaddress.IPv4Address | ipaddress.IPv6Address) -> bool:
     )
 
 
-def _assert_public_host(host: str) -> None:
-    """生产环境拒绝回环/私网/链路本地地址，防 SSRF 打内网。
+def _resolve_public_host(host: str) -> list[str]:
+    """把域名解析为 IP 列表并校验全部为公网地址（防 SSRF 打内网）。
 
-    开发环境放行，便于本地 demo（如 http://localhost:3001）。
+    返回排序后的字符串地址列表，供连接层固定使用，消除「校验解析」与
+    「实际连接」之间的 DNS rebinding 窗口。
     """
-    if get_settings().environment != "production":
-        return
     host = host.rstrip(".").lower()
     try:
         host = host.encode("idna").decode("ascii")
@@ -55,17 +56,24 @@ def _assert_public_host(host: str) -> None:
     parsed_addresses = {ipaddress.ip_address(addr) for addr in addresses}
     if any(_is_unsafe_ip(addr) for addr in parsed_addresses):
         raise ValueError("回程地址不允许指向回环/私网/链路本地地址")
+    return sorted(str(addr) for addr in parsed_addresses)
 
 
-def assert_safe_backchannel_url(url: str) -> None:
-    """校验 backchannel_logout_uri：仅 http/https（生产强制 https + 443），
-    不得携带用户名/密码，且生产环境目标不得为回环/私网地址。"""
+def resolve_safe_backchannel_target(url: str) -> tuple[str, int, list[str]]:
+    """校验回程登出地址并返回 (host, port, 固定 IP 列表)。
+
+    仅 http/https（生产强制 https + 443）、不得携带用户名/密码与 # 片段；
+    生产环境解析出的 IP 全部校验为公网地址后固定返回，开发环境返回空列表
+    （不固定，便于本地 demo 如 http://localhost:3001）。
+    """
     settings = get_settings()
     parsed = urlparse(url)
     if parsed.scheme not in ("http", "https") or not parsed.netloc:
         raise ValueError("回程地址必须是 http/https 地址")
     if parsed.username or parsed.password:
         raise ValueError("回程地址不允许携带用户名或密码")
+    if parsed.fragment:
+        raise ValueError("回程地址不允许包含 # 片段")
     if settings.environment == "production":
         if parsed.scheme != "https":
             raise ValueError("生产环境回程地址必须使用 https")
@@ -74,7 +82,119 @@ def assert_safe_backchannel_url(url: str) -> None:
     host = parsed.hostname
     if not host:
         raise ValueError("回程地址缺少主机名")
-    _assert_public_host(host)
+    port = parsed.port or (443 if parsed.scheme == "https" else 80)
+    if settings.environment != "production":
+        return host, port, []
+    return host, port, _resolve_public_host(host)
+
+
+def assert_safe_backchannel_url(url: str) -> None:
+    """校验 backchannel_logout_uri（管理端创建/更新时使用）。"""
+    resolve_safe_backchannel_target(url)
+
+
+class _PinnedDNSBackend(httpcore.SyncBackend):
+    """DNS 固定：域名只拨号到安全校验时解析出的公网 IP 列表。
+
+    TLS SNI 与证书校验仍使用原始域名（URL 未改写），因此不影响 HTTPS
+    主机名校验；未固定的域名（开发环境）回退默认系统解析。
+    """
+
+    def __init__(self, pinned: dict[str, list[str]]) -> None:
+        super().__init__()
+        self._pinned = pinned
+
+    def connect_tcp(
+        self,
+        host: str,
+        port: int,
+        timeout: float | None = None,
+        local_address: str | None = None,
+        socket_options=None,
+    ):
+        addresses = self._pinned.get(host)
+        if not addresses:
+            return super().connect_tcp(
+                host, port, timeout, local_address, socket_options
+            )
+        last_error: Exception | None = None
+        for address in addresses:
+            try:
+                return super().connect_tcp(
+                    address, port, timeout, local_address, socket_options
+                )
+            except httpcore.ConnectError as exc:
+                last_error = exc
+        if last_error is not None:
+            raise last_error
+        raise httpcore.ConnectError(f"无法连接回程登出地址: {host}")
+
+
+_HTTPCORE_EXC_MAP: dict[type[Exception], type[httpx.HTTPError]] = {
+    httpcore.TimeoutException: httpx.TimeoutException,
+    httpcore.ConnectTimeout: httpx.ConnectTimeout,
+    httpcore.ReadTimeout: httpx.ReadTimeout,
+    httpcore.WriteTimeout: httpx.WriteTimeout,
+    httpcore.PoolTimeout: httpx.PoolTimeout,
+    httpcore.NetworkError: httpx.NetworkError,
+    httpcore.ConnectError: httpx.ConnectError,
+    httpcore.ReadError: httpx.ReadError,
+    httpcore.WriteError: httpx.WriteError,
+    httpcore.ProtocolError: httpx.ProtocolError,
+    httpcore.LocalProtocolError: httpx.LocalProtocolError,
+    httpcore.RemoteProtocolError: httpx.RemoteProtocolError,
+}
+
+
+class _ResponseStream(httpx.SyncByteStream):
+    def __init__(self, stream) -> None:
+        self._stream = stream
+
+    def __iter__(self):
+        yield from self._stream
+
+    def close(self) -> None:
+        if hasattr(self._stream, "close"):
+            self._stream.close()
+
+
+class _PinnedHostTransport(httpx.BaseTransport):
+    """基于 httpcore 公开 API 的同步 transport，把 DNS 固定注入连接层。"""
+
+    def __init__(self, backend: httpcore.NetworkBackend) -> None:
+        self._pool = httpcore.ConnectionPool(network_backend=backend)
+
+    def handle_request(self, request: httpx.Request) -> httpx.Response:
+        assert isinstance(request.stream, httpx.SyncByteStream)
+        req = httpcore.Request(
+            method=request.method,
+            url=httpcore.URL(
+                scheme=request.url.raw_scheme,
+                host=request.url.raw_host,
+                port=request.url.port,
+                target=request.url.raw_path,
+            ),
+            headers=request.headers.raw,
+            content=request.stream,
+            extensions=request.extensions,
+        )
+        try:
+            resp = self._pool.handle_request(req)
+        except Exception as exc:
+            for source, target in _HTTPCORE_EXC_MAP.items():
+                if isinstance(exc, source):
+                    raise target(str(exc)) from exc
+            raise
+        assert isinstance(resp.stream, Iterable)
+        return httpx.Response(
+            status_code=resp.status,
+            headers=resp.headers,
+            stream=_ResponseStream(resp.stream),
+            extensions=resp.extensions,
+        )
+
+    def close(self) -> None:
+        self._pool.close()
 
 
 def build_logout_funnel(uris: list[str], final_url: str) -> str:
@@ -229,18 +349,25 @@ def dispatch_backchannel_logout(
     """
     settings = get_settings()
     results: dict[str, bool] = {}
-    with httpx.Client(
-        transport=transport,
-        timeout=settings.backchannel_logout_timeout_seconds,
-        follow_redirects=False,
-    ) as http:
-        for target in targets:
-            try:
-                assert_safe_backchannel_url(target.uri)
-            except ValueError:
-                logger.warning("跳过不安全的回程地址: %s", target.uri)
-                results[target.client_id] = False
-                continue
+    for target in targets:
+        try:
+            host, _port, pinned = resolve_safe_backchannel_target(target.uri)
+        except ValueError:
+            logger.warning("跳过不安全的回程地址: %s", target.uri)
+            results[target.client_id] = False
+            continue
+        effective_transport = transport
+        if effective_transport is None:
+            # 生产环境把 DNS 固定在安全校验的解析结果上，消除 rebinding 窗口；
+            # 开发环境 pinned 为空，回退系统正常解析。
+            effective_transport = _PinnedHostTransport(
+                _PinnedDNSBackend({host: pinned})
+            )
+        with httpx.Client(
+            transport=effective_transport,
+            timeout=settings.backchannel_logout_timeout_seconds,
+            follow_redirects=False,
+        ) as http:
             token = issue_logout_token(target.sub, target.sid, target.client_id)
             delivered = False
             for attempt in range(settings.backchannel_logout_max_retries + 1):

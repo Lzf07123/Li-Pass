@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 
-import { consentApi } from "../api/client";
+import { authApi, consentApi } from "../api/client";
 import { AsyncButton } from "../components/AsyncButton";
 import { AuthShell } from "../components/AuthShell";
 import { Notice } from "../components/Notice";
@@ -45,6 +45,18 @@ export function ConsentPage() {
     },
   );
 
+  const switchAccountAction = useAsyncAction(
+    async () => {
+      await authApi.logoutLocal();
+      const next = encodeURIComponent(`/consent?request_id=${requestId}`);
+      window.location.href = `/login?next=${next}`;
+    },
+    {
+      onError: (err) =>
+        toast.error(err instanceof Error ? err.message : "操作失败"),
+    },
+  );
+
   function decide(approve: boolean) {
     void decideAction.run(approve);
   }
@@ -57,6 +69,19 @@ export function ConsentPage() {
     >
       {info ? (
         <div className="animate-fade-up space-y-4">
+          <div className="flex items-center justify-between gap-3 rounded-xl border border-border bg-surface-2/60 p-3 text-sm">
+            <p className="min-w-0 truncate text-foreground">
+              正在以 <strong className="font-semibold">{info.user.email}</strong> 登录
+            </p>
+            <AsyncButton
+              type="button"
+              status={switchAccountAction.status}
+              onClick={() => void switchAccountAction.run()}
+              className="btn btn-secondary shrink-0"
+            >
+              使用其他账号登录
+            </AsyncButton>
+          </div>
           <div className="flex items-center gap-3 rounded-xl border border-border bg-surface-2/60 p-4">
             {info.client.logo_url ? (
               <img

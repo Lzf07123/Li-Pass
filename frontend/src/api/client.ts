@@ -19,6 +19,7 @@ import type {
   MessageListOut,
   RevokeSessionsResult,
   SendNotificationResult,
+  SessionInfo,
   SessionOut,
   SiteSettings,
   StepUpStatus,
@@ -42,6 +43,11 @@ async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
       ...(init.headers ?? {}),
     },
   });
+  if (response.status === 401 && isSessionGuardedPath(path)) {
+    // 会话被吊销/过期：通知全局监听器清空用户态并带 next 跳登录。
+    // 登录/找回密码等认证端点自身的 401 不触发，避免误跳。
+    window.dispatchEvent(new Event("lipass:unauthorized"));
+  }
   if (response.status === 204) {
     return undefined as T;
   }
@@ -63,6 +69,14 @@ async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
     throw new Error(`请求失败：${response.status}`);
   }
   return response.json() as Promise<T>;
+}
+
+function isSessionGuardedPath(path: string): boolean {
+  return (
+    !path.startsWith("/api/v1/auth/") &&
+    !path.startsWith("/oauth2/") &&
+    !path.startsWith("/api/v1/oauth/logout-requests/")
+  );
 }
 
 export const authApi = {
@@ -116,6 +130,10 @@ export const authApi = {
     >("/api/v1/auth/login", { method: "POST", body: JSON.stringify(data) }),
   logout: () =>
     api<{ redirect_to: string | null }>("/api/v1/auth/logout", {
+      method: "POST",
+    }),
+  logoutLocal: () =>
+    api<{ message: string }>("/api/v1/auth/logout/local", {
       method: "POST",
     }),
   me: () => api<UserOut>("/api/v1/me"),
@@ -220,6 +238,7 @@ export const adminStatsApi = {
 };
 
 export const meApi = {
+  sessionInfo: () => api<SessionInfo>("/api/v1/me/session"),
   updateProfile: (data: {
     nickname?: string;
     avatar_url?: string | null;

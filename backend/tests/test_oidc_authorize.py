@@ -43,6 +43,47 @@ def test_authorize_with_existing_consent_auto_approves(client, db_session, captu
     assert "state=st-1" in location
 
 
+def test_authorize_redirect_with_query_string_appends_params(
+    client, db_session, captured_email
+) -> None:
+    client_model = create_client(
+        db_session,
+        redirect_uris=["http://localhost:3001/callback?x=1"],
+    )
+    register_and_login(client, captured_email)
+    user = db_session.scalar(
+        select(User).where(User.email == "a@example.com")
+    )
+    db_session.add(
+        UserConsent(
+            user_id=user.id,
+            client_id=client_model.id,
+            scopes=["openid", "profile"],
+        )
+    )
+    db_session.commit()
+    response = client.get(
+        "/oauth2/authorize",
+        params=authorize_params(
+            {"redirect_uri": "http://localhost:3001/callback?x=1"}
+        ),
+    )
+    assert response.status_code == 302
+    location = response.headers["location"]
+    assert location.startswith("http://localhost:3001/callback?x=1&code=")
+    assert "state=st-1" in location
+
+
+def test_authorize_rejects_oversized_nonce(client, db_session, captured_email) -> None:
+    create_client(db_session)
+    register_and_login(client, captured_email)
+    response = client.get(
+        "/oauth2/authorize",
+        params=authorize_params({"nonce": "n" * 300}),
+    )
+    assert response.status_code == 422
+
+
 def test_authorize_invalid_redirect_uri(client, db_session) -> None:
     create_client(db_session)
     response = client.get(

@@ -29,14 +29,16 @@ def redirect_error(
         params["state"] = state
     if error_description:
         params["error_description"] = error_description
-    return f"{redirect_uri}?{urlencode(params)}"
+    separator = "&" if "?" in redirect_uri else "?"
+    return f"{redirect_uri}{separator}{urlencode(params)}"
 
 
 def build_authorize_redirect(redirect_uri: str, code: str, state: str | None = None) -> str:
     params = {"code": code}
     if state:
         params["state"] = state
-    return f"{redirect_uri}?{urlencode(params)}"
+    separator = "&" if "?" in redirect_uri else "?"
+    return f"{redirect_uri}{separator}{urlencode(params)}"
 
 
 def verify_pkce(code_verifier: str, code_challenge: str | None) -> bool:

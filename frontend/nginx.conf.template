@@ -38,7 +38,9 @@ server {
     add_header Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=(), usb=()" always;
     # style-src 禁用 unsafe-inline：只放行 style 属性（style-src-attr），
     # 阻断 <style> 元素注入；动态进度条/动画等依赖 style 属性的组件不受影响。
-    add_header Content-Security-Policy "default-src 'self'; connect-src 'self' ${CONNECT_SRC}; img-src 'self' data: ${CONNECT_SRC}; style-src 'self'; style-src-attr 'unsafe-inline'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'" always;
+    # img-src 放行 https:（授权应用 logo 为管理员登记的第三方地址）；配合
+    # Referrer-Policy no-referrer 不泄露门户路径；script 全部外链（首帧主题脚本）。
+    add_header Content-Security-Policy "default-src 'self'; script-src 'self'; connect-src 'self' ${CONNECT_SRC}; img-src 'self' data: https: ${CONNECT_SRC}; style-src 'self'; style-src-attr 'unsafe-inline'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'" always;
 
     location / {
         try_files $uri $uri/ /index.html;
@@ -52,7 +54,7 @@ server {
         add_header Referrer-Policy "no-referrer" always;
         add_header X-XSS-Protection "0" always;
         add_header Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=(), usb=()" always;
-        add_header Content-Security-Policy "default-src 'self'; connect-src 'self' ${CONNECT_SRC}; img-src 'self' data: ${CONNECT_SRC}; style-src 'self'; style-src-attr 'unsafe-inline'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'" always;
+        add_header Content-Security-Policy "default-src 'self'; script-src 'self'; connect-src 'self' ${CONNECT_SRC}; img-src 'self' data: https: ${CONNECT_SRC}; style-src 'self'; style-src-attr 'unsafe-inline'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'" always;
     }
 
     # 带内容 hash 的构建产物可长缓存
@@ -64,7 +66,7 @@ server {
         add_header Referrer-Policy "no-referrer" always;
         add_header X-XSS-Protection "0" always;
         add_header Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=(), usb=()" always;
-        add_header Content-Security-Policy "default-src 'self'; connect-src 'self' ${CONNECT_SRC}; img-src 'self' data: ${CONNECT_SRC}; style-src 'self'; style-src-attr 'unsafe-inline'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'" always;
+        add_header Content-Security-Policy "default-src 'self'; script-src 'self'; connect-src 'self' ${CONNECT_SRC}; img-src 'self' data: https: ${CONNECT_SRC}; style-src 'self'; style-src-attr 'unsafe-inline'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'" always;
     }
 
     # 固定品牌图标（WebP 单格式）可短缓存
@@ -76,7 +78,7 @@ server {
         add_header Referrer-Policy "no-referrer" always;
         add_header X-XSS-Protection "0" always;
         add_header Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=(), usb=()" always;
-        add_header Content-Security-Policy "default-src 'self'; connect-src 'self' ${CONNECT_SRC}; img-src 'self' data: ${CONNECT_SRC}; style-src 'self'; style-src-attr 'unsafe-inline'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'" always;
+        add_header Content-Security-Policy "default-src 'self'; script-src 'self'; connect-src 'self' ${CONNECT_SRC}; img-src 'self' data: https: ${CONNECT_SRC}; style-src 'self'; style-src-attr 'unsafe-inline'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'" always;
     }
 
     # BIMI 发件人头像 Logo（SVG Tiny PS），短缓存
@@ -88,6 +90,6 @@ server {
         add_header Referrer-Policy "no-referrer" always;
         add_header X-XSS-Protection "0" always;
         add_header Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=(), usb=()" always;
-        add_header Content-Security-Policy "default-src 'self'; connect-src 'self' ${CONNECT_SRC}; img-src 'self' data: ${CONNECT_SRC}; style-src 'self'; style-src-attr 'unsafe-inline'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'" always;
+        add_header Content-Security-Policy "default-src 'self'; script-src 'self'; connect-src 'self' ${CONNECT_SRC}; img-src 'self' data: https: ${CONNECT_SRC}; style-src 'self'; style-src-attr 'unsafe-inline'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'" always;
     }
 }

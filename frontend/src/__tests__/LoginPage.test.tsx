@@ -17,17 +17,16 @@ describe("LoginPage", () => {
     expect(screen.getByLabelText("邮箱")).toHaveValue("a@example.com");
   });
 
-  it("从 localStorage 回填记住的账号与密码", () => {
+  it("从 localStorage 回填记住的账号，但绝不回填密码", () => {
     window.localStorage.setItem("lipass.remember.account", "a@example.com");
-    window.localStorage.setItem("lipass.remember.password", "password123");
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response("{}")));
 
     renderWithProviders(<LoginPage />);
 
     expect(screen.getByLabelText("邮箱")).toHaveValue("a@example.com");
-    expect(screen.getByLabelText("密码")).toHaveValue("password123");
+    expect(screen.getByLabelText("密码")).toHaveValue("");
     expect(screen.getByLabelText("记住账号")).toBeChecked();
-    expect(screen.getByLabelText("记住密码")).toBeChecked();
+    expect(screen.queryByLabelText("记住密码")).not.toBeInTheDocument();
   });
 
   it("登录成功后按勾选落盘记住的凭据", async () => {
@@ -57,7 +56,6 @@ describe("LoginPage", () => {
       target: { value: "password123" },
     });
     fireEvent.click(screen.getByLabelText("记住账号"));
-    fireEvent.click(screen.getByLabelText("记住密码"));
     fireEvent.click(screen.getByRole("button", { name: "登录" }));
 
     await waitFor(() =>
@@ -67,7 +65,7 @@ describe("LoginPage", () => {
     );
     expect(
       window.localStorage.getItem("lipass.remember.password"),
-    ).toBe("password123");
+    ).toBeNull();
   });
 
   it("登录失败不落盘记住的凭据", async () => {
@@ -89,7 +87,6 @@ describe("LoginPage", () => {
       target: { value: "wrongpass" },
     });
     fireEvent.click(screen.getByLabelText("记住账号"));
-    fireEvent.click(screen.getByLabelText("记住密码"));
     fireEvent.click(screen.getByRole("button", { name: "登录" }));
 
     await waitFor(() =>

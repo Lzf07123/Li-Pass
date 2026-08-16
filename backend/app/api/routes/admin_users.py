@@ -25,6 +25,7 @@ from app.services.geoip import describe_ip
 from app.services.email import get_email_service
 from app.services.rate_limit import get_rate_limiter
 from app.services.stepup import authorize_critical_operation, authorize_stepup
+from app.services.trusted_devices import revoke_all as revoke_all_trusted_devices
 
 logger = logging.getLogger(__name__)
 
@@ -666,6 +667,7 @@ def reset_password(
     now = datetime.now(timezone.utc)
     for session in sessions:
         session.revoked_at = now
+    revoked_trusted = revoke_all_trusted_devices(db, user.id)
     db.commit()
     log_audit(
         db,
@@ -676,6 +678,17 @@ def reset_password(
         target_type="user",
         target_id=str(user.id),
     )
+    if revoked_trusted:
+        log_audit(
+            db,
+            "admin",
+            str(actor.id),
+            "trusted_device_revoked",
+            category="security",
+            target_type="user",
+            target_id=str(user.id),
+            detail={"reason": "admin_reset_password", "count": revoked_trusted},
+        )
     return {"message": "密码已重置，该用户所有会话已退出"}
 
 
@@ -712,6 +725,7 @@ def reset_twofa(
     ).all()
     for code in codes:
         db.delete(code)
+    revoked_trusted = revoke_all_trusted_devices(db, user.id)
     db.commit()
     log_audit(
         db,
@@ -722,6 +736,17 @@ def reset_twofa(
         target_type="user",
         target_id=str(user.id),
     )
+    if revoked_trusted:
+        log_audit(
+            db,
+            "admin",
+            str(actor.id),
+            "trusted_device_revoked",
+            category="security",
+            target_type="user",
+            target_id=str(user.id),
+            detail={"reason": "admin_reset_2fa", "count": revoked_trusted},
+        )
     return {"message": "已重置该用户的二次验证"}
 
 

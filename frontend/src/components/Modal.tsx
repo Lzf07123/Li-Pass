@@ -57,6 +57,26 @@ export function Modal({
     if (!open) return;
     function onKeyDown(event: KeyboardEvent) {
       if (event.key === "Escape") onClose();
+      if (event.key !== "Tab" || !panelRef.current) return;
+      const focusables = Array.from(
+        panelRef.current.querySelectorAll<HTMLElement>(
+          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
+        ),
+      ).filter((el) => !el.hasAttribute("disabled"));
+      if (focusables.length === 0) return;
+      const first = focusables[0];
+      const last = focusables[focusables.length - 1];
+      const active = document.activeElement;
+      const inside = active !== null && panelRef.current.contains(active);
+      if (event.shiftKey) {
+        if (!inside || active === first) {
+          event.preventDefault();
+          last.focus();
+        }
+      } else if (!inside || active === last) {
+        event.preventDefault();
+        first.focus();
+      }
     }
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);

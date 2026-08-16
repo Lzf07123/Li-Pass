@@ -9,6 +9,7 @@ import { PageSkeleton } from "../components/PageSkeleton";
 import { PillTabs } from "../components/PillTabs";
 import { SiteFooter } from "../components/SiteFooter";
 import { FadeIn } from "../components/bits/FadeIn";
+import { useSessionIdle } from "../hooks/useSessionIdle";
 
 // 面板级代码分割：管理后台 8 个标签按需加载，避免访问任一标签都下载
 // 全部面板（其中数据统计含约 578KB 的省级 GeoJSON 与图表代码）。
@@ -66,6 +67,7 @@ export function AdminPage() {
   const [me, setMe] = useState<UserOut | null>(null);
   const navigate = useNavigate();
   const { pathname } = useLocation();
+  useSessionIdle(me?.session);
   const segment = pathname.replace(/^\/admin\/?/, "").split("/")[0];
   const tab: AdminTab = TABS.some((item) => item.key === segment)
     ? (segment as AdminTab)
@@ -75,7 +77,13 @@ export function AdminPage() {
     authApi
       .me()
       .then(setMe)
-      .catch(() => navigate("/login"));
+      .catch(() =>
+        navigate(
+          `/login?next=${encodeURIComponent(
+            window.location.pathname + window.location.search,
+          )}`,
+        ),
+      );
   }, [navigate]);
 
   if (!segment || tab !== segment) {

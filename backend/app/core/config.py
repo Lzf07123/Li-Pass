@@ -28,7 +28,8 @@ class Settings(BaseSettings):
     session_cookie_samesite: str = "lax"
     session_ttl_days: int = 30
     session_default_ttl_days: int = 1
-    session_idle_days: int = 7
+    # 空闲超时按分钟配置：主流 IdP 以 30 分钟～数小时计，7 天对安全产品过宽。
+    session_idle_minutes: int = 720
     # 登录可信设备：勾选「信任此设备」后该设备 7 天内登录免二次验证（仅登录环节）。
     trusted_device_ttl_days: int = 7
     cors_origins: list[str] = ["http://localhost:5173"]
@@ -66,6 +67,10 @@ class Settings(BaseSettings):
     login_email_rate_limit: int = 10
     login_email_rate_window_seconds: int = 900
     login_ip_rate_limit: int = 20
+    authorize_rate_limit: int = 120
+    authorize_rate_window_seconds: int = 60
+    token_rate_limit: int = 120
+    token_rate_window_seconds: int = 60
     # 敏感操作 step-up 复核窗口与限流：
     # 一次密码复核成功后，该会话 STEPUP_WINDOW_MINUTES 分钟内免再次输入密码；
     # 0 = 关闭窗口（每次敏感操作都必须重新复核）。
@@ -178,10 +183,15 @@ class Settings(BaseSettings):
             or self.client_block_rate_window_seconds < 1
             or self.audit_retention_days < 1
             or self.session_retention_days < 1
+            or self.authorize_rate_limit < 1
+            or self.authorize_rate_window_seconds < 1
+            or self.token_rate_limit < 1
+            or self.token_rate_window_seconds < 1
         ):
             raise ValueError(
                 "LOGIN_EMAIL_RATE_LIMIT/CLIENT_BLOCK_RATE_LIMIT/AUDIT_RETENTION_DAYS/"
-                "SESSION_RETENTION_DAYS 等配置必须 ≥1"
+                "SESSION_RETENTION_DAYS/AUTHORIZE_RATE_LIMIT/TOKEN_RATE_LIMIT "
+                "等配置必须 ≥1"
             )
         if self.jwt_active_kid and not self.jwt_keys_dir:
             raise ValueError("JWT_ACTIVE_KID 必须与 JWT_KEYS_DIR 同时配置")
@@ -211,8 +221,8 @@ class Settings(BaseSettings):
             raise ValueError("NOTIFICATION_RETENTION_DAYS 必须 ≥1")
         if self.ephemeral_retention_hours < 1:
             raise ValueError("EPHEMERAL_RETENTION_HOURS 必须 ≥1")
-        if self.session_idle_days < 1:
-            raise ValueError("SESSION_IDLE_DAYS 必须 ≥1")
+        if self.session_idle_minutes < 5:
+            raise ValueError("SESSION_IDLE_MINUTES 必须 ≥5（过短会导致误下线）")
         if self.session_default_ttl_days < 1:
             raise ValueError("SESSION_DEFAULT_TTL_DAYS 必须 ≥1")
         if self.session_default_ttl_days > self.session_ttl_days:

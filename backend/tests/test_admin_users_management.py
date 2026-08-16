@@ -1,7 +1,11 @@
+from datetime import datetime, timedelta, timezone
+
 from sqlalchemy import select
 
+from app.models.trusted_device import TrustedDevice
 from app.models.user import User, UserRole, UserStatus
 from app.security.passwords import hash_password
+from app.security.tokens import hash_token
 
 
 def login_admin(client, db_session) -> None:
@@ -92,6 +96,15 @@ def test_admin_disable_and_reset_password(client, db_session) -> None:
     db_session.add(bob)
     db_session.commit()
     db_session.refresh(bob)
+    db_session.add(
+        TrustedDevice(
+            user_id=bob.id,
+            token_hash=hash_token("bob-device"),
+            device_name="Bob Device",
+            expires_at=datetime.now(timezone.utc) + timedelta(days=7),
+        )
+    )
+    db_session.commit()
 
     response = client.patch(
         f"/api/v1/admin/users/{bob.id}",
@@ -115,6 +128,9 @@ def test_admin_disable_and_reset_password(client, db_session) -> None:
         },
     )
     assert response.status_code == 200
+    device = db_session.scalar(select(TrustedDevice))
+    assert device is not None
+    assert device.revoked_at is not None
     client.patch(f"/api/v1/admin/users/{bob.id}", json={"status": "active"})
     assert (
         client.post(
@@ -155,6 +171,15 @@ def test_admin_reset_actions_logged_with_actor(client, db_session) -> None:
     db_session.add(bob)
     db_session.commit()
     db_session.refresh(bob)
+    db_session.add(
+        TrustedDevice(
+            user_id=bob.id,
+            token_hash=hash_token("bob-device-2"),
+            device_name="Bob Device",
+            expires_at=datetime.now(timezone.utc) + timedelta(days=7),
+        )
+    )
+    db_session.commit()
     admin = db_session.scalar(
         select(User).where(User.email == "admin@example.com")
     )
@@ -170,6 +195,9 @@ def test_admin_reset_actions_logged_with_actor(client, db_session) -> None:
         f"/api/v1/admin/users/{bob.id}/reset-2fa",
         json={"current_password": "password123"},
     )
+    device = db_session.scalar(select(TrustedDevice))
+    assert device is not None
+    assert device.revoked_at is not None
 
     logs = client.get("/api/v1/admin/audit-logs").json()
     for action, target_id in (

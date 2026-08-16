@@ -1,5 +1,7 @@
 from urllib.parse import parse_qs, urlparse
 from datetime import datetime, timezone
+import base64
+import hashlib
 
 from sqlalchemy import select
 
@@ -7,6 +9,7 @@ from app.core.config import get_settings
 from app.models.oidc_client_session import OIDCClientSession
 from app.models.user import User
 from app.security.jwt import decode_token, userinfo_audience
+from app.security.tokens import hash_token
 from tests.helpers import TEST_VERIFIER, authorize_params, create_client, register_and_login
 
 
@@ -119,12 +122,159 @@ def test_wrong_pkce_verifier_rejected(client, captured_email, db_session) -> Non
     assert exchange(client, code, verifier="w" * 43).status_code == 400
 
 
+def test_confidential_client_still_requires_pkce(
+    client, captured_email, db_session
+) -> None:
+    create_client(
+        db_session, client_secret_hash=hash_token("top-secret")
+    )
+    register_and_login(client, captured_email)
+    response = client.get(
+        "/oauth2/authorize",
+        params=authorize_params({"scope": "openid profile email"}),
+    )
+    request_id = response.headers["location"].split("request_id=")[1]
+    code = parse_qs(
+        urlparse(
+            client.post(
+                f"/api/v1/consent/{request_id}/approve"
+            ).json()["redirect_url"]
+        ).query
+    )["code"][0]
+
+    missing_verifier = client.post(
+        "/oauth2/token",
+        data={
+            "grant_type": "authorization_code",
+            "code": code,
+            "redirect_uri": "http://localhost:3001/callback",
+            "client_id": "cli_demo",
+            "client_secret": "top-secret",
+        },
+    )
+    assert missing_verifier.status_code == 400
+
+    ok = client.post(
+        "/oauth2/token",
+        data={
+            "grant_type": "authorization_code",
+            "code": code,
+            "redirect_uri": "http://localhost:3001/callback",
+            "client_id": "cli_demo",
+            "client_secret": "top-secret",
+            "code_verifier": TEST_VERIFIER,
+        },
+    )
+    assert ok.status_code == 200
+
+
+def test_token_error_uses_rfc6749_format(client, db_session) -> None:
+    create_client(db_session)
+    response = client.post(
+        "/oauth2/token",
+        data={
+            "grant_type": "authorization_code",
+            "code": "not-a-code",
+            "redirect_uri": "http://localhost:3001/callback",
+            "client_id": "cli_demo",
+        },
+    )
+    assert response.status_code == 400
+    body = response.json()
+    assert body["error"] == "invalid_grant"
+    assert "error_description" in body
+    assert "detail" not in body
+
+
+def test_id_token_contains_at_hash(client, captured_email, db_session) -> None:
+    code = get_code(client, captured_email, db_session)
+    body = exchange(client, code).json()
+    access_token = body["access_token"]
+    id_claims = decode_token(body["id_token"], audience="cli_demo")
+    expected = base64.urlsafe_b64encode(
+        hashlib.sha256(access_token.encode()).digest()[:16]
+    ).rstrip(b"=").decode()
+    assert id_claims["at_hash"] == expected
+
+
+def test_id_token_omits_nonce_when_not_requested(
+    client, captured_email, db_session
+) -> None:
+    create_client(db_session)
+    register_and_login(client, captured_email)
+    response = client.get(
+        "/oauth2/authorize",
+        params=authorize_params(
+            {"scope": "openid profile email", "nonce": None}
+        ),
+    )
+    request_id = response.headers["location"].split("request_id=")[1]
+    code = parse_qs(
+        urlparse(
+            client.post(
+                f"/api/v1/consent/{request_id}/approve"
+            ).json()["redirect_url"]
+        ).query
+    )["code"][0]
+    claims = decode_token(exchange(client, code).json()["id_token"], audience="cli_demo")
+    assert "nonce" not in claims
+
+
 def test_discovery_and_jwks(client) -> None:
     discovery = client.get("/.well-known/openid-configuration").json()
     assert discovery["issuer"] == "http://localhost:8000"
     assert discovery["response_types_supported"] == ["code"]
+    assert discovery["token_endpoint_auth_methods_supported"] == [
+        "none",
+        "client_secret_post",
+    ]
+    assert "sub" in discovery["claims_supported"]
+    assert "acr" in discovery["claims_supported"]
     jwks = client.get("/oauth2/jwks").json()
     assert jwks["keys"][0]["alg"] == "RS256"
+
+
+def test_token_endpoint_rate_limited(client, db_session, monkeypatch) -> None:
+    from app.services.rate_limit import MemoryRateLimiter
+
+    limiter = MemoryRateLimiter()
+    monkeypatch.setattr("app.api.routes.oidc.get_rate_limiter", lambda: limiter)
+    create_client(db_session)
+    for _ in range(120):
+        client.post(
+            "/oauth2/token",
+            data={
+                "grant_type": "authorization_code",
+                "code": "x",
+                "redirect_uri": "http://localhost:3001/callback",
+                "client_id": "cli_demo",
+            },
+        )
+    response = client.post(
+        "/oauth2/token",
+        data={
+            "grant_type": "authorization_code",
+            "code": "x",
+            "redirect_uri": "http://localhost:3001/callback",
+            "client_id": "cli_demo",
+        },
+    )
+    assert response.status_code == 429
+    assert response.json()["error"] == "rate_limited"
+
+
+def test_authorize_endpoint_rate_limited(
+    client, db_session, monkeypatch
+) -> None:
+    from app.services.rate_limit import MemoryRateLimiter
+
+    limiter = MemoryRateLimiter()
+    monkeypatch.setattr("app.api.routes.oidc.get_rate_limiter", lambda: limiter)
+    create_client(db_session)
+    for _ in range(120):
+        client.get("/oauth2/authorize", params=authorize_params())
+    response = client.get("/oauth2/authorize", params=authorize_params())
+    assert response.status_code == 429
 
 
 def test_userinfo_respects_scope(client, captured_email, db_session) -> None:

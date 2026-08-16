@@ -2,31 +2,26 @@ import { beforeEach, describe, expect, it } from "vitest";
 
 import {
   getRememberedAccount,
-  getRememberedPassword,
-  persistRememberedCredentials,
+  persistRememberedAccount,
 } from "../lib/remember";
 
-describe("remember credentials", () => {
+describe("remember account", () => {
   beforeEach(() => {
     window.localStorage.clear();
   });
 
-  it("记住账号时保存邮箱，取消勾选清除密码", () => {
-    persistRememberedCredentials("a@example.com", "password123", true, false);
+  it("勾选时保存邮箱，取消勾选清除", () => {
+    persistRememberedAccount("a@example.com", true);
     expect(getRememberedAccount()).toBe("a@example.com");
-    expect(getRememberedPassword()).toBeNull();
 
-    persistRememberedCredentials("a@example.com", "password123", false, false);
+    persistRememberedAccount("a@example.com", false);
     expect(getRememberedAccount()).toBeNull();
   });
 
-  it("记住密码时同时保存账号与密码", () => {
-    persistRememberedCredentials("a@example.com", "password123", true, true);
+  it("持久化时顺带清理历史遗留的明文密码键", () => {
+    window.localStorage.setItem("lipass.remember.password", "password123");
+    persistRememberedAccount("a@example.com", true);
+    expect(window.localStorage.getItem("lipass.remember.password")).toBeNull();
     expect(getRememberedAccount()).toBe("a@example.com");
-    expect(getRememberedPassword()).toBe("password123");
-
-    persistRememberedCredentials("a@example.com", "password123", true, false);
-    expect(getRememberedAccount()).toBe("a@example.com");
-    expect(getRememberedPassword()).toBeNull();
   });
 });

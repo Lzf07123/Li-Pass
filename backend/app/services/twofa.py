@@ -165,8 +165,8 @@ def enable_totp(user, secret: str, db) -> None:
 
 
 def generate_recovery_codes(db, user) -> list[str]:
-    # 64 bit 熵，并以 HMAC(服务端密钥) 存储，数据库泄露后无法离线爆破。
-    codes = [secrets.token_hex(8) for _ in range(10)]
+    # 128 bit 熵，并以 HMAC(服务端密钥) 存储，数据库泄露后无法离线爆破。
+    codes = [secrets.token_hex(16) for _ in range(10)]
     for code in codes:
         db.add(RecoveryCode(user_id=user.id, code_hash=hmac_hex(code)))
     db.commit()
