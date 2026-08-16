@@ -70,6 +70,10 @@ describe("DashboardPage", () => {
     await waitFor(() => expect(screen.getByText("Demo")).toBeInTheDocument());
     expect(screen.getByText("已登录 · 1 台设备")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "上传头像" })).toBeInTheDocument();
+    const enterLink = screen.getByRole("link", { name: "进入" });
+    expect(enterLink).toHaveAttribute("href", "http://localhost:3001");
+    expect(enterLink).toHaveAttribute("target", "_blank");
+    expect(enterLink).toHaveAttribute("rel", "noopener noreferrer");
   });
 
   it("退出所有设备保留当前会话并刷新列表", async () => {
