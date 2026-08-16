@@ -27,6 +27,7 @@
 
 ### 安全加固
 
+- 黑名单接口邮箱格式校验：`ClientBlockCreate.email` 改为 `EmailStr`，畸形邮箱返回 422（此前任意字符串可落库，虽仅做等值比较无实际风险，但会沉淀脏数据）。
 - 黑名单接口参数类型收紧：`ClientBlockCreate.user_id` 改为 UUID 类型校验，畸形 `user_id` 返回 422（此前被 `except ValueError` 误捕获为语义错位的 409，错误文案为 UUID 解析异常）。客户端自助接口与管理端接口同步生效。
 - OIDC 客户端 scope 收口：`ClientCreate/ClientUpdate` 只接受 `openid/profile/email` 且必须包含 `openid`，与发现文档的 `scopes_supported` 一致，杜绝注册 `phone` 等本 IdP 不会输出的 scope 造成 RP 误解；`ClientUpdate` 同时拒绝把 `redirect_uris`/`scopes` 清成空列表（此前会立刻使客户端不可用）。
 - token 端点参数长度上限：`code`（512）、`redirect_uri`（1000）、`client_id`（128）、`client_secret`（256）、`code_verifier`（200）与 authorize 端点对齐，避免直连后端部署形态下超长表单字段造成内存/CPU 放大；PKCE 校验补全 RFC 7636——`code_verifier` 长度窗口 43–128，`code_challenge` 必须为 43–128 字符 base64url。
@@ -97,6 +98,7 @@
 
 ### 缺陷修复
 
+- 管理后台统计口径修正：「在线会话」与「在线会话认证方式分布」此前只按 `expires_at` 判断，把空闲超时但尚未过期的会话也计入在线；现同时要求 `last_used_at` 在 `SESSION_IDLE_MINUTES` 窗口内，与用户中心/会话监控的在线口径一致。
 - 前端镜像在全新检出/干净构建上下文下构建失败：`src/lib/brand.ts` 为本地配置文件未入库（示例为 `brand.example.ts`），缺少该文件时 `tsc` 报 `Cannot find module '../lib/brand'`，`npm run build` 以退出码 2 中止。现 Dockerfile 在构建前检查，文件缺失时用 `brand.example.ts` 兜底复制；构建上下文中已放置自定义 `brand.ts` 时优先保留，与 CI 的复制步骤行为一致。
 - 访客无法打开注册/找回密码/重置密码页：全局 401 兜底会把 `GuestOnly` 的会话探测（`/api/v1/me`）误判为会话失效并跳回登录页，导致从登录页点击「注册新账号」「忘记密码？」后立即被弹回（`/login?next=…`）。现 `GuestOnly` 改用静默探针（`authApi.meSilent`，401 不派发全局跳转事件），访客正常到达目标页；真实会话过期场景的兜底跳转不受影响。
 - 修复头像首次访问 500、重复绑定手机 500、跨会话确认登出、scope/回调地址校验等缺陷，详见「安全加固」新增条目。

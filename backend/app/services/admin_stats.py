@@ -7,6 +7,7 @@ from datetime import datetime, timedelta, timezone
 from sqlalchemy import Column, func, select
 from sqlalchemy.orm import Session
 
+from app.core.config import get_settings
 from app.models.audit_log import AuditLog
 from app.models.session import Session as SessionModel
 from app.models.user import User, UserRole, UserStatus
@@ -83,6 +84,8 @@ def _count(db: Session, stmt) -> int:
 
 
 def _overview(db: Session, now: datetime) -> dict:
+    settings = get_settings()
+    idle_cutoff = now - timedelta(minutes=settings.session_idle_minutes)
     total = _count(db, select(func.count()).select_from(User))
     active = _count(
         db,
@@ -109,6 +112,7 @@ def _overview(db: Session, now: datetime) -> dict:
         .where(
             SessionModel.revoked_at.is_(None),
             SessionModel.expires_at >= now,
+            SessionModel.last_used_at >= idle_cutoff,
         ),
     )
     total_logins = _count(
@@ -184,11 +188,14 @@ def _daily_series(db: Session, days: int, now: datetime) -> list[dict]:
 
 
 def _auth_methods(db: Session, now: datetime) -> list[dict]:
+    settings = get_settings()
+    idle_cutoff = now - timedelta(minutes=settings.session_idle_minutes)
     rows = db.execute(
         select(SessionModel.auth_method, func.count())
         .where(
             SessionModel.revoked_at.is_(None),
             SessionModel.expires_at >= now,
+            SessionModel.last_used_at >= idle_cutoff,
         )
         .group_by(SessionModel.auth_method)
     ).all()

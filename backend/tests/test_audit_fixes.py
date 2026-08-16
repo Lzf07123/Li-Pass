@@ -4,9 +4,10 @@
 再以最小改动转绿，防止回归。
 """
 
+import base64
 import shutil
 import urllib.parse
-import base64
+from datetime import datetime, timedelta, timezone
 
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import sessionmaker
@@ -15,6 +16,7 @@ from app.core.config import get_settings
 from app.core.db import get_db
 from app.main import create_app
 from app.models.oauth_client import OAuthClient
+from app.models.session import Session as SessionModel
 from app.models.user import User, UserRole
 from app.security.passwords import hash_password
 from app.security.tokens import hash_token
@@ -150,6 +152,62 @@ def test_client_block_rejects_malformed_user_id(client, db_session) -> None:
         json={"user_id": "not-a-uuid", "reason": "x"},
     )
     assert resp.status_code == 422
+
+
+def test_client_block_rejects_malformed_email(client, db_session) -> None:
+    """邮箱字段应在参数校验层要求合法邮箱格式，返回 422。"""
+    db_session.add(
+        OAuthClient(
+            client_id="cli_mail",
+            client_secret_hash=hash_token("secret123"),
+            name="Mail",
+            redirect_uris=["http://x/cb"],
+        )
+    )
+    db_session.commit()
+    token = base64.b64encode(b"cli_mail:secret123").decode()
+    resp = client.post(
+        "/oauth2/client/blocks",
+        headers={"Authorization": f"Basic {token}"},
+        json={"email": "not-an-email", "reason": "x"},
+    )
+    assert resp.status_code == 422
+
+
+def test_stats_excludes_idle_sessions_from_online_count(
+    client, db_session
+) -> None:
+    """在线会话统计必须同时满足绝对过期与空闲超时两个条件。"""
+    from app.services import admin_stats
+
+    user = User(
+        email="stats@example.com",
+        password_hash=hash_password("password123"),
+        nickname="Stats",
+    )
+    db_session.add(user)
+    db_session.commit()
+    now = datetime.now(timezone.utc)
+    db_session.add_all(
+        [
+            SessionModel(
+                user_id=user.id,
+                token_hash=hash_token(f"tok-{minutes}"),
+                auth_method="password",
+                expires_at=now + timedelta(days=30),
+                last_used_at=now - timedelta(minutes=minutes),
+            )
+            for minutes in (5, 721)
+        ]
+    )
+    db_session.commit()
+
+    snapshot = admin_stats._collect_stats(db_session, 7)
+    assert snapshot["overview"]["online_sessions"] == 1
+    password_rows = [
+        row for row in snapshot["auth_methods"] if row["method"] == "password"
+    ]
+    assert password_rows == [{"method": "password", "count": 1}]
 
 
 def _login_admin(client, db_session) -> None:
