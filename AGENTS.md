@@ -50,7 +50,7 @@ gateway/                 单域名 nginx 网关：/ → 前端、/api + /oauth2 
 examples/demo-site/      示例 OIDC 接入站（Flask）
 scripts/                 PostgreSQL 备份/恢复脚本
 docs/                    部署、对接、设计规格与实施计划
-docker-compose.yaml      gateway + frontend + backend + postgres + redis（profile: bundle）、demo-site（profile: demo）
+docker-compose.example.yaml  编排示例（复制为 docker-compose.yaml 使用，后者已 gitignore）：gateway + frontend + backend + postgres + redis（profile: bundle）、demo-site（profile: demo）
 ```
 
 关键事实：**唯一对外入口是 gateway 的 :80**；前端/后端容器不向宿主机映射端口，生产 HTTPS 由部署环境负责。API 前缀 `/api/v1`；OIDC 在 `/oauth2/*` 与 `/.well-known/openid-configuration`。
@@ -101,6 +101,8 @@ docker compose --profile bundle up -d --build     # 启动（含 postgres/redis�
 docker compose logs backend | grep 'code='        # 开发环境邮件验证码
 curl -fsS http://localhost/healthz http://localhost/readyz
 ```
+
+首次使用前先 `cp docker-compose.example.yaml docker-compose.yaml`（本机版不提交，可按环境就地修改）。
 
 依赖安全（项目要求清零）：后端 `pip-audit`，前端 `npm audit`。
 

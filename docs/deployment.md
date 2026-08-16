@@ -20,12 +20,13 @@ Li&Pass 使用 Docker Compose 部署。仓库内置 `gateway`（nginx）作为**
 ## 一条命令启动（生产形态）
 
 ```bash
+cp docker-compose.example.yaml docker-compose.yaml
 cp .env.example .env
 # 按需修改 .env（域名、Cookie、邮件、密码等；生产配置示例见 .env.example 底部注释）
 docker compose -f docker-compose.yaml --profile bundle --env-file .env up -d --build
 ```
 
-开发与生产共用这一份 `docker-compose.yaml`：本地直接 `docker compose --profile bundle up -d --build`；生产按上文配置 `.env` 后再启动即可。使用远程 PostgreSQL/Redis 时去掉 `--profile bundle`。
+仓库只提交 `docker-compose.example.yaml`（示例）；复制为 `docker-compose.yaml` 后使用，本机版已 gitignore、可按环境就地修改。开发与生产共用这一份编排：本地 `cp docker-compose.example.yaml docker-compose.yaml` 后直接 `docker compose --profile bundle up -d --build`；生产按上文配置 `.env` 后再启动即可。使用远程 PostgreSQL/Redis 时去掉 `--profile bundle`。
 
 启动后：
 

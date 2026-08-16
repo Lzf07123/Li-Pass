@@ -50,6 +50,9 @@ logs/
 postgres-data/
 redis-data/
 
+# 编排文件：提交 docker-compose.example.yaml，复制为 docker-compose.yaml 后按需修改
+/docker-compose.yaml
+
 # 数据库备份
 backups/
 

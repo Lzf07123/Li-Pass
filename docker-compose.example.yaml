@@ -1,3 +1,6 @@
+# Li&Pass 编排示例文件。使用方式：
+#   cp docker-compose.example.yaml docker-compose.yaml
+# 本机 docker-compose.yaml 已加入 .gitignore，可按部署环境就地修改而不污染仓库。
 name: lipass
 
 services:

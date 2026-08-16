@@ -55,7 +55,7 @@ lipass/
 ├── scripts/                 # PostgreSQL 备份/恢复脚本
 ├── docs/                    # 设计文档与对接文档
 ├── AGENTS.md                # 项目协作手册（后续 AI Agent 开发入口）
-└── docker-compose.yaml      # gateway + frontend + backend + postgres + redis
+└── docker-compose.example.yaml  # 编排示例（复制为 docker-compose.yaml 使用）
 ```
 
 ## 参与开发（Agent 协作）
@@ -67,6 +67,7 @@ lipass/
 全部五个里程碑（项目骨架与账号体系、OIDC 核心、用户中心与访问控制、2FA 与安全加固、生产部署与文档）已完成。最快捷的方式是一键启动全栈（含前端、后端与基础设施）：
 
 ```bash
+cp docker-compose.example.yaml docker-compose.yaml
 docker compose --profile bundle up -d --build
 ```
 
@@ -126,6 +127,7 @@ docker compose up -d --build
 ### 生产形态启动
 
 ```bash
+cp docker-compose.example.yaml docker-compose.yaml
 cp .env.example .env
 docker compose -f docker-compose.yaml --profile bundle --env-file .env up -d --build
 ```
