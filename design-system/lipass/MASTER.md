@@ -11,7 +11,8 @@
 
 **Project:** Li&Pass
 **Generated:** 2026-08-12 10:23:37
-**Updated:** 2026-08-13（与 `frontend/src/index.css`、`frontend/src/components/` 对齐）
+**Updated:** 2026-08-17（与 `frontend/src/index.css`、`frontend/src/components/` 对齐；
+新增强调色板与流动光效，详见 `docs/superpowers/specs/2026-08-17-ui-color-light-design.md`）
 **Category:** SSO 统一登录门户（Li&Pass）
 
 > **来源声明：** 本文件描述当前前端实现使用的视觉系统；最终以 `frontend/src/index.css` 的
@@ -37,13 +38,30 @@
 | 主色 | `#0369A1` | `#38BDF8` | `bg-primary / text-primary` |
 | 主色悬停 | `#075985` | `#7DD3FC` | `hover:bg-primary-hover` |
 | 主色前景 | `#FFFFFF` | `#082F49` | `text-primary-foreground` |
+| 次级色 | `#0EA5E9` | `#7DD3FC` | `text-secondary / bg-secondary-soft` |
 | 成功 | `#15803D` | `#4ADE80` | `text-success / bg-success-soft` |
 | 警告 | `#B45309` | `#FBBF24` | `text-warning / bg-warning-soft` |
 | 危险 | `#DC2626` | `#F87171` | `text-destructive / bg-destructive-soft` |
 | 焦点环 | `#0369A1` | `#38BDF8` | `focus:ring-primary/20` |
 
+**强调色板（信息分层，装饰性小面积使用）：**
+
+| 色相 | 浅色 strong / soft | 深色 strong / soft | Tailwind 令牌 |
+| --- | --- | --- | --- |
+| cyan | `#0E7490` / `#CFFAFE` | `#67E8F9` / `rgba(103,232,249,.14)` | `text-accent-cyan / bg-accent-cyan-soft` |
+| teal | `#0F766E` / `#CCFBF1` | `#5EEAD4` / `rgba(94,234,212,.14)` | `text-accent-teal / bg-accent-teal-soft` |
+| indigo | `#4338CA` / `#E0E7FF` | `#A5B4FC` / `rgba(165,180,252,.16)` | `text-accent-indigo / bg-accent-indigo-soft` |
+| violet | `#6D28D9` / `#EDE9FE` | `#C4B5FD` / `rgba(196,181,253,.16)` | `text-accent-violet / bg-accent-violet-soft` |
+| amber | `#B45309` / `#FEF3C7` | `#FCD34D` / `rgba(252,211,77,.14)` | `text-accent-amber / bg-accent-amber-soft` |
+| rose | `#BE123C` / `#FFE4E6` | `#FDA4AF` / `rgba(253,164,175,.14)` | `text-accent-rose / bg-accent-rose-soft` |
+
+stable 哈希分配见 `frontend/src/lib/accent.ts` 的 `accentFor(id)`；Bento 深色卡标签色
+（明暗主题共用，卡面恒为深色）另设 `--portal-bento-{sky,indigo,teal,violet,amber,rose}[-rgb]` 令牌。
+
 **色彩说明：** 安全蓝 + 中性石板灰（Trust & Authority / Minimalism）；前景/背景对比满足
-WCAG AA（正文 ≥ 4.5:1）。深色模式使用去饱和浅色调变体，而非简单反色。
+WCAG AA（正文 ≥ 4.5:1）。强调色 strong 均取 700 级（浅色）/300–400 级（深色），
+配 soft 底时文本对比 ≥ 4.5:1；amber/rose 只做装饰（瓦片/图例/规则线），状态语义色不被替代。
+深色模式使用去饱和浅色调变体，而非简单反色。
 
 ### 字体
 
@@ -70,6 +88,16 @@ WCAG AA（正文 ≥ 4.5:1）。深色模式使用去饱和浅色调变体，而
 交互统一：可点击元素必须有 `cursor-pointer`；hover 轻微上移（`translateY(-1px)`），按压 `scale(0.97)`；
 `prefers-reduced-motion: reduce` 时所有动画缩短为 `0.01ms` 并保持单帧。
 
+**流动光效（2026-08-17 新增，全部仅动 transform/opacity/background-position）：**
+
+| 位置 | 效果 | 周期 |
+| --- | --- | --- |
+| `.btn-primary::after` | 斜向扫光 + 长停顿（`btn-sheen`），disabled 不发光 | 5s |
+| `.card-signature` | 蓝→青→紫→青蓝描边沿 140° 流动（`signature-flow`） | 14s |
+| `.flow-rule` | 主色→次级→靛→紫→青渐变流动线（分区标题/顶栏） | 8s |
+| `.aurora-soft` | 已登录页低浓度极光层（认证页保持默认浓度） | 16/20/24s |
+| `.pill-tab.is-active::after` | 活动标签扫光（复用 `btn-sheen`） | 5s |
+
 ---
 
 ## Component Specs（对应 `frontend/src/components/` 与 `index.css`）
@@ -77,6 +105,7 @@ WCAG AA（正文 ≥ 4.5:1）。深色模式使用去饱和浅色调变体，而
 ### 按钮（`.btn` 系列）
 
 - `.btn-primary`：主色 → 主色悬停的纵向渐变背景 + 主色前景；hover 渐变下移并抬升阴影（`background-position` 过渡）。
+- `.btn-primary::after`：斜向流光扫过按钮并长时间停顿，明暗主题各配不同亮度扫光；`disabled` 关闭。
 - `.btn-secondary`：透明/表面背景 + 边框；hover 换 `surface-2`。
 - `.btn-danger`：危险色背景 + 白色前景；hover 透明度降低。
 - `.btn-ghost` / `.btn-link`：弱化/文字按钮，用于次要操作。
@@ -87,6 +116,7 @@ WCAG AA（正文 ≥ 4.5:1）。深色模式使用去饱和浅色调变体，而
 - `bg-surface` + `border-border` + `rounded-2xl` + 弥散阴影。
 - hover：`translateY(-1px)` 并切换 `--shadow-lg`；交互式卡片加 `.card-interactive`。
 - `.card-signature`：认证页专用，叠加于 `.card` 之上，以蓝→青→紫低透明度渐变替代描边（padding-box 表面 + border-box 渐变边框双背景）。
+  描边层以 `background-position` 动画缓慢流动（14s）。
 
 ### 表单（`.label` / `.input` / `.input-sm`）
 
@@ -97,7 +127,7 @@ WCAG AA（正文 ≥ 4.5:1）。深色模式使用去饱和浅色调变体，而
 
 - 位置：`frontend/src/components/PillTabs.tsx` + `PillTabs.css`，管理后台顶部标签栏使用；基于 gsap，移植 React Bits PillNav 的圆环展开效果。
 - 结构：`PillTabs` 内部渲染 `ScrollTabs`（`fadeColor="var(--portal-surface-2)"`），轨道为 surface-2 背景 + 9999px 圆角；每颗 `.pill-tab` 含 `.pill-tab-circle`（主色圆环）与 `.pill-tab-stack`（双层文案）。
-- 交互：hover / 键盘聚焦时圆环从胶囊底部中心放大覆盖整颗胶囊，旧文案上滑、主色前景文案从下方滑入（进入 300ms / 离开 200ms）；活动标签固定为主色背景 + 主色前景。`prefers-reduced-motion` 下瞬切。
+- 交互：hover / 键盘聚焦时圆环从胶囊底部中心放大覆盖整颗胶囊，旧文案上滑、主色前景文案从下方滑入（进入 300ms / 离开 200ms）；活动标签固定为主色背景 + 主色前景，并有斜向扫光（`btn-sheen`）。`prefers-reduced-motion` 下瞬切。
 - 保留 ScrollTabs 的横向滑动、边缘渐隐与深链居中能力。
 
 ### Bento 展示网格（`MagicBento` / `.magic-bento-card`）
@@ -105,6 +135,8 @@ WCAG AA（正文 ≥ 4.5:1）。深色模式使用去饱和浅色调变体，而
 - 位置：`frontend/src/components/bits/MagicBento.tsx` + `MagicBento.css`，后台「数据统计」概览卡片使用；基于 gsap，移植 React Bits MagicBento。
 - 结构：`.magic-bento` 内为 `.card-grid.bento-section`，卡片为深色表面（浅色 `#0F172A` / 深色 `#111A2C`）；默认首卡跨两列，`emphasize` 项数值加粗放大（tabular-nums）；项支持 `icon`（标签前图标）、`footer`（底部扩展内容，如迷你趋势线/进度条）与 `href`（整卡渲染为路由链接）；`compact` 模式为等宽 3 列、单卡高 144px，适合嵌入页面顶部概览区。
 - 交互：全局光标聚光（`.global-spotlight`）、悬停粒子星点、边框辉光（`--glow-*` 变量）、3D 倾斜与磁性吸附；光色默认取明暗主题的主色 RGB 值，`glowColor`（RGB 三元组字符串）可覆盖。
+- 多色支持：item 可选 `accent: { rgb, hex }`，卡片级覆盖 `--glow-color`/`--bento-label`，
+  标签底色/图标/辉光/页脚迷你图与进度条联动跟随（`color-mix`/`rgba(var(--glow-color))` 派生）。
 - 移动端（<768px）与 `prefers-reduced-motion` 下自动禁用动画，仅保留静态卡片。
 
 ### 徽章 / 提示条 / 弹窗 / Toast
