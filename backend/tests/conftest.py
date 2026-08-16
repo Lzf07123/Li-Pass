@@ -98,6 +98,9 @@ class CapturingEmailService:
     def send_account_deleted(self, to: str, nickname: str | None) -> None:
         self.messages.append(("account_deleted", to, nickname or ""))
 
+    def send_email_changed(self, to: str, nickname: str | None) -> None:
+        self.messages.append(("email_changed", to, nickname or ""))
+
     def send_custom_notification(self, to: str, subject: str, body: str) -> None:
         self.messages.append(("custom_notification", to, f"{subject}\n{body}"))
 

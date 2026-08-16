@@ -72,6 +72,11 @@ export function DashboardPage() {
   >(null);
   const [deleteAccountOpen, setDeleteAccountOpen] = useState(false);
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
+  const [newEmail, setNewEmail] = useState("");
+  const [emailChangePassword, setEmailChangePassword] = useState("");
+  const [emailChangeCode, setEmailChangeCode] = useState("");
+  const [emailChangeCountdown, setEmailChangeCountdown] = useState(0);
+  const [emailChangeError, setEmailChangeError] = useState<string | null>(null);
   const navigate = useNavigate();
   const toast = useToast();
   const stepUp = useStepUp();
@@ -79,6 +84,15 @@ export function DashboardPage() {
   const sessionsBreathing = useBreathOnChange(sessions);
   const appsBreathing = useBreathOnChange(apps);
   const emailNoticeId = useRef<number | null>(null);
+
+  useEffect(() => {
+    if (emailChangeCountdown <= 0) return;
+    const timer = setTimeout(
+      () => setEmailChangeCountdown((s) => s - 1),
+      1000,
+    );
+    return () => clearTimeout(timer);
+  }, [emailChangeCountdown]);
 
   useEffect(() => {
     let cancelled = false;
@@ -279,6 +293,46 @@ export function DashboardPage() {
     if (!avatarFile) return;
     await uploadAvatarAction.run(avatarFile);
   }
+
+  const sendEmailChangeCodeAction = useAsyncAction(
+    async (newEmailValue: string, password: string) => {
+      await meApi.emailChangeRequest({
+        new_email: newEmailValue,
+        current_password: password,
+      });
+      setEmailChangeCountdown(60);
+      setEmailChangeError(null);
+      toast.success("验证码已发送至新邮箱");
+    },
+    {
+      onError: (err) => {
+        const message = err instanceof Error ? err.message : "发送失败";
+        setEmailChangeError(message);
+      },
+    },
+  );
+
+  const confirmEmailChangeAction = useAsyncAction(
+    async (newEmailValue: string, code: string) => {
+      const result = await meApi.emailChangeConfirm({
+        new_email: newEmailValue,
+        code,
+      });
+      const updated = await authApi.me();
+      setUser(updated);
+      setNewEmail("");
+      setEmailChangePassword("");
+      setEmailChangeCode("");
+      setEmailChangeError(null);
+      toast.success(result.message);
+    },
+    {
+      onError: (err) => {
+        const message = err instanceof Error ? err.message : "更换失败";
+        setEmailChangeError(message);
+      },
+    },
+  );
 
   const revokeSessionAction = useAsyncAction(
     async (id: string) => {
@@ -654,6 +708,107 @@ export function DashboardPage() {
                     />
                     <span>接收邮件通知（关闭后仍会收到站内信）</span>
                   </label>
+                </form>
+              </section>
+            </FadeIn>
+
+            <FadeIn delay={0.04}>
+              <section className="card p-6">
+                <h2 className="mb-4 inline-flex items-center gap-2 text-base font-semibold text-foreground">
+                  <LineIcon name="mail" className="h-4 w-4 text-primary" />
+                  更换登录邮箱
+                </h2>
+                <p className="mb-4 text-sm text-muted">
+                  邮箱仅用于登录与接收通知，账号身份（OpenID 标识）不会改变；
+                  更换后旧邮箱立即停用。
+                </p>
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    void sendEmailChangeCodeAction.run(
+                      newEmail,
+                      emailChangePassword,
+                    );
+                  }}
+                  className="space-y-3"
+                >
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <label className="block">
+                      <span className="label">新邮箱</span>
+                      <input
+                        type="email"
+                        value={newEmail}
+                        onChange={(e) => {
+                          setNewEmail(e.target.value);
+                          setEmailChangeError(null);
+                        }}
+                        className="input"
+                        autoComplete="email"
+                        required
+                      />
+                    </label>
+                    <div>
+                      <span className="label">当前密码</span>
+                      <PasswordInput
+                        id="email-change-password"
+                        placeholder="当前密码（更换邮箱）"
+                        value={emailChangePassword}
+                        onChange={(e) => {
+                          setEmailChangePassword(e.target.value);
+                          setEmailChangeError(null);
+                        }}
+                        className="input"
+                        autoComplete="current-password"
+                        required
+                      />
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap items-end gap-2">
+                    <label className="block min-w-0 flex-1">
+                      <span className="label">新邮箱验证码</span>
+                      <input
+                        value={emailChangeCode}
+                        onChange={(e) => {
+                          setEmailChangeCode(e.target.value);
+                          setEmailChangeError(null);
+                        }}
+                        placeholder="6 位验证码"
+                        className="input"
+                        inputMode="numeric"
+                        maxLength={6}
+                        autoComplete="one-time-code"
+                      />
+                    </label>
+                    <AsyncButton
+                      type="submit"
+                      status={sendEmailChangeCodeAction.status}
+                      disabled={emailChangeCountdown > 0}
+                      className="btn btn-secondary min-w-28"
+                    >
+                      {emailChangeCountdown > 0
+                        ? `重新发送（${emailChangeCountdown}s）`
+                        : "发送验证码"}
+                    </AsyncButton>
+                    <AsyncButton
+                      type="button"
+                      status={confirmEmailChangeAction.status}
+                      onClick={() => {
+                        if (!emailChangeCode.trim()) {
+                          setEmailChangeError("请先获取并输入新邮箱验证码");
+                          return;
+                        }
+                        void confirmEmailChangeAction.run(newEmail, emailChangeCode);
+                      }}
+                      className="btn btn-primary"
+                    >
+                      确认更换
+                    </AsyncButton>
+                  </div>
+                  {emailChangeError && (
+                    <p role="alert" className="text-xs text-destructive">
+                      {emailChangeError}
+                    </p>
+                  )}
                 </form>
               </section>
             </FadeIn>

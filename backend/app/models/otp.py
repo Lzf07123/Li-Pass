@@ -12,6 +12,7 @@ class OtpPurpose(str, enum.Enum):
     register = "register"
     reset_password = "reset_password"
     bind_phone = "bind_phone"
+    change_email = "change_email"
     two_fa = "2fa"
 
 

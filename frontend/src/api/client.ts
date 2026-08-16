@@ -263,6 +263,16 @@ export const meApi = {
     email_notifications?: boolean;
   }) =>
     api<UserOut>("/api/v1/me", { method: "PUT", body: JSON.stringify(data) }),
+  emailChangeRequest: (data: { new_email: string; current_password: string }) =>
+    api<{ message: string }>("/api/v1/me/email/change/request", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+  emailChangeConfirm: (data: { new_email: string; code: string }) =>
+    api<{ message: string }>("/api/v1/me/email/change/confirm", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
   stepUpStatus: () => api<StepUpStatus>("/api/v1/me/step-up"),
   stepUpVerify: (password: string) =>
     api<StepUpStatus & { message: string }>("/api/v1/me/step-up", {

@@ -340,6 +340,13 @@ curl {issuer}/oauth2/userinfo -H "Authorization: Bearer ACCESS_TOKEN"
 
 claims 按授权 scope 裁剪：`email` scope 才返回 `email` / `email_verified`，`profile` scope 才返回 `nickname` / `name` / `picture`。`picture` 为用户头像的绝对 URL（未设置头像时不返回）。
 
+> **账号标识与邮箱可变性**：`sub` 是用户注册后终身不变的 UUID，是唯一稳定的账号标识；
+> 邮箱是可变属性（用户中心支持更换登录邮箱）。**对接方必须按 `sub` 绑定本地账号，
+> 不得把邮箱当作主键或长期缓存为身份标识**——邮箱更换后旧 `id_token`/`userinfo` 中
+> 的 `email` 会在令牌到期（最长 15 分钟）后逐步更新为新值。
+> 网站自助黑名单同理：对已注册用户建议使用 `user_id` 封禁；按 `email` 封禁的记录在
+> 用户更换邮箱后不再命中（email 封禁仅适合“预封禁未来注册邮箱”场景）。
+
 **成功响应**：`200 application/json`，claims 表如下：
 
 | 字段 | 出现条件 | 说明 |

@@ -78,6 +78,16 @@ class ProfileUpdate(BaseModel):
         raise ValueError("头像地址不合法")
 
 
+class EmailChangeRequest(BaseModel):
+    new_email: EmailStr
+    current_password: str = Field(min_length=1, max_length=128)
+
+
+class EmailChangeConfirm(BaseModel):
+    new_email: EmailStr
+    code: str = Field(min_length=6, max_length=6)
+
+
 class PasswordChange(BaseModel):
     # 处于 step-up 窗口内时可省略：30 分钟内已复核过密码。
     current_password: str | None = Field(default=None, min_length=1, max_length=128)
