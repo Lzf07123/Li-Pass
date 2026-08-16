@@ -148,6 +148,15 @@ stable 哈希分配见 `frontend/src/lib/accent.ts` 的 `accentFor(id)`；Bento 
 - 交互：hover / 键盘聚焦时圆环从胶囊底部中心放大覆盖整颗胶囊，旧文案上滑、主色前景文案从下方滑入（进入 300ms / 离开 200ms）；活动标签固定为主色背景 + 主色前景，并有斜向扫光（`btn-sheen`）。`prefers-reduced-motion` 下瞬切。
 - 保留 ScrollTabs 的横向滑动、边缘渐隐与深链居中能力。
 
+### 主文字模糊浮现（`BlurText`）
+
+- 位置：`frontend/src/components/bits/BlurText.tsx`，React Bits BlurText 的 TypeScript 移植版
+  （JavaScript + CSS 变体，`motion/react` 驱动）。
+- 用法：认证页标题（`AuthShell`）与用户中心问候语（`DashboardPage`）以 `as="span"` 包在 `h1` 内，
+  `animateBy="words" direction="top"` 按词错峰模糊浮现；支持 `threshold/rootMargin` 视口触发、
+  `animationFrom/animationTo/easing` 自定义与 `onAnimationComplete` 回调。
+- 无障碍：`prefers-reduced-motion: reduce` 时静态渲染整段文本，跳过模糊位移动画。
+
 ### Bento 展示网格（`MagicBento` / `.magic-bento-card`）
 
 - 位置：`frontend/src/components/bits/MagicBento.tsx` + `MagicBento.css`，后台「数据统计」概览卡片使用；基于 gsap，移植 React Bits MagicBento。

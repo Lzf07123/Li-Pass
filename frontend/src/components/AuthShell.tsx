@@ -3,8 +3,8 @@ import type { ReactNode } from "react";
 
 import { APP_NAME, APP_TAGLINE } from "../lib/brand";
 import { AuroraBackground } from "./bits/AuroraBackground";
+import { BlurText } from "./bits/BlurText";
 import { ShinyText } from "./bits/ShinyText";
-import { StrokeText } from "./bits/StrokeText";
 import { Brand } from "./Brand";
 import { FloatingBackground } from "./FloatingBackground";
 import { SiteFooter } from "./SiteFooter";
@@ -49,20 +49,14 @@ export function AuthShell({
             <Brand className="brand-halo h-12 w-12" />
             <div>
               <h1>
-                <StrokeText
+                <BlurText
+                  as="span"
                   text={title}
-                  strokeColor="var(--portal-primary)"
-                  fillColor="var(--portal-fg)"
-                  strokeWidth={1.3}
-                  drawDuration={1.05}
-                  fillDelay={0.15}
-                  stagger={0.045}
-                  ease="power2.out"
-                  trigger="mount"
-                  fillMode="wipe"
-                  fontSize={34}
-                  fontWeight={700}
-                  letterSpacing={0}
+                  className="block text-[34px] font-bold leading-tight tracking-normal"
+                  animateBy="words"
+                  direction="top"
+                  delay={120}
+                  stepDuration={0.35}
                 />
               </h1>
               {subtitle && <p className="mt-1.5 text-sm text-muted">{subtitle}</p>}
