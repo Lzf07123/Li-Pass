@@ -32,11 +32,20 @@ export function ConsentPage() {
       .catch((err) => setError(err instanceof Error ? err.message : "加载失败"));
   }, [requestId]);
 
-  const decideAction = useAsyncAction(
-    async (approve: boolean) => {
-      const result = approve
-        ? await consentApi.approve(requestId)
-        : await consentApi.deny(requestId);
+  const approveAction = useAsyncAction(
+    async () => {
+      const result = await consentApi.approve(requestId);
+      window.location.href = result.redirect_url;
+    },
+    {
+      onError: (err) =>
+        toast.error(err instanceof Error ? err.message : "操作失败"),
+    },
+  );
+
+  const denyAction = useAsyncAction(
+    async () => {
+      const result = await consentApi.deny(requestId);
       window.location.href = result.redirect_url;
     },
     {
@@ -56,10 +65,6 @@ export function ConsentPage() {
         toast.error(err instanceof Error ? err.message : "操作失败"),
     },
   );
-
-  function decide(approve: boolean) {
-    void decideAction.run(approve);
-  }
 
   return (
     <AuthShell
@@ -124,16 +129,18 @@ export function ConsentPage() {
           <div className="flex gap-3">
             <AsyncButton
               type="button"
-              status={decideAction.status}
-              onClick={() => decide(true)}
+              status={approveAction.status}
+              disabled={denyAction.pending}
+              onClick={() => void approveAction.run()}
               className="btn btn-primary flex-1"
             >
               同意授权
             </AsyncButton>
             <AsyncButton
               type="button"
-              status={decideAction.status}
-              onClick={() => decide(false)}
+              status={denyAction.status}
+              disabled={approveAction.pending}
+              onClick={() => void denyAction.run()}
               className="btn btn-secondary flex-1"
             >
               拒绝
