@@ -26,7 +26,7 @@ cp .env.example .env
 docker compose -f docker-compose.yaml --profile bundle --env-file .env up -d --build
 ```
 
-仓库只提交 `docker-compose.example.yaml`（示例）；复制为 `docker-compose.yaml` 后使用，本机版已 gitignore、可按环境就地修改。开发与生产共用这一份编排：本地 `cp docker-compose.example.yaml docker-compose.yaml` 后直接 `docker compose --profile bundle up -d --build`；生产按上文配置 `.env` 后再启动即可。使用远程 PostgreSQL/Redis 时去掉 `--profile bundle`。
+仓库只提交 `docker-compose.example.yaml`（示例）；复制为 `docker-compose.yaml` 后使用，本机版已 gitignore、可按环境就地修改。开发与生产共用这一份编排：本地 `cp docker-compose.example.yaml docker-compose.yaml` 后直接 `docker compose --profile bundle up -d --build`；生产按上文配置 `.env` 后再启动即可。使用远程 PostgreSQL/Redis 时去掉 `--profile bundle`。另有两个**可叠加覆盖文件**：`docker-compose.dev.yaml`（本地开发热更新，Vite HMR + uvicorn --reload）与 `docker-compose.hot.yaml`（生产级零停机热更新），二者会重写 backend/frontend 的 command 与卷，**二选一、勿同时叠加**。
 
 启动后：
 
@@ -544,6 +544,7 @@ sudo chmod +x /etc/letsencrypt/renewal-hooks/deploy/reload-nginx.sh
 - [ ] Let's Encrypt 续期可用：`certbot renew --dry-run` 通过，续期钩子已重载 nginx，并配置到期监控（<30 天告警）
 - [ ] 网关已放行 `/readyz`（或仅内部可达），不要把 `/docs` 暴露（生产已自动关闭）
 - [ ] 用 `docker compose config` 检查渲染后的编排，确认没有把演示站点带进生产栈
+- [ ] 若启用热更新形态（`docker-compose.hot.yaml`）：`PENDING_REQUEST_STORE/TWOFA_STORE/RATE_LIMITER` 均为 `redis`、`HOT_UVICORN_WORKERS≥2`，且只有受控人员可操作 Docker；更新走 `scripts/hot_update.sh`（自动快照/SHA256），`deploy-backups/` 保留在安全位置便于回滚
 
 ## 常见运维操作
 
@@ -553,6 +554,7 @@ sudo chmod +x /etc/letsencrypt/renewal-hooks/deploy/reload-nginx.sh
 - 用户与邀请：邀请注册/批量邀请、批量启用/禁用/删除、账号注销均在门户界面完成（管理后台 → 用户管理；用户中心 → 注销账号）
 - 升级：`bash scripts/backup-db.sh` 备份后，拉取新代码执行 `docker compose --profile bundle up -d --build`，后端启动时会自动执行 `alembic upgrade head`
 - 迁移回滚：`docker compose --profile bundle exec backend alembic downgrade -1`（先评估数据影响，必要时用备份恢复）
+- 零停机热更新（仅热更新形态）：`bash scripts/hot_update.sh frontend|backend|gateway|all`；回滚 `bash scripts/hot_update.sh --rollback <ts>`；状态 `bash scripts/hot_update.sh status`（详见「生产级热更新」章节）
 - 多副本部署：迁移应在发布流程中只执行一次（例如 `docker compose run --rm backend alembic upgrade head`），再扩容后端副本；单实例部署可继续依赖启动自动迁移
 - 审计查询：管理员登录门户后调用 `GET /api/v1/admin/audit-logs`（或直接查 `audit_logs` 表）
 

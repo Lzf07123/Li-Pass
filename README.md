@@ -52,9 +52,11 @@ lipass/
 │   └── __tests__/           # 前端测试（已入库，vitest）
 ├── examples/demo-site/      # 示例授权网站（OIDC 演示，demo profile）
 ├── gateway/                 # 单域名 nginx 网关（/ 前端、/api 后端、/demo 演示站）
-├── scripts/                 # PostgreSQL 备份/恢复脚本
+├── scripts/                 # 运维脚本：backup-db / restore-db / hot_update（生产零停机更新）
 ├── docs/                    # 设计文档与对接文档
 ├── AGENTS.md                # 项目协作手册（后续 AI Agent 开发入口）
+├── docker-compose.dev.yaml      # 本地开发热更新覆盖文件（与基础编排叠加）
+├── docker-compose.hot.yaml      # 生产级零停机热更新覆盖文件（与基础编排叠加）
 └── docker-compose.example.yaml  # 编排示例（复制为 docker-compose.yaml 使用）
 ```
 

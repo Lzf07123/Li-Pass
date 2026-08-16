@@ -1,6 +1,9 @@
 # Li&Pass 编排示例文件。使用方式：
 #   cp docker-compose.example.yaml docker-compose.yaml
 # 本机 docker-compose.yaml 已加入 .gitignore，可按部署环境就地修改而不污染仓库。
+# 覆盖文件（可叠加，二选一，勿同时使用）：
+#   docker-compose.dev.yaml  本地开发热更新（Vite HMR + uvicorn --reload）
+#   docker-compose.hot.yaml  生产级零停机热更新（详见 docs/deployment.md）
 name: lipass
 
 services:
