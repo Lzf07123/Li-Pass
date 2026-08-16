@@ -40,6 +40,22 @@ def test_warn_email_config_logs_localhost_warning(caplog) -> None:
     assert "localhost" in caplog.text
 
 
+def test_warn_email_config_logs_warning_when_tls_verify_disabled(
+    caplog,
+) -> None:
+    from app.core.config import Settings
+
+    settings = Settings(
+        _env_file=None,
+        email_backend="smtp",
+        environment="development",
+        smtp_tls_verify=False,
+    )
+    with caplog.at_level(logging.WARNING, logger="app.services.email"):
+        warn_email_config(settings)
+    assert "SMTP_TLS_VERIFY" in caplog.text
+
+
 def test_smtp_message_builds_with_from_and_code() -> None:
     service = SMTPEmailService(
         host="smtp.example.com",
@@ -278,7 +294,7 @@ def test_smtp_port_465_uses_implicit_ssl(monkeypatch) -> None:
     calls: list[tuple] = []
 
     class FakeSMTP:
-        def __init__(self, host, port, timeout=None):
+        def __init__(self, host, port, timeout=None, context=None):
             calls.append(("plain", host, port, timeout))
 
         def __enter__(self):
@@ -297,7 +313,7 @@ def test_smtp_port_465_uses_implicit_ssl(monkeypatch) -> None:
             pass
 
     class FakeSMTPSSL(FakeSMTP):
-        def __init__(self, host, port, timeout=None):
+        def __init__(self, host, port, timeout=None, context=None):
             calls.append(("ssl", host, port, timeout))
 
     monkeypatch.setattr("app.services.email.smtplib.SMTP", FakeSMTP)
@@ -317,10 +333,11 @@ def test_smtp_port_465_uses_implicit_ssl(monkeypatch) -> None:
 
 
 def test_smtp_port_587_uses_starttls(monkeypatch) -> None:
-    started_tls = []
+    started_tls: list[bool] = []
+    received_context = {}
 
     class FakeSMTP:
-        def __init__(self, host, port, timeout=None):
+        def __init__(self, host, port, timeout=None, context=None):
             pass
 
         def __enter__(self):
@@ -329,8 +346,9 @@ def test_smtp_port_587_uses_starttls(monkeypatch) -> None:
         def __exit__(self, *args):
             return False
 
-        def starttls(self):
+        def starttls(self, context=None):
             started_tls.append(True)
+            received_context["context"] = context
 
         def login(self, username, password):
             pass
@@ -351,13 +369,84 @@ def test_smtp_port_587_uses_starttls(monkeypatch) -> None:
     )
     service.send_password_reset("a@example.com", "123456")
     assert started_tls == [True]
+    assert received_context["context"].verify_mode == 2  # ssl.CERT_REQUIRED
+    assert received_context["context"].check_hostname is True
+
+
+def test_smtp_465_uses_certificate_verification_by_default(monkeypatch) -> None:
+    received_context = {}
+
+    class FakeSMTPSSL:
+        def __init__(self, host, port, timeout=None, context=None):
+            received_context["context"] = context
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            return False
+
+        def login(self, username, password):
+            pass
+
+        def send_message(self, message):
+            pass
+
+    monkeypatch.setattr("app.services.email.smtplib.SMTP_SSL", FakeSMTPSSL)
+    service = SMTPEmailService(
+        host="smtp.example.com",
+        port=465,
+        username="user@example.com",
+        password="pass",
+        from_addr="user@example.com",
+        from_name="Li&Pass",
+        use_tls=True,
+    )
+    service.send_verification("a@example.com", "123456")
+    assert received_context["context"].verify_mode == 2  # ssl.CERT_REQUIRED
+    assert received_context["context"].check_hostname is True
+
+
+def test_smtp_tls_verify_false_disables_verification(monkeypatch) -> None:
+    received_context = {}
+
+    class FakeSMTPSSL:
+        def __init__(self, host, port, timeout=None, context=None):
+            received_context["context"] = context
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            return False
+
+        def login(self, username, password):
+            pass
+
+        def send_message(self, message):
+            pass
+
+    monkeypatch.setattr("app.services.email.smtplib.SMTP_SSL", FakeSMTPSSL)
+    service = SMTPEmailService(
+        host="smtp.example.com",
+        port=465,
+        username="user@example.com",
+        password="pass",
+        from_addr="user@example.com",
+        from_name="Li&Pass",
+        use_tls=True,
+        tls_verify=False,
+    )
+    service.send_verification("a@example.com", "123456")
+    assert received_context["context"].verify_mode == 0  # ssl.CERT_NONE
+    assert received_context["context"].check_hostname is False
 
 
 def test_smtp_retries_transient_failure_then_succeeds(monkeypatch) -> None:
     attempts = {"n": 0}
 
     class FakeSMTP:
-        def __init__(self, host, port, timeout=None):
+        def __init__(self, host, port, timeout=None, context=None):
             pass
 
         def __enter__(self):
@@ -394,7 +483,7 @@ def test_smtp_raises_after_exhausting_retries(monkeypatch) -> None:
     attempts = {"n": 0}
 
     class FakeSMTP:
-        def __init__(self, host, port, timeout=None):
+        def __init__(self, host, port, timeout=None, context=None):
             pass
 
         def __enter__(self):
@@ -431,7 +520,7 @@ def test_smtp_does_not_retry_authentication_error(monkeypatch) -> None:
     attempts = {"n": 0}
 
     class FakeSMTP:
-        def __init__(self, host, port, timeout=None):
+        def __init__(self, host, port, timeout=None, context=None):
             pass
 
         def __enter__(self):
@@ -466,7 +555,7 @@ def test_smtp_does_not_retry_authentication_error(monkeypatch) -> None:
 
 def test_smtp_logs_success(monkeypatch, caplog) -> None:
     class FakeSMTP:
-        def __init__(self, host, port, timeout=None):
+        def __init__(self, host, port, timeout=None, context=None):
             pass
 
         def __enter__(self):
@@ -500,7 +589,7 @@ def test_smtp_send_invite_batch_reuses_connection(monkeypatch) -> None:
     state = {"connections": 0, "messages": 0}
 
     class FakeSMTP:
-        def __init__(self, host, port, timeout=None):
+        def __init__(self, host, port, timeout=None, context=None):
             state["connections"] += 1
 
         def __enter__(self):
@@ -546,7 +635,7 @@ def test_smtp_send_invite_batch_isolates_failure(monkeypatch) -> None:
     state = {"n": 0}
 
     class FakeSMTP:
-        def __init__(self, host, port, timeout=None):
+        def __init__(self, host, port, timeout=None, context=None):
             pass
 
         def __enter__(self):
