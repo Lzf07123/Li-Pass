@@ -15,7 +15,6 @@ from app.core.config import get_settings
 from app.core.redis import get_redis_client
 from app.models.recovery_code import RecoveryCode
 from app.security.crypto import decrypt_str, encrypt_str, hmac_hex
-from app.security.tokens import hash_token
 
 
 @dataclass
@@ -182,16 +181,6 @@ def consume_recovery_code(db, user, code: str) -> bool:
             RecoveryCode.used_at.is_(None),
         )
     )
-    if record is None:
-        # 兼容旧版裸 SHA-256 存储的恢复码（仅用于存量数据迁移期）。
-        legacy_hash = hash_token(code)
-        record = db.scalar(
-            select(RecoveryCode).where(
-                RecoveryCode.user_id == user.id,
-                RecoveryCode.code_hash == legacy_hash,
-                RecoveryCode.used_at.is_(None),
-            )
-        )
     if record is None:
         return False
     record.used_at = datetime.now(timezone.utc)
