@@ -74,8 +74,8 @@ interface ThemeColors {
 /** 深色 / 浅色主题调色板 */
 const THEME_COLORS: Record<"dark" | "light", ThemeColors> = {
   dark: {
-    background: [23, 35, 33], // #172321（海玻璃夜色）
-    stroke: [168, 190, 184], // 雾绿描边
+    background: [58, 63, 69], // #3A3F45（D1 雾灰夜色）
+    stroke: [196, 203, 208], // 雾灰描边
     strokeAlpha: 0.55, // 描边自身透明度（与形状整体透明度相乘）
     fillAlpha: 0.04, // 填充自身透明度（极淡的填充）
   },

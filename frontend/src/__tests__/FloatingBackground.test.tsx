@@ -166,7 +166,7 @@ describe("FloatingBackground", () => {
       await new Promise((resolve) => setTimeout(resolve, 0));
     });
     advanceFrames(200); // 指数平滑收敛：约 3.2s 后通道值取整到目标
-    expect(context.strokeStyle).toMatch(/^rgba\(168, 190, 184, /);
+    expect(context.strokeStyle).toMatch(/^rgba\(196, 203, 208, /);
   });
 
   it("calm 聚焦减速：速度降至一半", () => {

@@ -106,14 +106,10 @@
 
   --portal-ring: #2f7f74;
 
-  /* 海玻璃粉彩渐变（按钮/流光/签名描边共用） */
-  --brand-gradient: linear-gradient(
-    135deg,
-    #c9f3e7 0%,
-    #bde9ec 45%,
-    #c9dff7 75%,
-    #e4f5e3 100%
-  );
+  /* 主按钮：半透明单色着色（浅色侧），避免多色渐变色块过重 */
+  --btn-primary-bg: rgba(47, 127, 116, 0.1);
+  --btn-primary-bg-hover: rgba(47, 127, 116, 0.17);
+  --btn-primary-border: rgba(47, 127, 116, 0.26);
   --brand-fg: #24433e;
   --flow-gradient: linear-gradient(
     90deg,
@@ -157,67 +153,64 @@
  * 暗色使用去饱和的浅色调变体，而非简单反色
  */
 .dark {
-  --portal-bg: #172321;
-  --portal-surface: #21302c;
-  --portal-surface-2: #2a3b36;
-  --portal-fg: #e9f2ef;
-  --portal-muted: #9fb4ae;
-  --portal-border: #324640;
+  --portal-bg: #3a3f45;
+  --portal-surface: #434950;
+  --portal-surface-2: #4b5259;
+  --portal-fg: #f0f2f4;
+  --portal-muted: #b8c0c7;
+  --portal-border: #545c64;
 
   --portal-primary: #7fd4c6;
   --portal-primary-hover: #a5e4d9;
   --portal-primary-soft: rgba(127, 212, 198, 0.16);
-  --portal-primary-fg: #12312b;
+  --portal-primary-fg: #17332e;
 
-  --portal-secondary: #8fc7f0;
-  --portal-secondary-soft: rgba(143, 199, 240, 0.16);
+  --portal-secondary: #a8d4f0;
+  --portal-secondary-soft: rgba(168, 212, 240, 0.16);
 
-  --portal-success: #67dca8;
-  --portal-success-soft: rgba(103, 220, 168, 0.14);
-  --portal-warning: #f5d67b;
-  --portal-warning-soft: rgba(245, 214, 123, 0.14);
-  --portal-destructive: #f27e6e;
-  --portal-destructive-soft: rgba(242, 126, 110, 0.14);
-  --portal-destructive-fg: #3f120d;
+  --portal-success: #86d6ac;
+  --portal-success-soft: rgba(134, 214, 172, 0.14);
+  --portal-warning: #ead48e;
+  --portal-warning-soft: rgba(234, 212, 142, 0.14);
+  --portal-destructive: #e8a49a;
+  --portal-destructive-soft: rgba(232, 164, 154, 0.14);
+  --portal-destructive-fg: #43211d;
 
-  --portal-accent-ice: #8fc7f0;
-  --portal-accent-ice-soft: rgba(143, 199, 240, 0.16);
+  --portal-accent-ice: #a8cbe8;
+  --portal-accent-ice-soft: rgba(168, 203, 232, 0.16);
   --portal-accent-aqua: #7fd4c6;
   --portal-accent-aqua-soft: rgba(127, 212, 198, 0.16);
-  --portal-accent-lilac: #a9a2e8;
-  --portal-accent-lilac-soft: rgba(169, 162, 232, 0.18);
-  --portal-accent-sage: #a9cc8f;
-  --portal-accent-sage-soft: rgba(169, 204, 143, 0.18);
-  --portal-accent-mint: #8fe3a3;
-  --portal-accent-mint-soft: rgba(143, 227, 163, 0.16);
-  --portal-accent-sand: #d9be94;
-  --portal-accent-sand-soft: rgba(217, 190, 148, 0.16);
+  --portal-accent-lilac: #b0a8de;
+  --portal-accent-lilac-soft: rgba(176, 168, 222, 0.18);
+  --portal-accent-sage: #b0c79e;
+  --portal-accent-sage-soft: rgba(176, 199, 158, 0.18);
+  --portal-accent-mint: #9adfad;
+  --portal-accent-mint-soft: rgba(154, 223, 173, 0.16);
+  --portal-accent-sand: #d9c49e;
+  --portal-accent-sand-soft: rgba(217, 196, 158, 0.16);
 
   --portal-ring: #7fd4c6;
 
-  --brand-gradient: linear-gradient(
-    135deg,
-    #7fd4c6 0%,
-    #8fc7f0 45%,
-    #a9a2e8 75%,
-    #a9cc8f 100%
-  );
-  --brand-fg: #12312b;
+  --brand-fg: #d7efea;
   --flow-gradient: linear-gradient(
     90deg,
-    #7fd4c6,
-    #8fc7f0,
-    #a9a2e8,
-    #a9cc8f,
-    #7fd4c6
+    rgba(127, 212, 198, 0.55),
+    rgba(168, 212, 240, 0.55),
+    rgba(176, 168, 222, 0.55),
+    rgba(176, 199, 158, 0.5),
+    rgba(127, 212, 198, 0.55)
   );
 
-  --tech-grid-line: rgba(169, 204, 143, 0.08);
-  --tech-grid-accent: rgba(127, 212, 198, 0.14);
-  --tech-grid-accent-2: rgba(143, 199, 240, 0.13);
-  --tech-beam: rgba(127, 212, 198, 0.12);
-  --tech-beam-2: rgba(143, 199, 240, 0.12);
-  --tech-dot-glow: rgba(127, 212, 198, 0.5);
+  --btn-primary-bg: rgba(127, 212, 198, 0.13);
+  --btn-primary-bg-hover: rgba(127, 212, 198, 0.21);
+  --btn-primary-border: rgba(127, 212, 198, 0.3);
+
+  --tech-grid-line: rgba(176, 199, 158, 0.1);
+  --tech-grid-accent: rgba(127, 212, 198, 0.13);
+  --tech-grid-accent-2: rgba(168, 212, 240, 0.12);
+  --tech-beam: rgba(127, 212, 198, 0.14);
+  --tech-beam-2: rgba(168, 212, 240, 0.14);
+  --tech-dot-glow: rgba(127, 212, 198, 0.45);
 
   color-scheme: dark;
 }
@@ -305,11 +298,11 @@
       linear-gradient(var(--portal-surface), var(--portal-surface)) padding-box,
       linear-gradient(
           140deg,
-          rgba(127, 212, 198, 0.5) 0%,
-          rgba(143, 199, 240, 0.4) 30%,
-          rgba(169, 162, 232, 0.48) 60%,
-          rgba(169, 204, 143, 0.4) 85%,
-          rgba(127, 212, 198, 0.5) 100%
+          rgba(127, 212, 198, 0.42) 0%,
+          rgba(168, 212, 240, 0.34) 30%,
+          rgba(176, 168, 222, 0.4) 60%,
+          rgba(176, 199, 158, 0.34) 85%,
+          rgba(127, 212, 198, 0.42) 100%
         )
         border-box;
   }
@@ -334,12 +327,12 @@
   .btn-primary {
     @apply shadow-sm;
     color: var(--brand-fg);
-    background-image: var(--brand-gradient);
-    background-size: 200% 200%;
-    background-position: 0% 50%;
+    background-color: var(--btn-primary-bg);
+    border: 1px solid var(--btn-primary-border);
     transition:
       color var(--motion-fast) var(--ease-out),
-      background-position var(--motion-base) var(--ease-out),
+      background-color var(--motion-fast) var(--ease-out),
+      border-color var(--motion-fast) var(--ease-out),
       box-shadow var(--motion-fast) var(--ease-out),
       transform var(--motion-base) var(--ease-spring);
   }
@@ -364,7 +357,7 @@
     background: linear-gradient(
       105deg,
       transparent 42%,
-      rgba(18, 49, 43, 0.16) 50%,
+      rgba(255, 255, 255, 0.18) 50%,
       transparent 58%
     );
   }
@@ -372,7 +365,7 @@
     display: none;
   }
   .btn-primary:not(:disabled):hover {
-    background-position: 100% 50%;
+    background-color: var(--btn-primary-bg-hover);
     box-shadow: var(--shadow-md);
   }
   .btn-secondary {
@@ -779,11 +772,6 @@
   .scroll-tabs > * {
     flex-shrink: 0;
     scroll-snap-align: start;
-  }
-  /* 激活标签（btn-primary）无边框，比带边框的 btn-secondary 矮 2px；
-     补齐透明边框使单行标签高度一致，避免激活态上下错位。 */
-  .scroll-tabs .btn-primary {
-    border: 1px solid transparent;
   }
   @media (min-width: 640px) {
     .scroll-tabs {

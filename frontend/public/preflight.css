@@ -3,12 +3,12 @@
 html,
 body,
 #root {
-  background-color: #f8fafc;
+  background-color: #f6fbf9;
   min-height: 100%;
 }
 
 html.dark,
 html.dark body,
 html.dark #root {
-  background-color: #0b1220;
+  background-color: #3a3f45;
 }
