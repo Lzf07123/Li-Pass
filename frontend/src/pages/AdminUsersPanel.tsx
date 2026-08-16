@@ -40,6 +40,9 @@ export function AdminUsersPanel({ currentAdminId }: { currentAdminId: string }) 
     email_otp_enabled: boolean;
     totp_enabled: boolean;
   } | null>(null);
+  const [batchStatusKind, setBatchStatusKind] = useState<
+    "active" | "disabled" | null
+  >(null);
   const [confirmPasswordError, setConfirmPasswordError] = useState<string | null>(null);
   const [resetPasswordError, setResetPasswordError] = useState<string | null>(null);
   const [deletePasswordError, setDeletePasswordError] = useState<string | null>(null);
@@ -400,6 +403,7 @@ export function AdminUsersPanel({ currentAdminId }: { currentAdminId: string }) 
   function runBatchStatus(status: "active" | "disabled") {
     const ids = Array.from(selected);
     if (ids.length === 0) return;
+    setBatchStatusKind(status);
     void batchStatusAction.run(ids, status);
   }
 
@@ -556,18 +560,26 @@ export function AdminUsersPanel({ currentAdminId }: { currentAdminId: string }) 
           </span>
           <AsyncButton
             type="button"
-            status={batchStatusAction.pending ? "pending" : "idle"}
+            status={
+              batchStatusAction.pending && batchStatusKind === "active"
+                ? "pending"
+                : "idle"
+            }
             onClick={() => void runBatchStatus("active")}
-            disabled={selected.size === 0}
+            disabled={selected.size === 0 || batchStatusAction.pending}
             className="btn btn-secondary min-h-9 px-3 py-1.5 text-xs"
           >
             批量启用
           </AsyncButton>
           <AsyncButton
             type="button"
-            status={batchStatusAction.pending ? "pending" : "idle"}
+            status={
+              batchStatusAction.pending && batchStatusKind === "disabled"
+                ? "pending"
+                : "idle"
+            }
             onClick={() => void runBatchStatus("disabled")}
-            disabled={selected.size === 0}
+            disabled={selected.size === 0 || batchStatusAction.pending}
             className="btn btn-secondary min-h-9 px-3 py-1.5 text-xs"
           >
             批量禁用

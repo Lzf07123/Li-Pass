@@ -192,15 +192,14 @@ export function AdminSessionsPanel() {
           >
             刷新
           </AsyncButton>
-          <AsyncButton
+          <button
             type="button"
-            status={revokeAllAction.status}
             onClick={() => setAllConfirmOpen(true)}
-            disabled={total === 0}
+            disabled={total === 0 || revokeAllAction.pending}
             className="btn btn-danger"
           >
             全部下线
-          </AsyncButton>
+          </button>
         </div>
       </div>
 

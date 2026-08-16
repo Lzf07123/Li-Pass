@@ -27,6 +27,11 @@ export function AdminClientsPage() {
   const [blocks, setBlocks] = useState<Record<string, ClientBlockOut[]>>({});
   const [blockEmail, setBlockEmail] = useState<Record<string, string>>({});
   const [blockReason, setBlockReason] = useState<Record<string, string>>({});
+  const [removingBlock, setRemovingBlock] = useState<{
+    clientId: string;
+    blockId: string;
+  } | null>(null);
+  const [togglingClient, setTogglingClient] = useState<string | null>(null);
   const [removeTarget, setRemoveTarget] = useState<ClientOut | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editDraft, setEditDraft] = useState<ClientOut | null>(null);
@@ -115,30 +120,31 @@ export function AdminClientsPage() {
     });
   }
 
-  const blockAction = useAsyncAction(
-    async (
-      clientId: string,
-      email: string,
-      reason: string,
-      blockId?: string,
-    ) => {
-      if (blockId) {
-        await adminBlocksApi.remove(clientId, blockId);
-        setBlocks((prev) => ({
-          ...prev,
-          [clientId]: (prev[clientId] ?? []).filter(
-            (block) => block.id !== blockId,
-          ),
-        }));
-      } else {
-        const created = await adminBlocksApi.add(clientId, { email, reason });
-        setBlocks((prev) => ({
-          ...prev,
-          [clientId]: [created, ...(prev[clientId] ?? [])],
-        }));
-        setBlockEmail((prev) => ({ ...prev, [clientId]: "" }));
-        setBlockReason((prev) => ({ ...prev, [clientId]: "" }));
-      }
+  const addBlockAction = useAsyncAction(
+    async (clientId: string, email: string, reason: string) => {
+      const created = await adminBlocksApi.add(clientId, { email, reason });
+      setBlocks((prev) => ({
+        ...prev,
+        [clientId]: [created, ...(prev[clientId] ?? [])],
+      }));
+      setBlockEmail((prev) => ({ ...prev, [clientId]: "" }));
+      setBlockReason((prev) => ({ ...prev, [clientId]: "" }));
+    },
+    {
+      onError: (err) =>
+        toast.error(err instanceof Error ? err.message : "操作失败"),
+    },
+  );
+
+  const removeBlockAction = useAsyncAction(
+    async (clientId: string, blockId: string) => {
+      await adminBlocksApi.remove(clientId, blockId);
+      setBlocks((prev) => ({
+        ...prev,
+        [clientId]: (prev[clientId] ?? []).filter(
+          (block) => block.id !== blockId,
+        ),
+      }));
     },
     {
       onError: (err) =>
@@ -147,7 +153,7 @@ export function AdminClientsPage() {
   );
 
   function addBlock(clientId: string) {
-    void blockAction.run(
+    void addBlockAction.run(
       clientId,
       blockEmail[clientId] ?? "",
       blockReason[clientId] ?? "",
@@ -155,7 +161,8 @@ export function AdminClientsPage() {
   }
 
   function removeBlock(clientId: string, blockId: string) {
-    void blockAction.run(clientId, "", "", blockId);
+    setRemovingBlock({ clientId, blockId });
+    void removeBlockAction.run(clientId, blockId);
   }
 
   const removeAction = useAsyncAction(
@@ -261,6 +268,7 @@ export function AdminClientsPage() {
   );
 
   function toggleActive(client: ClientOut) {
+    setTogglingClient(client.id);
     void toggleAction.run(client);
   }
 
@@ -459,7 +467,12 @@ export function AdminClientsPage() {
                 </button>
                 <AsyncButton
                   type="button"
-                  status={toggleAction.pending ? "pending" : "idle"}
+                  status={
+                    toggleAction.pending && togglingClient === client.id
+                      ? "pending"
+                      : "idle"
+                  }
+                  disabled={toggleAction.pending}
                   onClick={() => void toggleActive(client)}
                   className="btn btn-secondary"
                 >
@@ -644,8 +657,15 @@ export function AdminClientsPage() {
                     </span>
                     <AsyncButton
                       type="button"
-                      status={blockAction.pending ? "pending" : "idle"}
+                      status={
+                        removeBlockAction.pending &&
+                        removingBlock?.clientId === client.id &&
+                        removingBlock?.blockId === block.id
+                          ? "pending"
+                          : "idle"
+                      }
                       spinner={false}
+                      disabled={addBlockAction.pending || removeBlockAction.pending}
                       onClick={() => void removeBlock(client.id, block.id)}
                       className="btn-link text-sm"
                     >
@@ -673,7 +693,8 @@ export function AdminClientsPage() {
                 />
                 <AsyncButton
                   type="button"
-                  status={blockAction.pending ? "pending" : "idle"}
+                  status={addBlockAction.status}
+                  disabled={removeBlockAction.pending}
                   onClick={() => void addBlock(client.id)}
                   className="btn btn-danger min-h-9 px-3 py-1.5 text-xs"
                 >
