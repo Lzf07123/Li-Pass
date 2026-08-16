@@ -14,6 +14,11 @@ npm run dev
 
 开发服务器默认运行在 http://localhost:5173 （Vite 默认端口，与 nginx 生产容器一致）。
 
+容器热更新：在仓库根目录执行
+`docker compose -f docker-compose.yaml -f docker-compose.dev.yaml --profile bundle up -d --build`，
+前端由容器内 Vite dev server 提供 HMR（经单域名网关透传 WebSocket；容器内以轮询监听源码变化，
+由 `VITE_WATCH_POLLING=true` 控制）。
+
 项目内 `.npmrc` 已把 npm 源指向 `https://registry.npmmirror.com/`（国内加速；USTC 的 npm 镜像已停服并重定向到该源），Docker 构建与本地 `npm ci` 均生效。海外网络或 CI 如遇镜像不可达，可临时用 `npm config set registry https://registry.npmjs.org/` 覆盖。
 
 ## 脚本

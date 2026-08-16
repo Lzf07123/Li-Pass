@@ -1,0 +1,76 @@
+# Li&Pass 本地开发热更新覆盖文件（仅本地开发使用，禁止用于生产）。
+#
+# 前置条件：已复制 docker-compose.yaml 与 .env。
+# 启动：
+#   docker compose -f docker-compose.yaml -f docker-compose.dev.yaml \
+#     --profile bundle up -d --build
+#
+# 与生产同拓扑（单域名网关 http://localhost 为唯一入口），额外获得：
+#   - backend：挂载 backend/ 源码，uvicorn --reload 改动即自动重启；
+#   - frontend：切换为 Vite dev server，前端源码改动即时 HMR，
+#     网关透传 WebSocket（gateway/nginx.conf.template 已支持 Upgrade）。
+#
+# 注意：
+#   - 数据库迁移文件（backend/alembic/**）改动不会被 uvicorn 重载，
+#     需要 `docker compose ... restart backend`（启动时自动 alembic upgrade head）；
+#   - 依赖（requirements.txt / package*.json）或 compose/.env/网关模板改动后，
+#     重新 `up -d --build`（前端依赖变化时加 `--force-recreate frontend`）。
+name: lipass
+
+services:
+  backend:
+    image: ${IMAGE_REGISTRY:-}lipass-backend:local
+    build: !reset null
+    command: >
+      sh -c "alembic upgrade head &&
+      exec uvicorn app.main:app --host 0.0.0.0 --port 8000
+      --reload --reload-dir /app/app
+      --proxy-headers
+      --forwarded-allow-ips \"$${FORWARDED_ALLOW_IPS:-127.0.0.1}\"
+      --workers 1"
+    volumes:
+      - ./backend/app:/app/app
+      - ./backend/alembic:/app/alembic
+      - ./backend/alembic.ini:/app/alembic.ini
+      - ./backend/scripts:/app/scripts
+      - backend-keys:/app/keys
+      - backend-uploads:/app/uploads
+      - backend-data:/app/data
+
+  frontend:
+    image: ${IMAGE_REGISTRY:-}node:22-alpine
+    build: !reset null
+    command: >
+      sh -c "if [ ! -x node_modules/.bin/vite ]; then
+      npm ci --no-audit --no-fund; fi;
+      test -f src/lib/brand.ts || cp src/lib/brand.example.ts src/lib/brand.ts;
+      exec npm run dev -- --host 0.0.0.0 --port 5173"
+    environment:
+      TZ: ${TZ:-Asia/Shanghai}
+      CONNECT_SRC: ${VITE_API_BASE_URL-}
+      VITE_API_BASE_URL: ${VITE_API_BASE_URL-}
+      VITE_APP_NAME: ${VITE_APP_NAME-}
+      VITE_APP_TAGLINE: ${VITE_APP_TAGLINE-}
+      VITE_ICP_FILING_TEXT: ${VITE_ICP_FILING_TEXT-}
+      VITE_ICP_FILING_URL: ${VITE_ICP_FILING_URL-}
+      VITE_ICP_FILING_ICON: ${VITE_ICP_FILING_ICON-}
+      VITE_POLICE_FILING_TEXT: ${VITE_POLICE_FILING_TEXT-}
+      VITE_POLICE_FILING_URL: ${VITE_POLICE_FILING_URL-}
+      VITE_POLICE_FILING_ICON: ${VITE_POLICE_FILING_ICON-}
+      VITE_FOOTER_LINKS: ${VITE_FOOTER_LINKS-}
+      VITE_WATCH_POLLING: "true"
+    volumes:
+      - ./frontend:/app
+      # node_modules 独立命名卷：bind mount 覆盖 /app 后仍复用已安装依赖。
+      - frontend-dev-node-modules:/app/node_modules
+    mem_limit: 512m
+    cpus: "1.0"
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "-", "http://127.0.0.1:5173/"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+      start_period: 30s
+
+volumes:
+  frontend-dev-node-modules:
