@@ -638,7 +638,7 @@ def test_non_admin_cannot_create_or_invite(client, captured_email, db_session) -
     )
 
 
-def test_invite_send_failure_returns_502_and_rolls_back(
+def test_invite_send_failure_returns_503_and_rolls_back(
     client, db_session, monkeypatch
 ) -> None:
     _login_admin(client, db_session)
@@ -655,7 +655,7 @@ def test_invite_send_failure_returns_502_and_rolls_back(
         "/api/v1/admin/users/invite",
         json={"email": "fail@example.com"},
     )
-    assert response.status_code == 502
+    assert response.status_code == 503
     assert response.json()["detail"] == "邮件发送失败，请检查邮件服务配置"
     # 不留下未发送的“幽灵邀请”
     assert (
