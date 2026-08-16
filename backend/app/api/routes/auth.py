@@ -180,7 +180,14 @@ def register(
             nickname=payload.nickname,
         )
         db.add(user)
-        db.commit()
+        try:
+            db.commit()
+        except IntegrityError:
+            # 并发撞邮箱：唯一索引兜底，回滚后按「已注册」路径统一响应，
+            # 并执行一次同参数哈希保持时序抹平，避免 500 泄露内部状态。
+            db.rollback()
+            hash_password(payload.password)
+            return {"message": "注册请求已受理，验证邮件已发送"}
         invalidate_admin_stats_cache()
         log_audit(
             db,
