@@ -1,0 +1,36 @@
+# Li&Pass 生产级热更新覆盖文件（零停机更新，非开发热重载）。
+#
+# 前置条件：已复制 docker-compose.yaml 与 .env，且首次以该形态启动：
+#   docker compose -f docker-compose.yaml -f docker-compose.hot.yaml \
+#     --profile bundle up -d --build
+#
+# 与默认生产形态的区别：
+#   - backend：代码放入命名卷 backend-code，UVICORN_WORKERS 默认 ≥2；
+#     更新代码 = 写入卷 + 向容器发 SIGHUP，uvicorn 逐个 worker 优雅回收，不中断在途请求。
+#   - frontend：静态产物放入命名卷 frontend-web；更新 = 原地换装 + nginx -s reload。
+#
+# 更新与回滚统一走 `scripts/hot_update.sh`（校验/快照/SHA256/回滚/互斥锁）。
+# 依赖、Dockerfile、入口命令、环境变量与 compose 拓扑变更不属于热更新范围，
+# 仍需 `up -d --build` 重建。
+name: lipass
+
+services:
+  backend:
+    environment:
+      # 热更新形态独立 worker 数（默认 2）：SIGHUP 时 uvicorn 逐个 worker 回收，
+      # ≥2 才能保证在途请求不中断；与基础编排的 UVICORN_WORKERS 解耦，
+      # 避免 .env 中的 UVICORN_WORKERS=1 覆盖热更新要求。
+      UVICORN_WORKERS: ${HOT_UVICORN_WORKERS:-2}
+    volumes:
+      - backend-code:/app/app
+      - backend-keys:/app/keys
+      - backend-uploads:/app/uploads
+      - backend-data:/app/data
+
+  frontend:
+    volumes:
+      - frontend-web:/usr/share/nginx/html
+
+volumes:
+  backend-code:
+  frontend-web:
