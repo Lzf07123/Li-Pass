@@ -219,7 +219,7 @@ def admin_add_block(
             db,
             client,
             email=payload.email,
-            user_id=uuid.UUID(payload.user_id) if payload.user_id else None,
+            user_id=payload.user_id,
             reason=payload.reason,
         )
     except ValueError as exc:

@@ -1,3 +1,4 @@
+import uuid
 from datetime import datetime
 from urllib.parse import urlparse
 
@@ -164,7 +165,7 @@ class ClientSecretOut(BaseModel):
 
 class ClientBlockCreate(BaseModel):
     email: str | None = Field(default=None, max_length=320)
-    user_id: str | None = None
+    user_id: uuid.UUID | None = None
     reason: str = Field(default="", max_length=500)
 
 
