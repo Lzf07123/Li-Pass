@@ -533,7 +533,7 @@
     );
     transform: translateX(-150%) skewX(-16deg);
     opacity: 0;
-    animation: tech-beam-sweep 6s var(--ease-out) 0.5s infinite;
+    animation: tech-beam-sweep 10s var(--ease-out) 0.8s infinite;
     will-change: transform, opacity;
     pointer-events: none;
   }
@@ -545,7 +545,7 @@
       var(--tech-beam-2) 55%,
       transparent 100%
     );
-    animation-delay: 2.5s;
+    animation-delay: 4.2s;
   }
   .tech-beam--sage {
     background: linear-gradient(
@@ -555,7 +555,7 @@
       var(--tech-beam-3) 55%,
       transparent 100%
     );
-    animation-delay: 4.5s;
+    animation-delay: 7.5s;
   }
   .tech-dot {
     position: absolute;
@@ -565,7 +565,7 @@
     background: var(--tech-dot-color, var(--portal-secondary));
     box-shadow: 0 0 14px 3px var(--tech-dot-glow);
     opacity: 0.55;
-    animation: tech-dot-pulse 3.6s ease-in-out infinite;
+    animation: tech-dot-pulse 6s ease-in-out infinite;
     will-change: transform, opacity;
     pointer-events: none;
   }
