@@ -33,6 +33,24 @@ def _is_unsafe_ip(ip: ipaddress.IPv4Address | ipaddress.IPv6Address) -> bool:
     )
 
 
+def _normalize_resolved_ip(
+    addr: str,
+) -> ipaddress.IPv4Address | ipaddress.IPv6Address:
+    """把 IPv4-mapped IPv6 还原为 IPv4，避免 `::ffff:127.0.0.1` 绕过危险网段判断。"""
+    parsed = ipaddress.ip_address(addr)
+    if isinstance(parsed, ipaddress.IPv6Address) and parsed.ipv4_mapped is not None:
+        return parsed.ipv4_mapped
+    return parsed
+
+
+def _validate_public_addresses(addresses: set[str] | list[str]) -> list[str]:
+    """校验解析出的全部 IP 均为公网地址（防 SSRF 打内网），返回规范化地址列表。"""
+    normalized = {_normalize_resolved_ip(addr) for addr in addresses}
+    if any(_is_unsafe_ip(addr) for addr in normalized):
+        raise ValueError("回程地址不允许指向回环/私网/链路本地地址")
+    return sorted(str(addr) for addr in normalized)
+
+
 def _resolve_public_host(host: str) -> list[str]:
     """把域名解析为 IP 列表并校验全部为公网地址（防 SSRF 打内网）。
 
@@ -53,10 +71,7 @@ def _resolve_public_host(host: str) -> list[str]:
             raise ValueError(f"回程地址域名无法解析: {host}") from exc
     else:
         addresses = {str(literal)}
-    parsed_addresses = {ipaddress.ip_address(addr) for addr in addresses}
-    if any(_is_unsafe_ip(addr) for addr in parsed_addresses):
-        raise ValueError("回程地址不允许指向回环/私网/链路本地地址")
-    return sorted(str(addr) for addr in parsed_addresses)
+    return _validate_public_addresses(addresses)
 
 
 def resolve_safe_backchannel_target(url: str) -> tuple[str, int, list[str]]:

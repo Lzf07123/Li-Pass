@@ -11,12 +11,24 @@ from app.models.user import User
 from app.security.jwt import decode_token
 from app.services.federated_logout import (
     _PinnedDNSBackend,
+    _validate_public_addresses,
     LogoutTarget,
     collect_logout_targets,
     dispatch_backchannel_logout,
     resolve_safe_backchannel_target,
 )
 from tests.helpers import create_client
+
+
+def test_validate_public_addresses_rejects_ipv4_mapped_ipv6() -> None:
+    for bad in (
+        "::ffff:127.0.0.1",
+        "::ffff:10.0.0.1",
+        "::ffff:169.254.169.254",
+    ):
+        with pytest.raises(ValueError):
+            _validate_public_addresses({bad})
+    assert _validate_public_addresses({"8.8.8.8"}) == ["8.8.8.8"]
 
 
 def test_dispatch_posts_logout_token_and_retries() -> None:
