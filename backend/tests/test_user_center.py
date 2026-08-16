@@ -33,6 +33,21 @@ def test_update_profile_and_password(client, captured_email, db_session) -> None
     assert verify_password("newpassword456", user.password_hash)
 
 
+def test_external_avatar_http_rejected_in_production(monkeypatch) -> None:
+    import pytest
+    from pydantic import ValidationError
+
+    from app.schemas.auth import ProfileUpdate
+
+    class FakeSettings:
+        environment = "production"
+
+    monkeypatch.setattr("app.schemas.auth.get_settings", lambda: FakeSettings())
+    with pytest.raises(ValidationError):
+        ProfileUpdate(avatar_url="http://a.png")
+    assert ProfileUpdate(avatar_url="https://a.png").avatar_url == "https://a.png"
+
+
 def test_update_profile_email_notifications(client, captured_email) -> None:
     register_and_login(client, captured_email)
     me = client.get("/api/v1/me").json()

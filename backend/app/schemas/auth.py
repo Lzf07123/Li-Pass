@@ -3,6 +3,7 @@ import re
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 
+from app.core.config import get_settings
 from app.security.passwords import validate_password_strength
 
 
@@ -90,8 +91,13 @@ class ProfileUpdate(BaseModel):
             value,
         ):
             return value
-        if value.startswith(("http://", "https://")):
+        if value.startswith("https://"):
             return value
+        if value.startswith("http://"):
+            # 与 OAuth 回调地址等 URL 校验一致：生产环境拒绝明文 http 外链。
+            if get_settings().environment != "production":
+                return value
+            raise ValueError("生产环境头像地址必须使用 https")
         raise ValueError("头像地址不合法")
 
 
