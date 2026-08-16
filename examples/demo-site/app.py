@@ -2,7 +2,7 @@ import base64
 import hashlib
 import os
 import secrets
-from urllib.parse import urlencode
+from urllib.parse import urlencode, urlparse
 
 import requests
 import jwt as pyjwt
@@ -48,6 +48,27 @@ INDEX_HTML = """
   </body>
 </html>
 """
+
+
+def _safe_next(next_url: str | None) -> str | None:
+    """登出串跳的 next 校验：放行相对路径（排除协议相对 //host）与门户同源
+    的 http(s) 绝对地址；其余回退 None，避免开放重定向。"""
+    if not next_url:
+        return None
+    if next_url.startswith("/") and not next_url.startswith("//"):
+        return next_url
+    try:
+        target = urlparse(next_url)
+        issuer = urlparse(ISSUER)
+    except ValueError:
+        return None
+    if (
+        target.scheme in ("http", "https")
+        and target.netloc
+        and target.netloc == issuer.netloc
+    ):
+        return next_url
+    return None
 
 
 def pkce_pair() -> tuple[str, str]:
@@ -144,9 +165,7 @@ def callback():
 def logout():
     """门户发起串跳漏斗：清本地会话后跳 next。"""
     session.clear()
-    next_url = request.args.get("next") or f"{DEMO_PATH_PREFIX}/"
-    if not next_url.startswith("/") or next_url.startswith("//"):
-        next_url = f"{DEMO_PATH_PREFIX}/"
+    next_url = _safe_next(request.args.get("next")) or f"{DEMO_PATH_PREFIX}/"
     return redirect(next_url)
 
 

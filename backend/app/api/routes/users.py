@@ -588,11 +588,16 @@ def list_sessions(
     db: Session = Depends(get_db),
 ) -> list[dict]:
     current = get_current_session(request, db)
+    now = datetime.now(timezone.utc)
+    idle_cutoff = now - timedelta(minutes=get_settings().session_idle_minutes)
     sessions = db.scalars(
         select(SessionModel)
         .where(
             SessionModel.user_id == user.id,
             SessionModel.revoked_at.is_(None),
+            # 与管理端「在线会话」口径一致：已过期或空闲超时的会话不计入。
+            SessionModel.expires_at >= now,
+            SessionModel.last_used_at >= idle_cutoff,
         )
         .order_by(SessionModel.created_at.desc())
     ).all()
@@ -802,6 +807,7 @@ def list_apps(
     ).all()
     blocked_client_ids = {block.client_id for block in blocks}
     now = datetime.now(timezone.utc)
+    idle_cutoff = now - timedelta(minutes=get_settings().session_idle_minutes)
     link_rows = db.execute(
         select(
             OIDCClientSession.client_id,
@@ -813,6 +819,8 @@ def list_apps(
             OIDCClientSession.revoked_at.is_(None),
             SessionModel.revoked_at.is_(None),
             SessionModel.expires_at > now,
+            # 空闲超时的门户会话不计入「已登录」设备数。
+            SessionModel.last_used_at > idle_cutoff,
         )
         .group_by(OIDCClientSession.client_id)
     ).all()

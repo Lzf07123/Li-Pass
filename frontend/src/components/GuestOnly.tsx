@@ -13,6 +13,9 @@ import { AuthSkeleton } from "./AuthSkeleton";
 export function GuestOnly({ children }: { children: ReactNode }) {
   const [status, setStatus] = useState<"loading" | "guest" | "authed">("loading");
   const location = useLocation();
+  const rawNext = new URLSearchParams(location.search).get("next");
+  const next = isSafeNext(rawNext) && rawNext ? rawNext : "/";
+  const isAbsoluteNext = /^https?:\/\//i.test(next);
 
   useEffect(() => {
     let cancelled = false;
@@ -29,9 +32,18 @@ export function GuestOnly({ children }: { children: ReactNode }) {
     };
   }, []);
 
+  useEffect(() => {
+    // 绝对同源 next（如 OIDC 授权回调地址）无法用 React Router 内部跳转表达，
+    // 恢复登录态后直接由浏览器导航过去。
+    if (status === "authed" && isAbsoluteNext) {
+      window.location.replace(next);
+    }
+  }, [status, isAbsoluteNext, next]);
+
   if (status === "authed") {
-    const rawNext = new URLSearchParams(location.search).get("next");
-    const next = isSafeNext(rawNext) && rawNext ? rawNext : "/";
+    if (isAbsoluteNext) {
+      return null;
+    }
     return <Navigate to={next} replace />;
   }
 

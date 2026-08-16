@@ -49,7 +49,7 @@ export function RegisterPage() {
   const submitAction = useAsyncAction(
     async (email: string, nickname: string, password: string) => {
       await authApi.register({ email, nickname, password });
-      toast.success("注册成功，请登录");
+      toast.success("注册请求已受理，请查收邮箱验证码后完成验证");
       navigate(
         `/login?email=${encodeURIComponent(email)}${
           next ? `&next=${encodeURIComponent(next)}` : ""

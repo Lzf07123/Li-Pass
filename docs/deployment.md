@@ -102,7 +102,7 @@ docker compose -f docker-compose.yaml --env-file .env exec backend \
 | `AVATAR_CLEANUP_INTERVAL_SECONDS` | 孤儿头像清理周期（秒）；`0` 关闭周期任务，仍保留启动时清理一次（默认 21600）。该周期任务同时负责审计日志与已下线会话的保留期清理，设为 `0` 会一并停掉这些周期清理 |
 | `EPHEMERAL_RETENTION_HOURS` | 过期 OTP/授权码/邀请的保留期（小时），超期由后台维护任务删除（默认 168） |
 | `DB_POOL_SIZE` / `DB_MAX_OVERFLOW` | SQLAlchemy 连接池大小（默认 `5` + `10`；提高 worker 数时应同步放大） |
-| `UVICORN_WORKERS` | 后端 uvicorn worker 数（默认 `1`；使用 memory 存储的本地模式必须保持 1） |
+| `UVICORN_WORKERS` | 后端 uvicorn worker 数（默认 `1`；使用 memory 存储的本地模式必须保持 1）。开发镜像默认 `--limit-max-requests 10000`：worker 重启会清空 memory 限流计数与进行中的 2FA 挑战/待授权请求，仅影响本地开发体验 |
 | `IP2REGION_DATA_DIR` | ip2region 数据目录（生产必须为绝对路径，默认 `/app/data/ip2region`，构建期已内置 v3.17.0） |
 | `IP2REGION_AUTO_UPDATE_ENABLED` | 自动更新默认开关（默认 `false`，可在站点设置运行时覆盖） |
 | `IP2REGION_UPDATE_INTERVAL_HOURS` | 自动检查间隔（默认 `24`，范围 1–8760） |

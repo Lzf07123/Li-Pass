@@ -67,9 +67,11 @@ def decrypt_str(value: str) -> str:
 
 @lru_cache
 def _hmac_key(path: str) -> bytes:
-    # 复用加密密钥文件：先确保文件存在，再读取原始字节作为 HMAC 密钥。
+    # 与 Fernet 数据加密密钥做域分离：从同一主密钥派生独立的 HMAC 密钥，
+    # 避免 AES 加密与 OTP/恢复码认证共用同一密钥材料。
     _fernet(path)
-    return read_key_bytes_with_retry(Path(path))
+    master = read_key_bytes_with_retry(Path(path))
+    return hmac.new(master, b"lipass:hmac:v2", hashlib.sha256).digest()
 
 
 def hmac_hex(value: str) -> str:

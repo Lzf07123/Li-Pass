@@ -3,17 +3,30 @@ import re
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 
+from app.core.config import get_settings
+from app.security.passwords import validate_password_strength
+
 
 class RegisterRequest(BaseModel):
     email: EmailStr
     password: str = Field(min_length=8, max_length=128)
     nickname: str = Field(min_length=1, max_length=80)
 
+    @field_validator("password")
+    @classmethod
+    def _check_password(cls, value: str) -> str:
+        return validate_password_strength(value)
+
 
 class InviteRegisterRequest(BaseModel):
     token: str = Field(min_length=20, max_length=200)
     nickname: str = Field(min_length=1, max_length=80)
     password: str = Field(min_length=8, max_length=128)
+
+    @field_validator("password")
+    @classmethod
+    def _check_password(cls, value: str) -> str:
+        return validate_password_strength(value)
 
 
 class EmailVerifyRequest(BaseModel):
@@ -40,6 +53,11 @@ class ConfirmPasswordResetRequest(BaseModel):
     email: EmailStr
     code: str = Field(min_length=6, max_length=6)
     new_password: str = Field(min_length=8, max_length=128)
+
+    @field_validator("new_password")
+    @classmethod
+    def _check_new_password(cls, value: str) -> str:
+        return validate_password_strength(value)
 
 
 class UserOut(BaseModel):
@@ -73,8 +91,13 @@ class ProfileUpdate(BaseModel):
             value,
         ):
             return value
-        if value.startswith(("http://", "https://")):
+        if value.startswith("https://"):
             return value
+        if value.startswith("http://"):
+            # 与 OAuth 回调地址等 URL 校验一致：生产环境拒绝明文 http 外链。
+            if get_settings().environment != "production":
+                return value
+            raise ValueError("生产环境头像地址必须使用 https")
         raise ValueError("头像地址不合法")
 
 
@@ -92,6 +115,11 @@ class PasswordChange(BaseModel):
     # 处于 step-up 窗口内时可省略：30 分钟内已复核过密码。
     current_password: str | None = Field(default=None, min_length=1, max_length=128)
     new_password: str = Field(min_length=8, max_length=128)
+
+    @field_validator("new_password")
+    @classmethod
+    def _check_new_password(cls, value: str) -> str:
+        return validate_password_strength(value)
 
 
 class PhoneBind(BaseModel):

@@ -150,6 +150,16 @@ def test_login_cross_site_origin_rejected(client) -> None:
     assert response.json()["detail"] == "跨站请求被拒绝"
 
 
+def test_twofa_verify_cross_site_origin_rejected(client) -> None:
+    response = client.post(
+        "/api/v1/auth/2fa/verify",
+        json={"challenge_id": "any", "method": "email_otp", "code": "123456"},
+        headers={"Origin": "http://evil.example"},
+    )
+    assert response.status_code == 403
+    assert response.json()["detail"] == "跨站请求被拒绝"
+
+
 def test_disabled_user_cannot_login(client, db_session, captured_email) -> None:
     register_and_verify(client, captured_email)
     user = db_session.scalar(select(User).where(User.email == "a@example.com"))

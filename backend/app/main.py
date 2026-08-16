@@ -150,9 +150,16 @@ def create_app() -> FastAPI:
 
     # 登录/注册虽不携带会话 Cookie，但浏览器跨站提交会造成登录 CSRF
     # （把受害者登录进攻击者账号）与跨站注册滥用，同样要求 Origin 白名单。
+    # /2fa/verify 成功后会下发门户会话 Cookie：若不校验 Origin，攻击者可用
+    # 自己的挑战与验证码诱导受害者跨站提交，把受害者浏览器登录进攻击者账号
+    # （登录串号），因此与登录/注册同等对待；/2fa/send、/email/verify 一并
+    # 纳入作纵深防御。
     _origin_guarded_auth_paths = {
         "/api/v1/auth/login",
         "/api/v1/auth/register",
+        "/api/v1/auth/2fa/verify",
+        "/api/v1/auth/2fa/send",
+        "/api/v1/auth/email/verify",
     }
 
     @app.middleware("http")

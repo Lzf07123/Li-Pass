@@ -86,4 +86,38 @@ describe("GuestOnly", () => {
     renderGuestOnly("/login?next=/oauth2/authorize");
     await waitFor(() => expect(screen.getByText("授权页")).toBeInTheDocument());
   });
+
+  it("已登录访问带绝对同源 next 的 /login 时用 location.replace 恢复授权", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            id: "1",
+            email: "a@example.com",
+            nickname: "Alice",
+            email_verified: true,
+            phone: null,
+            role: "user",
+            status: "active",
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } }
+        )
+      )
+    );
+    const original = window.location;
+    const replace = vi.fn();
+    Object.defineProperty(window, "location", {
+      value: { href: "", origin: "http://localhost", replace },
+      writable: true,
+      configurable: true,
+    });
+    const target = "http://localhost/oauth2/authorize?code_challenge=x";
+    renderGuestOnly(`/login?next=${encodeURIComponent(target)}`);
+    await waitFor(() => expect(replace).toHaveBeenCalledWith(target));
+    Object.defineProperty(window, "location", {
+      value: original,
+      configurable: true,
+    });
+  });
 });

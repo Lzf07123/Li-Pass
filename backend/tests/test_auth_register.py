@@ -35,6 +35,34 @@ def test_register_duplicate_email(client, captured_email) -> None:
     assert len(captured_email.messages) == 1
 
 
+def test_register_duplicate_race_returns_uniform_message(client, monkeypatch) -> None:
+    """并发撞邮箱导致唯一约束冲突时，应与「已注册」返回同一受理文案，而非 500。"""
+    from sqlalchemy.exc import IntegrityError
+    from sqlalchemy.orm import Session
+
+    real_commit = Session.commit
+    calls = {"n": 0}
+
+    def flaky_commit(self):
+        calls["n"] += 1
+        if calls["n"] == 1:
+            raise IntegrityError("INSERT", {}, Exception("duplicate key"))
+        return real_commit(self)
+
+    monkeypatch.setattr(Session, "commit", flaky_commit)
+    client.raise_server_exceptions = False
+    response = client.post(
+        "/api/v1/auth/register",
+        json={
+            "email": "race@example.com",
+            "password": "Race#2026Test!",
+            "nickname": "竞态",
+        },
+    )
+    assert response.status_code == 201
+    assert response.json()["message"] == "注册请求已受理，验证邮件已发送"
+
+
 def test_register_duplicate_email_still_runs_argon2(
     client, captured_email, monkeypatch
 ) -> None:
