@@ -33,27 +33,27 @@ export const ACCENT_CLASSES: Record<
   { tile: string; text: string }
 > = {
   ice: {
-    tile: "bg-accent-ice-soft text-accent-ice",
+    tile: "bg-accent-ice-soft text-accent-ice dark:bg-accent-ice dark:text-primary-foreground",
     text: "text-accent-ice",
   },
   aqua: {
-    tile: "bg-accent-aqua-soft text-accent-aqua",
+    tile: "bg-accent-aqua-soft text-accent-aqua dark:bg-accent-aqua dark:text-primary-foreground",
     text: "text-accent-aqua",
   },
   lilac: {
-    tile: "bg-accent-lilac-soft text-accent-lilac",
+    tile: "bg-accent-lilac-soft text-accent-lilac dark:bg-accent-lilac dark:text-primary-foreground",
     text: "text-accent-lilac",
   },
   sage: {
-    tile: "bg-accent-sage-soft text-accent-sage",
+    tile: "bg-accent-sage-soft text-accent-sage dark:bg-accent-sage dark:text-primary-foreground",
     text: "text-accent-sage",
   },
   mint: {
-    tile: "bg-accent-mint-soft text-accent-mint",
+    tile: "bg-accent-mint-soft text-accent-mint dark:bg-accent-mint dark:text-primary-foreground",
     text: "text-accent-mint",
   },
   sand: {
-    tile: "bg-accent-sand-soft text-accent-sand",
+    tile: "bg-accent-sand-soft text-accent-sand dark:bg-accent-sand dark:text-primary-foreground",
     text: "text-accent-sand",
   },
 };
