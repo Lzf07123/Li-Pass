@@ -120,12 +120,13 @@
     #7fd4c6
   );
 
-  --tech-grid-line: rgba(47, 127, 116, 0.07);
-  --tech-grid-accent: rgba(127, 212, 198, 0.16);
-  --tech-grid-accent-2: rgba(74, 143, 191, 0.14);
-  --tech-beam: rgba(127, 212, 198, 0.18);
-  --tech-beam-2: rgba(143, 199, 240, 0.16);
-  --tech-dot-glow: rgba(127, 212, 198, 0.5);
+  --tech-grid-line: rgba(47, 127, 116, 0.09);
+  --tech-grid-accent: rgba(127, 212, 198, 0.22);
+  --tech-grid-accent-2: rgba(74, 143, 191, 0.18);
+  --tech-beam: rgba(127, 212, 198, 0.26);
+  --tech-beam-2: rgba(143, 199, 240, 0.22);
+  --tech-beam-3: rgba(176, 199, 158, 0.2);
+  --tech-dot-glow: rgba(127, 212, 198, 0.6);
 
   /* 弥散阴影（透明度总和 < 0.1，三层叠加） */
   --shadow-sm: 0px 0.6px 1.8px rgba(24, 58, 51, 0.04),
@@ -194,23 +195,24 @@
   --brand-fg: #d7efea;
   --flow-gradient: linear-gradient(
     90deg,
-    rgba(127, 212, 198, 0.55),
-    rgba(168, 212, 240, 0.55),
-    rgba(176, 168, 222, 0.55),
-    rgba(176, 199, 158, 0.5),
-    rgba(127, 212, 198, 0.55)
+    rgba(127, 212, 198, 0.65),
+    rgba(168, 212, 240, 0.65),
+    rgba(176, 168, 222, 0.65),
+    rgba(176, 199, 158, 0.6),
+    rgba(127, 212, 198, 0.65)
   );
 
   --btn-primary-bg: rgba(127, 212, 198, 0.13);
   --btn-primary-bg-hover: rgba(127, 212, 198, 0.21);
   --btn-primary-border: rgba(127, 212, 198, 0.3);
 
-  --tech-grid-line: rgba(176, 199, 158, 0.1);
-  --tech-grid-accent: rgba(127, 212, 198, 0.13);
-  --tech-grid-accent-2: rgba(168, 212, 240, 0.12);
-  --tech-beam: rgba(127, 212, 198, 0.14);
-  --tech-beam-2: rgba(168, 212, 240, 0.14);
-  --tech-dot-glow: rgba(127, 212, 198, 0.45);
+  --tech-grid-line: rgba(176, 199, 158, 0.13);
+  --tech-grid-accent: rgba(127, 212, 198, 0.18);
+  --tech-grid-accent-2: rgba(168, 212, 240, 0.16);
+  --tech-beam: rgba(127, 212, 198, 0.2);
+  --tech-beam-2: rgba(168, 212, 240, 0.19);
+  --tech-beam-3: rgba(176, 199, 158, 0.15);
+  --tech-dot-glow: rgba(127, 212, 198, 0.55);
 
   color-scheme: dark;
 }
@@ -503,14 +505,14 @@
       56px 56px,
       56px 56px;
     -webkit-mask-image: radial-gradient(
-      ellipse 82% 70% at 50% 42%,
+      ellipse 88% 76% at 50% 42%,
       #000 22%,
-      transparent 76%
+      transparent 80%
     );
     mask-image: radial-gradient(
-      ellipse 82% 70% at 50% 42%,
+      ellipse 88% 76% at 50% 42%,
       #000 22%,
-      transparent 76%
+      transparent 80%
     );
     animation: tech-grid-pan 26s linear infinite;
     will-change: background-position;
@@ -521,7 +523,7 @@
     top: -15%;
     bottom: -15%;
     left: 0;
-    width: 32%;
+    width: 36%;
     background: linear-gradient(
       90deg,
       transparent 0%,
@@ -531,7 +533,7 @@
     );
     transform: translateX(-150%) skewX(-16deg);
     opacity: 0;
-    animation: tech-beam-sweep 10s var(--ease-out) 1s infinite;
+    animation: tech-beam-sweep 8s var(--ease-out) 1s infinite;
     will-change: transform, opacity;
     pointer-events: none;
   }
@@ -543,15 +545,25 @@
       var(--tech-beam-2) 55%,
       transparent 100%
     );
-    animation-delay: 6s;
+    animation-delay: 3.6s;
+  }
+  .tech-beam--sage {
+    background: linear-gradient(
+      90deg,
+      transparent 0%,
+      var(--tech-beam-3) 45%,
+      var(--tech-beam-3) 55%,
+      transparent 100%
+    );
+    animation-delay: 6.4s;
   }
   .tech-dot {
     position: absolute;
-    width: 6px;
-    height: 6px;
+    width: 7px;
+    height: 7px;
     border-radius: 9999px;
     background: var(--tech-dot-color, var(--portal-secondary));
-    box-shadow: 0 0 12px 2px var(--tech-dot-glow);
+    box-shadow: 0 0 14px 3px var(--tech-dot-glow);
     opacity: 0.55;
     animation: tech-dot-pulse 5.5s ease-in-out infinite;
     will-change: transform, opacity;
@@ -569,6 +581,35 @@
   .brand-halo {
     filter: drop-shadow(0 0 14px rgba(47, 127, 116, 0.38))
       drop-shadow(0 0 30px rgba(74, 143, 191, 0.28));
+  }
+
+  /* 认证卡呼吸辉光：卡后一层浅水绿光晕，缓慢明暗呼吸 */
+  .card-halo {
+    position: relative;
+    isolation: isolate;
+  }
+  .card-halo::before {
+    content: "";
+    position: absolute;
+    inset: -18px;
+    border-radius: 26px;
+    background: radial-gradient(
+      ellipse at 50% 50%,
+      rgba(127, 212, 198, 0.2) 0%,
+      rgba(74, 143, 191, 0.12) 45%,
+      transparent 72%
+    );
+    z-index: -1;
+    animation: card-halo-pulse 6s ease-in-out infinite;
+    pointer-events: none;
+  }
+  .dark .card-halo::before {
+    background: radial-gradient(
+      ellipse at 50% 50%,
+      rgba(127, 212, 198, 0.24) 0%,
+      rgba(168, 212, 240, 0.13) 45%,
+      transparent 72%
+    );
   }
   .dark .brand-halo {
     filter: drop-shadow(0 0 16px rgba(127, 212, 198, 0.45))
@@ -996,6 +1037,16 @@
     animation: portal-breath 800ms var(--ease-out) both;
   }
 
+  @keyframes card-halo-pulse {
+    0%,
+    100% {
+      opacity: 0.65;
+    }
+    50% {
+      opacity: 1;
+    }
+  }
+
   /* 路由切换：整页淡入上移，避免生硬跳转 */
   .page-enter {
     animation: portal-fade-up var(--motion-slow) var(--ease-out) both;
@@ -1071,10 +1122,10 @@
   /* 已登录页的极光层：同一批光斑，但浓度减半，作为页面「流动光」底；
      认证页保持默认浓度，不套用此包装类。 */
   .aurora-soft .aurora-blob {
-    opacity: 0.3;
+    opacity: 0.38;
   }
   .dark .aurora-soft .aurora-blob {
-    opacity: 0.24;
+    opacity: 0.3;
   }
   .aurora-blob-1 {
     top: -16rem;
@@ -1084,8 +1135,8 @@
     margin-left: -21rem;
     background: radial-gradient(
       circle at 35% 35%,
-      rgba(127, 212, 198, 0.28) 0%,
-      rgba(143, 199, 240, 0.18) 42%,
+      rgba(127, 212, 198, 0.34) 0%,
+      rgba(143, 199, 240, 0.22) 42%,
       transparent 70%
     );
     animation: aurora-drift-1 16s ease-in-out infinite alternate;
@@ -1097,8 +1148,8 @@
     height: 30rem;
     background: radial-gradient(
       circle at 60% 40%,
-      rgba(143, 227, 163, 0.22) 0%,
-      rgba(127, 212, 198, 0.16) 45%,
+      rgba(143, 227, 163, 0.28) 0%,
+      rgba(127, 212, 198, 0.2) 45%,
       transparent 70%
     );
     animation: aurora-drift-2 20s ease-in-out infinite alternate;
@@ -1110,33 +1161,54 @@
     height: 26rem;
     background: radial-gradient(
       circle at 40% 60%,
-      rgba(169, 162, 232, 0.24) 0%,
-      rgba(143, 199, 240, 0.18) 45%,
+      rgba(169, 162, 232, 0.3) 0%,
+      rgba(143, 199, 240, 0.22) 45%,
       transparent 70%
     );
     animation: aurora-drift-3 24s ease-in-out infinite alternate;
   }
+  .aurora-blob-4 {
+    left: 52%;
+    bottom: -11rem;
+    width: 28rem;
+    height: 28rem;
+    background: radial-gradient(
+      circle at 55% 45%,
+      rgba(217, 196, 158, 0.18) 0%,
+      rgba(74, 143, 191, 0.1) 45%,
+      transparent 70%
+    );
+    animation: aurora-drift-4 22s ease-in-out infinite alternate;
+  }
   .dark .aurora-blob-1 {
     background: radial-gradient(
       circle at 35% 35%,
-      rgba(127, 212, 198, 0.16) 0%,
-      rgba(143, 199, 240, 0.1) 42%,
+      rgba(127, 212, 198, 0.2) 0%,
+      rgba(143, 199, 240, 0.12) 42%,
       transparent 70%
     );
   }
   .dark .aurora-blob-2 {
     background: radial-gradient(
       circle at 60% 40%,
-      rgba(143, 227, 163, 0.12) 0%,
-      rgba(127, 212, 198, 0.08) 45%,
+      rgba(143, 227, 163, 0.16) 0%,
+      rgba(127, 212, 198, 0.1) 45%,
       transparent 70%
     );
   }
   .dark .aurora-blob-3 {
     background: radial-gradient(
       circle at 40% 60%,
-      rgba(169, 162, 232, 0.16) 0%,
-      rgba(143, 199, 240, 0.1) 45%,
+      rgba(169, 162, 232, 0.2) 0%,
+      rgba(143, 199, 240, 0.12) 45%,
+      transparent 70%
+    );
+  }
+  .dark .aurora-blob-4 {
+    background: radial-gradient(
+      circle at 55% 45%,
+      rgba(217, 196, 158, 0.14) 0%,
+      rgba(168, 212, 240, 0.08) 45%,
       transparent 70%
     );
   }
@@ -1203,6 +1275,14 @@
     }
     to {
       transform: translate3d(4%, -4%, 0) rotate(4deg) scale(1.06);
+    }
+  }
+  @keyframes aurora-drift-4 {
+    from {
+      transform: translate3d(2%, 1%, 0) scale(1);
+    }
+    to {
+      transform: translate3d(-4%, -3%, 0) scale(1.05);
     }
   }
 }

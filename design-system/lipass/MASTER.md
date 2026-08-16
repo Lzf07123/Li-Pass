@@ -101,8 +101,9 @@ stable 哈希分配见 `frontend/src/lib/accent.ts` 的 `accentFor(id)`；Bento 
 | `.aurora-soft` | 已登录页低浓度极光层（认证页保持默认浓度） | 16/20/24s |
 | `.pill-tab.is-active::after` | 活动标签扫光（复用 `btn-sheen`） | 5s |
 | `.tech-grid` | 缓移网格（56px 基线 + 336px 亮线，径向渐隐遮罩） | 26s |
-| `.tech-beam` | 周期性扫掠光束（两条错峰，斜切 16°） | 10s |
-| `.tech-dot` | 呼吸光点（6 枚，错峰缩放/透明度脉动） | 5.5s |
+| `.card-halo` | 认证卡后的浅水绿呼吸辉光 | 6s |
+| `.tech-beam` | 周期性扫掠光束（三条错峰，斜切 16°） | 8s |
+| `.tech-dot` | 呼吸光点（8 枚，错峰缩放/透明度脉动） | 5.5s |
 
 ---
 
@@ -128,8 +129,10 @@ stable 哈希分配见 `frontend/src/lib/accent.ts` 的 `accentFor(id)`；Bento 
 ### 科技氛围层（`TechAmbience`）
 
 - 位置：`frontend/src/components/bits/TechAmbience.tsx`，纯 CSS 装饰层，无第三方依赖。
-- 结构：`.tech-grid`（缓移网格）+ 两条 `.tech-beam`（错峰扫掠光束）+ 六枚 `.tech-dot`（呼吸光点）。
-- 接入：认证页 `AuthShell` 默认浓度；用户中心 `TechAmbience soft` 淡版；管理后台不接入（极致克制）。
+- 结构：`.tech-grid`（缓移网格）+ 三条 `.tech-beam`（错峰扫掠光束）+ 八枚 `.tech-dot`（呼吸光点）。
+- 接入：认证页 `AuthShell` 默认浓度；用户中心 `TechAmbience soft` 淡版；管理后台 `TechAmbience soft`
+  淡版 + `aurora-soft` 极光层（V2.2 起按用户要求接入，表格区仍为不透明表面）。
+- 认证页卡片叠加 `.card-halo`（浅水绿呼吸辉光）；`AuroraBackground` 含四枚光斑（水绿/薄荷/淡丁香/暖沙）。
 - 约束：`aria-hidden`、`pointer-events: none`、移动端（<768px）隐藏光束与光点并停用网格动画；
   `prefers-reduced-motion` 下由全局规则降为单帧。
 
