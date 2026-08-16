@@ -60,12 +60,12 @@
   --portal-muted: #71807a;
   --portal-border: #e1ece8;
 
-  --portal-primary: #2f7f74;
-  --portal-primary-hover: #27685f;
+  --portal-primary: #25786d;
+  --portal-primary-hover: #1f6359;
   --portal-primary-soft: #d9f4ee;
   --portal-primary-fg: #ffffff;
 
-  --portal-secondary: #4a8fbf;
+  --portal-secondary: #2f678f;
   --portal-secondary-soft: #dff1fa;
 
   --portal-success: #2f8f5f;
@@ -76,17 +76,17 @@
   --portal-destructive-soft: #fdeeee;
   --portal-destructive-fg: #ffffff;
 
-  --portal-accent-ice: #4a8fbf;
+  --portal-accent-ice: #2f678f;
   --portal-accent-ice-soft: #dff1fa;
-  --portal-accent-aqua: #2f7f74;
+  --portal-accent-aqua: #25786d;
   --portal-accent-aqua-soft: #d9f4ee;
-  --portal-accent-lilac: #7a6fc4;
+  --portal-accent-lilac: #51488f;
   --portal-accent-lilac-soft: #edeafb;
-  --portal-accent-sage: #6e8f5e;
+  --portal-accent-sage: #557546;
   --portal-accent-sage-soft: #eaf2e3;
-  --portal-accent-mint: #3f8f63;
+  --portal-accent-mint: #2f7c52;
   --portal-accent-mint-soft: #e3f6e9;
-  --portal-accent-sand: #a9865b;
+  --portal-accent-sand: #876741;
   --portal-accent-sand-soft: #f7efe0;
 
   /* Bento 深色卡标签色：卡片在明暗主题下都保持深色表面，
@@ -104,7 +104,7 @@
   --portal-bento-sand: #d9be94;
   --portal-bento-sand-rgb: 217, 190, 148;
 
-  --portal-ring: #2f7f74;
+  --portal-ring: #25786d;
 
   /* 主按钮：半透明单色着色（浅色侧），避免多色渐变色块过重 */
   --btn-primary-bg: rgba(47, 127, 116, 0.1);
@@ -421,6 +421,20 @@
   .badge-primary {
     @apply bg-primary-soft text-primary dark:text-sky-200;
   }
+  /* 深色下「半透明软底 + 浅色文字」对比上限约 3.9，无法满足 4.5；
+     徽章改为「实色粉彩底 + 深青文字」模式。 */
+  .dark .badge-primary {
+    @apply bg-primary text-primary-foreground;
+  }
+  .dark .badge-success {
+    @apply bg-success text-primary-foreground;
+  }
+  .dark .badge-warning {
+    @apply bg-warning text-primary-foreground;
+  }
+  .dark .badge-danger {
+    @apply bg-destructive text-primary-foreground;
+  }
 
   /* 页面内持久提示条（与弹窗通知同一视觉语言） */
   .notice {
@@ -453,6 +467,19 @@
   }
   .notice-info .notice-icon {
     @apply bg-primary/10 text-primary;
+  }
+  /* 深色下提示条正文改用高亮浅色调文字，保证在 soft 底上 ≥4.5:1 */
+  .dark .notice-success {
+    color: #cff0de;
+  }
+  .dark .notice-warning {
+    color: #f7ebc4;
+  }
+  .dark .notice-error {
+    color: #f6d0c8;
+  }
+  .dark .notice-info {
+    color: #cdefe9;
   }
 
   /* 流光规则线：分区标题下的短装饰线或顶栏底部的全长渐变线，

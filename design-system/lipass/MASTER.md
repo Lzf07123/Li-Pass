@@ -38,25 +38,25 @@
 | 前景 | `#35423F` | `#F0F2F4` | `text-foreground` |
 | 弱化文本 | `#71807A` | `#B8C0C7` | `text-muted` |
 | 边框 | `#E1ECE8` | `#545C64` | `border-border` |
-| 主色 | `#2F7F74` | `#7FD4C6` | `bg-primary / text-primary` |
-| 主色悬停 | `#27685F` | `#A5E4D9` | `hover:bg-primary-hover` |
+| 主色 | `#25786D` | `#7FD4C6` | `bg-primary / text-primary` |
+| 主色悬停 | `#1F6359` | `#A5E4D9` | `hover:bg-primary-hover` |
 | 主色前景 | `#FFFFFF` | `#17332E` | `text-primary-foreground` |
-| 次级色 | `#4A8FBF` | `#A8D4F0` | `text-secondary / bg-secondary-soft` |
+| 次级色 | `#2F678F` | `#A8D4F0` | `text-secondary / bg-secondary-soft` |
 | 成功 | `#2F8F5F` | `#86D6AC` | `text-success / bg-success-soft` |
 | 警告 | `#A16207` | `#EAD48E` | `text-warning / bg-warning-soft` |
 | 危险 | `#CF3D3D` | `#E8A49A` | `text-destructive / bg-destructive-soft` |
-| 焦点环 | `#2F7F74` | `#7FD4C6` | `focus:ring-primary/20` |
+| 焦点环 | `#25786D` | `#7FD4C6` | `focus:ring-primary/20` |
 
 **强调色板（信息分层，装饰性小面积使用）：**
 
 | 色相 | 浅色 strong / soft | 深色 strong / soft | Tailwind 令牌 |
 | --- | --- | --- | --- |
-| ice | `#4A8FBF` / `#DFF1FA` | `#A8CBE8` / `rgba(168,203,232,.16)` | `text-accent-ice / bg-accent-ice-soft` |
-| aqua | `#2F7F74` / `#D9F4EE` | `#7FD4C6` / `rgba(127,212,198,.16)` | `text-accent-aqua / bg-accent-aqua-soft` |
-| lilac | `#7A6FC4` / `#EDEAFB` | `#B0A8DE` / `rgba(176,168,222,.18)` | `text-accent-lilac / bg-accent-lilac-soft` |
-| sage | `#6E8F5E` / `#EAF2E3` | `#B0C79E` / `rgba(176,199,158,.18)` | `text-accent-sage / bg-accent-sage-soft` |
-| mint | `#3F8F63` / `#E3F6E9` | `#9ADFAD` / `rgba(154,223,173,.16)` | `text-accent-mint / bg-accent-mint-soft` |
-| sand | `#A9865B` / `#F7EFE0` | `#D9C49E` / `rgba(217,196,158,.16)` | `text-accent-sand / bg-accent-sand-soft` |
+| ice | `#2F678F` / `#DFF1FA` | `#A8CBE8` / `rgba(168,203,232,.16)` | `text-accent-ice / bg-accent-ice-soft` |
+| aqua | `#25786D` / `#D9F4EE` | `#7FD4C6` / `rgba(127,212,198,.16)` | `text-accent-aqua / bg-accent-aqua-soft` |
+| lilac | `#51488F` / `#EDEAFB` | `#B0A8DE` / `rgba(176,168,222,.18)` | `text-accent-lilac / bg-accent-lilac-soft` |
+| sage | `#557546` / `#EAF2E3` | `#B0C79E` / `rgba(176,199,158,.18)` | `text-accent-sage / bg-accent-sage-soft` |
+| mint | `#2F7C52` / `#E3F6E9` | `#9ADFAD` / `rgba(154,223,173,.16)` | `text-accent-mint / bg-accent-mint-soft` |
+| sand | `#876741` / `#F7EFE0` | `#D9C49E` / `rgba(217,196,158,.16)` | `text-accent-sand / bg-accent-sand-soft` |
 
 stable 哈希分配见 `frontend/src/lib/accent.ts` 的 `accentFor(id)`；Bento 深色卡标签色
 （明暗主题共用，卡面恒为深色）另设 `--portal-bento-{ice,aqua,lilac,sage,mint,sand}[-rgb]` 令牌。
@@ -66,7 +66,8 @@ stable 哈希分配见 `frontend/src/lib/accent.ts` 的 `accentFor(id)`；Bento 
 配 soft 底时文本对比 ≥ 4.5:1；强调色只做装饰（瓦片/图例/规则线），状态语义色不被替代。
 签名描边与流光线使用粉彩渐变（`--flow-gradient`）；主按钮改为半透明单色着色
 （`--btn-primary-bg`，浅色 10% / 深色 13% 透明度）+ 细描边，文字用 `--brand-fg` 保证对比。
-深色模式为「D1 雾灰」柔和中间调（不压黑），而非简单反色。
+深色模式为「D1 雾灰」柔和中间调（不压黑），而非简单反色；深色下徽章/瓦片文字用「实色粉彩底 +
+深青文字」、提示条正文用高亮浅色文字（软底浅字对比上限 ≈3.9，达不到 4.5）。
 
 ### 字体
 
