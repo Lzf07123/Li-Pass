@@ -14,6 +14,7 @@
 
 ### 功能
 
+- 审计日志展示增强：`GET /api/v1/admin/audit-logs` 返回 `category_label`/`action_label` 中文标签与 `actor`（类型标签 + 可读显示名：用户/管理员解析为昵称与邮箱，授权网站解析为站点名，系统显示「系统」；已删除账号回退原始 ID 保留可追溯性）；管理后台审计面板按标签渲染分类/动作徽章，操作者列展示类型徽章 + 可读名称 + 次级原始 ID，动作徽章悬停显示原始动作名。原始英文枚举仍原样返回，不影响历史数据、统计聚合与筛选。
 - 更换登录邮箱：用户中心新增「更换登录邮箱」（`POST /api/v1/me/email/change/request|confirm`）——先向新邮箱发送验证码，再凭验证码完成更换；要求每次显式输入当前密码（step-up 窗口不豁免），新邮箱全库唯一并做并发兜底，成功记审计并向旧邮箱发送变更提醒。账号身份不变：OIDC `sub`（用户 UUID）始终是稳定统一标识，`id_token`/`userinfo` 的 `email` 为可变属性，旧令牌最长 15 分钟内自然过期。对接方须按 `sub` 绑定账号（见 [对接指南 §3.4](docs/oidc-integration.md)）。`OtpPurpose` 新增 `change_email`（迁移 `9d2c3b4e5f6a`，PG 枚举只增不删）。设计见 [可变邮箱与 openid 统一账号标识设计](docs/superpowers/specs/2026-08-16-changeable-email-design.md)。
 - 活跃对接网站会话感知：`oidc_client_sessions` 链接生命周期闭环——门户会话撤销（用户单会话撤销、退出所有设备、门户登出、管理员单/批量/全部下线）在派发回程登出通知后同步吊销对应链接，重新授权时自动激活已吊销链接；`GET /api/v1/apps` 新增 `active_sessions` 字段，应用广场每张卡片展示「已登录 · N 台设备」或「未登录」，让取消授权/门户登出的下线通知与用户可见状态一致。设计见 [活跃对接网站会话感知设计](docs/superpowers/specs/2026-08-16-active-site-session-awareness-design.md)。
 - 邀请注册前置校验：新增 `GET /api/v1/auth/invite/status`（返回脱敏邮箱与是否已注册），邀请页在展示注册表单前先校验链接——无效/已使用/已取消/已过期分别展示对应提示页，邀请邮箱已注册账号时提示直接登录，不再让用户填完信息提交后才报错。

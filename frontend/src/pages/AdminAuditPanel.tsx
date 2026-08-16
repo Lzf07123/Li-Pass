@@ -25,6 +25,13 @@ const CATEGORY_LABELS: Record<string, string> = {
 
 const CATEGORIES = Object.keys(CATEGORY_LABELS);
 
+const ACTOR_BADGE: Record<string, string> = {
+  user: "badge badge-muted",
+  admin: "badge badge-primary",
+  client: "badge badge-success",
+  system: "badge badge-muted",
+};
+
 export function AdminAuditPanel() {
   const [logs, setLogs] = useState<AuditLogOut[]>([]);
   const [category, setCategory] = useState("");
@@ -142,16 +149,46 @@ export function AdminAuditPanel() {
                 </td>
                 <td>
                   <span className="badge badge-muted">
-                    {CATEGORY_LABELS[log.category ?? "other"] ??
+                    {log.category_label ??
+                      CATEGORY_LABELS[log.category ?? "other"] ??
                       log.category ??
                       "其他"}
                   </span>
                 </td>
                 <td>
-                  {log.actor_type}:{log.actor_id ?? "-"}
+                  <div className="flex items-center gap-1.5">
+                    <span
+                      className={
+                        ACTOR_BADGE[log.actor?.type] ?? "badge badge-muted"
+                      }
+                    >
+                      {log.actor?.type_label ?? log.actor_type}
+                    </span>
+                    <span
+                      className="max-w-44 truncate text-foreground"
+                      title={log.actor?.display}
+                    >
+                      {log.actor?.display ??
+                        `${log.actor_type}:${log.actor_id ?? "-"}`}
+                    </span>
+                  </div>
+                  {log.actor?.id &&
+                    log.actor.display !== log.actor.id && (
+                      <div
+                        className="mt-0.5 max-w-56 truncate text-xs text-muted"
+                        title={log.actor.id}
+                      >
+                        {log.actor.id}
+                      </div>
+                    )}
                 </td>
                 <td>
-                  <span className="badge badge-muted">{log.action}</span>
+                  <span
+                    className="badge badge-muted"
+                    title={log.action}
+                  >
+                    {log.action_label ?? log.action}
+                  </span>
                 </td>
                 <td>
                   <div>{log.ip ?? "-"}</div>

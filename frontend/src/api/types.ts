@@ -271,12 +271,22 @@ export interface Ip2regionUpdateStartResult {
   status: Ip2regionUpdateStatus;
 }
 
+export interface AuditActor {
+  type: string;
+  type_label: string;
+  id: string | null;
+  display: string;
+}
+
 export interface AuditLogOut {
   id: string;
   actor_type: string;
   actor_id: string | null;
+  actor: AuditActor;
   action: string;
+  action_label: string;
   category: string | null;
+  category_label: string;
   target_type: string | null;
   target_id: string | null;
   ip: string | null;

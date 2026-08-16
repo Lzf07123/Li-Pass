@@ -12,6 +12,7 @@ from app.core.config import get_settings
 from app.core.db import get_db
 from app.models.account_invite import AccountInvite
 from app.models.audit_log import AuditLog
+from app.models.oauth_client import OAuthClient
 from app.models.recovery_code import RecoveryCode
 from app.models.session import Session as SessionModel
 from app.models.user import User, UserRole, UserStatus
@@ -21,6 +22,11 @@ from app.security.tokens import generate_token, hash_token
 from app.services.account_deletion import delete_user_account
 from app.services.admin_stats import invalidate_admin_stats_cache
 from app.services.audit import log_audit, log_rate_limit_rejected_once
+from app.services.audit_labels import (
+    action_label,
+    actor_type_label,
+    category_label,
+)
 from app.services.geoip import describe_ip
 from app.services.email import get_email_service
 from app.services.rate_limit import get_rate_limiter
@@ -910,13 +916,69 @@ def list_audit_logs(
     logs = db.scalars(
         stmt.order_by(AuditLog.created_at.desc()).offset(offset).limit(limit)
     ).all()
+
+    # 批量解析操作者，避免逐行 N+1；actor_id 是历史字符串，容错解析。
+    user_ids: set[uuid.UUID] = set()
+    client_ids: set[str] = set()
+    for log in logs:
+        if log.actor_type in ("user", "admin") and log.actor_id:
+            try:
+                user_ids.add(uuid.UUID(log.actor_id))
+            except ValueError:
+                pass
+        elif log.actor_type == "client" and log.actor_id:
+            client_ids.add(log.actor_id)
+    users_by_id: dict[uuid.UUID, User] = {}
+    if user_ids:
+        users_by_id = {
+            user.id: user
+            for user in db.scalars(
+                select(User).where(User.id.in_(user_ids))
+            ).all()
+        }
+    clients_by_id: dict[str, OAuthClient] = {}
+    if client_ids:
+        clients_by_id = {
+            client.client_id: client
+            for client in db.scalars(
+                select(OAuthClient).where(
+                    OAuthClient.client_id.in_(client_ids)
+                )
+            ).all()
+        }
+
+    def actor_display(log: AuditLog) -> str:
+        actor_type = log.actor_type or "system"
+        if actor_type in ("user", "admin") and log.actor_id:
+            try:
+                user = users_by_id.get(uuid.UUID(log.actor_id))
+            except ValueError:
+                user = None
+            if user is not None:
+                if user.nickname:
+                    return f"{user.nickname} · {user.email}"
+                return user.email
+        if actor_type == "client" and log.actor_id:
+            client = clients_by_id.get(log.actor_id)
+            if client is not None:
+                return client.name or client.client_id
+        return log.actor_id or ""
+
     return [
         {
             "id": str(log.id),
             "actor_type": log.actor_type,
             "actor_id": log.actor_id,
+            "actor": {
+                "type": log.actor_type or "system",
+                "type_label": actor_type_label(log.actor_type or "system"),
+                "id": log.actor_id,
+                "display": actor_display(log),
+            },
             "action": log.action,
+            "action_label": action_label(log.action),
             "category": log.category,
+            "category_label": category_label(log.category),
             "target_type": log.target_type,
             "target_id": log.target_id,
             "ip": log.ip,
