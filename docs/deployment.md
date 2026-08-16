@@ -393,6 +393,9 @@ bash scripts/hot_update.sh status                 # 只读状态检查
   `alembic downgrade -1`；不要热更新不可逆迁移。
 - **代码卷是可写面**：能操作 Docker API 的人即可改写运行代码，请限制 Docker 操作权限，
   并靠 `deploy-backups` 的 SHA256 清单与日志留痕。
+- **不要与开发热重载覆盖文件叠加**：`docker-compose.dev.yaml`（本地 HMR）与
+  `docker-compose.hot.yaml`（生产零停机）都会重写 backend/frontend 的 command 与卷，
+  同时叠加会产生重复挂载点导致容器启动失败；本地开发用 dev、生产热更新用 hot，二选一。
 - 后端镜像入口已改为 `alembic upgrade head && exec uvicorn ...`（PID 1 为 uvicorn），
   使 SIGHUP 到达 supervisor、SIGTERM 也能优雅排空；升级到包含该变更的镜像即可获得。
 
@@ -405,6 +408,7 @@ bash scripts/hot_update.sh status                 # 只读状态检查
 | 后端 | JWT 私钥、Fernet 加密密钥 | `lipass_backend-keys`（`/app/keys`） | 密钥保留 |
 | 后端 | 用户头像 | `lipass_backend-uploads`（`/app/uploads`） | 头像保留 |
 | 后端 | ip2region 离线库（含运行期更新结果） | `lipass_backend-data`（`/app/data`） | 保留（首次挂载自动带入镜像内置数据） |
+| 后端 | 应用代码 | 镜像层（热更新形态：`lipass_backend-code` 卷 `/app/app`） | 重建后由镜像重新提供（热更新形态：卷保留热换装后的代码） |
 | 前端 nginx | 静态构建产物 | 容器层（热更新形态：`lipass_frontend-web` 卷 `/usr/share/nginx/html`） | 重建后由镜像重新提供（热更新形态：卷保留热换装后的产物） |
 | 示例授权网站 | 无 | 容器层 | 重建后恢复默认 |
 
