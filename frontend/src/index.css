@@ -32,89 +32,114 @@
   --color-destructive-soft: var(--portal-destructive-soft);
   --color-destructive-foreground: var(--portal-destructive-fg);
 
-  --color-accent-cyan: var(--portal-accent-cyan);
-  --color-accent-cyan-soft: var(--portal-accent-cyan-soft);
-  --color-accent-teal: var(--portal-accent-teal);
-  --color-accent-teal-soft: var(--portal-accent-teal-soft);
-  --color-accent-indigo: var(--portal-accent-indigo);
-  --color-accent-indigo-soft: var(--portal-accent-indigo-soft);
-  --color-accent-violet: var(--portal-accent-violet);
-  --color-accent-violet-soft: var(--portal-accent-violet-soft);
-  --color-accent-amber: var(--portal-accent-amber);
-  --color-accent-amber-soft: var(--portal-accent-amber-soft);
-  --color-accent-rose: var(--portal-accent-rose);
-  --color-accent-rose-soft: var(--portal-accent-rose-soft);
+  --color-accent-ice: var(--portal-accent-ice);
+  --color-accent-ice-soft: var(--portal-accent-ice-soft);
+  --color-accent-aqua: var(--portal-accent-aqua);
+  --color-accent-aqua-soft: var(--portal-accent-aqua-soft);
+  --color-accent-lilac: var(--portal-accent-lilac);
+  --color-accent-lilac-soft: var(--portal-accent-lilac-soft);
+  --color-accent-sage: var(--portal-accent-sage);
+  --color-accent-sage-soft: var(--portal-accent-sage-soft);
+  --color-accent-mint: var(--portal-accent-mint);
+  --color-accent-mint-soft: var(--portal-accent-mint-soft);
+  --color-accent-sand: var(--portal-accent-sand);
+  --color-accent-sand-soft: var(--portal-accent-sand-soft);
 
   --color-ring: var(--portal-ring);
 }
 
 /*
- * 浅色模式：安全蓝 + 中性石板灰（Trust & Authority / Minimalism）
+ * 浅色模式：海玻璃（Sea Glass）——磨砂浅水绿 + 冰蓝 + 蛋白石
  * 前景/背景对比均满足 WCAG AA（正文 ≥ 4.5:1）
  */
 :root {
-  --portal-bg: #f8fafc;
+  --portal-bg: #f6fbf9;
   --portal-surface: #ffffff;
-  --portal-surface-2: #f1f5f9;
-  --portal-fg: #0f172a;
-  --portal-muted: #64748b;
-  --portal-border: #e2e8f0;
+  --portal-surface-2: #eef6f3;
+  --portal-fg: #35423f;
+  --portal-muted: #71807a;
+  --portal-border: #e1ece8;
 
-  --portal-primary: #0369a1;
-  --portal-primary-hover: #075985;
-  --portal-primary-soft: #e0f2fe;
+  --portal-primary: #2f7f74;
+  --portal-primary-hover: #27685f;
+  --portal-primary-soft: #d9f4ee;
   --portal-primary-fg: #ffffff;
 
-  --portal-secondary: #0ea5e9;
-  --portal-secondary-soft: #e0f2fe;
+  --portal-secondary: #4a8fbf;
+  --portal-secondary-soft: #dff1fa;
 
-  --portal-success: #15803d;
-  --portal-success-soft: #f0fdf4;
-  --portal-warning: #b45309;
-  --portal-warning-soft: #fffbeb;
-  --portal-destructive: #dc2626;
-  --portal-destructive-soft: #fef2f2;
+  --portal-success: #2f8f5f;
+  --portal-success-soft: #e3f6e9;
+  --portal-warning: #a16207;
+  --portal-warning-soft: #fdf3d8;
+  --portal-destructive: #cf3d3d;
+  --portal-destructive-soft: #fdeeee;
   --portal-destructive-fg: #ffffff;
 
-  --portal-accent-cyan: #0e7490;
-  --portal-accent-cyan-soft: #cffafe;
-  --portal-accent-teal: #0f766e;
-  --portal-accent-teal-soft: #ccfbf1;
-  --portal-accent-indigo: #4338ca;
-  --portal-accent-indigo-soft: #e0e7ff;
-  --portal-accent-violet: #6d28d9;
-  --portal-accent-violet-soft: #ede9fe;
-  --portal-accent-amber: #b45309;
-  --portal-accent-amber-soft: #fef3c7;
-  --portal-accent-rose: #be123c;
-  --portal-accent-rose-soft: #ffe4e6;
+  --portal-accent-ice: #4a8fbf;
+  --portal-accent-ice-soft: #dff1fa;
+  --portal-accent-aqua: #2f7f74;
+  --portal-accent-aqua-soft: #d9f4ee;
+  --portal-accent-lilac: #7a6fc4;
+  --portal-accent-lilac-soft: #edeafb;
+  --portal-accent-sage: #6e8f5e;
+  --portal-accent-sage-soft: #eaf2e3;
+  --portal-accent-mint: #3f8f63;
+  --portal-accent-mint-soft: #e3f6e9;
+  --portal-accent-sand: #a9865b;
+  --portal-accent-sand-soft: #f7efe0;
 
   /* Bento 深色卡标签色：卡片在明暗主题下都保持深色表面，
      故两套主题共用同一组亮色标签值（不随 .dark 覆盖）。 */
-  --portal-bento-sky: #38bdf8;
-  --portal-bento-sky-rgb: 56, 189, 248;
-  --portal-bento-indigo: #818cf8;
-  --portal-bento-indigo-rgb: 129, 140, 248;
-  --portal-bento-teal: #2dd4bf;
-  --portal-bento-teal-rgb: 45, 212, 191;
-  --portal-bento-violet: #a78bfa;
-  --portal-bento-violet-rgb: 167, 139, 250;
-  --portal-bento-amber: #fbbf24;
-  --portal-bento-amber-rgb: 251, 191, 36;
-  --portal-bento-rose: #fb7185;
-  --portal-bento-rose-rgb: 251, 113, 133;
+  --portal-bento-ice: #8fc7f0;
+  --portal-bento-ice-rgb: 143, 199, 240;
+  --portal-bento-aqua: #7fd4c6;
+  --portal-bento-aqua-rgb: 127, 212, 198;
+  --portal-bento-lilac: #a9a2e8;
+  --portal-bento-lilac-rgb: 169, 162, 232;
+  --portal-bento-sage: #a9cc8f;
+  --portal-bento-sage-rgb: 169, 204, 143;
+  --portal-bento-mint: #8fe3a3;
+  --portal-bento-mint-rgb: 143, 227, 163;
+  --portal-bento-sand: #d9be94;
+  --portal-bento-sand-rgb: 217, 190, 148;
 
-  --portal-ring: #0369a1;
+  --portal-ring: #2f7f74;
+
+  /* 海玻璃粉彩渐变（按钮/流光/签名描边共用） */
+  --brand-gradient: linear-gradient(
+    135deg,
+    #c9f3e7 0%,
+    #bde9ec 45%,
+    #c9dff7 75%,
+    #e4f5e3 100%
+  );
+  --brand-fg: #24433e;
+  --flow-gradient: linear-gradient(
+    90deg,
+    #7fd4c6,
+    #8fc7f0,
+    #a9a2e8,
+    #a9cc8f,
+    #7fd4c6
+  );
+
+  --tech-grid-line: rgba(47, 127, 116, 0.07);
+  --tech-grid-accent: rgba(127, 212, 198, 0.16);
+  --tech-grid-accent-2: rgba(74, 143, 191, 0.14);
+  --tech-beam: rgba(127, 212, 198, 0.18);
+  --tech-beam-2: rgba(143, 199, 240, 0.16);
+  --tech-dot-glow: rgba(127, 212, 198, 0.5);
 
   /* 弥散阴影（透明度总和 < 0.1，三层叠加） */
-  --shadow-sm: 0px 0.6px 1.8px rgba(15, 23, 42, 0.02),
-    0px 2.4px 7.2px rgba(15, 23, 42, 0.04);
-  --shadow-md: 0px 0.6px 1.8px rgba(15, 23, 42, 0.02),
-    0px 2.4px 7.2px rgba(15, 23, 42, 0.04),
-    0px 8px 24px rgba(15, 23, 42, 0.06);
-  --shadow-lg: 0px 0.6px 1.8px rgba(15, 23, 42, 0.02),
-    0px 2.4px 7.2px rgba(15, 23, 42, 0.04),
-    0px 8px 32px rgba(15, 23, 42, 0.08);
+  --shadow-sm: 0px 0.6px 1.8px rgba(24, 58, 51, 0.04),
+    0px 2.4px 7.2px rgba(24, 58, 51, 0.05);
+  --shadow-md: 0px 0.6px 1.8px rgba(24, 58, 51, 0.04),
+    0px 2.4px 7.2px rgba(24, 58, 51, 0.05),
+    0px 8px 24px rgba(24, 58, 51, 0.08);
+  --shadow-lg: 0px 0.6px 1.8px rgba(24, 58, 51, 0.04),
+    0px 2.4px 7.2px rgba(24, 58, 51, 0.05),
+    0px 8px 32px rgba(24, 58, 51, 0.1);
 
   /* 缓动曲线：入场 ease-out，按压弹性 spring */
   --ease-out: cubic-bezier(0.25, 0.1, 0.25, 1);
@@ -128,47 +153,71 @@
 }
 
 /*
- * 深色模式：深海军蓝底 + 柔和亮色前景
+ * 深色模式：雾紫夜色 → 海玻璃夜色（柔和的深水绿，不压黑）
  * 暗色使用去饱和的浅色调变体，而非简单反色
  */
 .dark {
-  --portal-bg: #0b1220;
-  --portal-surface: #111a2c;
-  --portal-surface-2: #1b2740;
-  --portal-fg: #e2e8f0;
-  --portal-muted: #94a3b8;
-  --portal-border: #263449;
+  --portal-bg: #172321;
+  --portal-surface: #21302c;
+  --portal-surface-2: #2a3b36;
+  --portal-fg: #e9f2ef;
+  --portal-muted: #9fb4ae;
+  --portal-border: #324640;
 
-  --portal-primary: #38bdf8;
-  --portal-primary-hover: #7dd3fc;
-  --portal-primary-soft: rgba(56, 189, 248, 0.14);
-  --portal-primary-fg: #082f49;
+  --portal-primary: #7fd4c6;
+  --portal-primary-hover: #a5e4d9;
+  --portal-primary-soft: rgba(127, 212, 198, 0.16);
+  --portal-primary-fg: #12312b;
 
-  --portal-secondary: #7dd3fc;
-  --portal-secondary-soft: rgba(125, 211, 252, 0.14);
+  --portal-secondary: #8fc7f0;
+  --portal-secondary-soft: rgba(143, 199, 240, 0.16);
 
-  --portal-success: #4ade80;
-  --portal-success-soft: rgba(74, 222, 128, 0.12);
-  --portal-warning: #fbbf24;
-  --portal-warning-soft: rgba(251, 191, 36, 0.12);
-  --portal-destructive: #f87171;
-  --portal-destructive-soft: rgba(248, 113, 113, 0.12);
-  --portal-destructive-fg: #450a0a;
+  --portal-success: #67dca8;
+  --portal-success-soft: rgba(103, 220, 168, 0.14);
+  --portal-warning: #f5d67b;
+  --portal-warning-soft: rgba(245, 214, 123, 0.14);
+  --portal-destructive: #f27e6e;
+  --portal-destructive-soft: rgba(242, 126, 110, 0.14);
+  --portal-destructive-fg: #3f120d;
 
-  --portal-accent-cyan: #67e8f9;
-  --portal-accent-cyan-soft: rgba(103, 232, 249, 0.14);
-  --portal-accent-teal: #5eead4;
-  --portal-accent-teal-soft: rgba(94, 234, 212, 0.14);
-  --portal-accent-indigo: #a5b4fc;
-  --portal-accent-indigo-soft: rgba(165, 180, 252, 0.16);
-  --portal-accent-violet: #c4b5fd;
-  --portal-accent-violet-soft: rgba(196, 181, 253, 0.16);
-  --portal-accent-amber: #fcd34d;
-  --portal-accent-amber-soft: rgba(252, 211, 77, 0.14);
-  --portal-accent-rose: #fda4af;
-  --portal-accent-rose-soft: rgba(253, 164, 175, 0.14);
+  --portal-accent-ice: #8fc7f0;
+  --portal-accent-ice-soft: rgba(143, 199, 240, 0.16);
+  --portal-accent-aqua: #7fd4c6;
+  --portal-accent-aqua-soft: rgba(127, 212, 198, 0.16);
+  --portal-accent-lilac: #a9a2e8;
+  --portal-accent-lilac-soft: rgba(169, 162, 232, 0.18);
+  --portal-accent-sage: #a9cc8f;
+  --portal-accent-sage-soft: rgba(169, 204, 143, 0.18);
+  --portal-accent-mint: #8fe3a3;
+  --portal-accent-mint-soft: rgba(143, 227, 163, 0.16);
+  --portal-accent-sand: #d9be94;
+  --portal-accent-sand-soft: rgba(217, 190, 148, 0.16);
 
-  --portal-ring: #38bdf8;
+  --portal-ring: #7fd4c6;
+
+  --brand-gradient: linear-gradient(
+    135deg,
+    #7fd4c6 0%,
+    #8fc7f0 45%,
+    #a9a2e8 75%,
+    #a9cc8f 100%
+  );
+  --brand-fg: #12312b;
+  --flow-gradient: linear-gradient(
+    90deg,
+    #7fd4c6,
+    #8fc7f0,
+    #a9a2e8,
+    #a9cc8f,
+    #7fd4c6
+  );
+
+  --tech-grid-line: rgba(169, 204, 143, 0.08);
+  --tech-grid-accent: rgba(127, 212, 198, 0.14);
+  --tech-grid-accent-2: rgba(143, 199, 240, 0.13);
+  --tech-beam: rgba(127, 212, 198, 0.12);
+  --tech-beam-2: rgba(143, 199, 240, 0.12);
+  --tech-dot-glow: rgba(127, 212, 198, 0.5);
 
   color-scheme: dark;
 }
@@ -219,7 +268,7 @@
 @layer components {
   /* 卡片 */
   .card {
-    @apply rounded-2xl border border-border bg-surface shadow-[0_1px_2px_rgba(15,23,42,0.04),0_8px_24px_-12px_rgba(15,23,42,0.12)];
+    @apply rounded-2xl border border-border bg-surface shadow-[0_1px_2px_rgba(30,27,75,0.05),0_8px_24px_-12px_rgba(30,27,75,0.14)];
     transition:
       transform var(--motion-base) var(--ease-out),
       box-shadow var(--motion-base) var(--ease-out);
@@ -229,7 +278,7 @@
     transform: translateY(-1px);
     box-shadow: var(--shadow-lg);
   }
-  /* 认证卡片：低饱和品牌色相渐变描边（蓝→青→紫→青蓝），
+  /* 认证卡片：雾面极光粉彩渐变描边（浅天蓝→淡紫藤→淡丁香→淡粉），
      呼应网站设计风格的色彩层次；明暗主题分别调色。 */
   .card-signature {
     border: 1px solid transparent;
@@ -237,11 +286,11 @@
       linear-gradient(var(--portal-surface), var(--portal-surface)) padding-box,
       linear-gradient(
           140deg,
-          rgba(3, 105, 161, 0.55) 0%,
-          rgba(14, 165, 233, 0.3) 26%,
-          rgba(129, 140, 248, 0.42) 54%,
-          rgba(45, 212, 191, 0.34) 78%,
-          rgba(3, 105, 161, 0.5) 100%
+          rgba(127, 212, 198, 0.5) 0%,
+          rgba(143, 199, 240, 0.42) 26%,
+          rgba(169, 162, 232, 0.46) 54%,
+          rgba(169, 204, 143, 0.4) 78%,
+          rgba(47, 127, 116, 0.45) 100%
         )
         border-box;
     /* 描边渐变缓慢流动：只动 background-position（第二层），
@@ -256,11 +305,11 @@
       linear-gradient(var(--portal-surface), var(--portal-surface)) padding-box,
       linear-gradient(
           140deg,
-          rgba(56, 189, 248, 0.6) 0%,
-          rgba(34, 211, 238, 0.36) 30%,
-          rgba(129, 140, 248, 0.46) 60%,
-          rgba(167, 139, 250, 0.36) 85%,
-          rgba(56, 189, 248, 0.55) 100%
+          rgba(127, 212, 198, 0.5) 0%,
+          rgba(143, 199, 240, 0.4) 30%,
+          rgba(169, 162, 232, 0.48) 60%,
+          rgba(169, 204, 143, 0.4) 85%,
+          rgba(127, 212, 198, 0.5) 100%
         )
         border-box;
   }
@@ -283,14 +332,11 @@
     transform: translateY(0) scale(0.97);
   }
   .btn-primary {
-    @apply text-primary-foreground shadow-sm;
-    background-image: linear-gradient(
-      180deg,
-      var(--portal-primary),
-      var(--portal-primary-hover)
-    );
-    background-size: 100% 200%;
-    background-position: 50% 0;
+    @apply shadow-sm;
+    color: var(--brand-fg);
+    background-image: var(--brand-gradient);
+    background-size: 200% 200%;
+    background-position: 0% 50%;
     transition:
       color var(--motion-fast) var(--ease-out),
       background-position var(--motion-base) var(--ease-out),
@@ -318,7 +364,7 @@
     background: linear-gradient(
       105deg,
       transparent 42%,
-      rgba(8, 47, 73, 0.22) 50%,
+      rgba(18, 49, 43, 0.16) 50%,
       transparent 58%
     );
   }
@@ -326,7 +372,7 @@
     display: none;
   }
   .btn-primary:not(:disabled):hover {
-    background-position: 50% 100%;
+    background-position: 100% 50%;
     box-shadow: var(--shadow-md);
   }
   .btn-secondary {
@@ -420,17 +466,120 @@
     display: block;
     height: 3px;
     border-radius: 9999px;
-    background: linear-gradient(
-      90deg,
-      var(--portal-primary),
-      var(--portal-secondary),
-      var(--portal-accent-indigo),
-      var(--portal-accent-violet),
-      var(--portal-accent-teal),
-      var(--portal-primary)
-    );
+    background: var(--flow-gradient);
     background-size: 250% 100%;
     animation: flow-line-shift 8s linear infinite;
+  }
+
+  /* ========== 科技氛围层（主界面光效） ==========
+     缓移网格 + 周期性扫掠光束 + 呼吸光点，纯装饰，不拦截交互。
+     prefers-reduced-motion 由全局规则统一降为单帧。 */
+  .tech-ambience {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    pointer-events: none;
+  }
+  .tech-grid {
+    position: absolute;
+    inset: 0;
+    background-image:
+      linear-gradient(
+        to right,
+        var(--tech-grid-accent) 1px,
+        transparent 1px
+      ),
+      linear-gradient(
+        to bottom,
+        var(--tech-grid-accent-2) 1px,
+        transparent 1px
+      ),
+      linear-gradient(
+        to right,
+        var(--tech-grid-line) 1px,
+        transparent 1px
+      ),
+      linear-gradient(
+        to bottom,
+        var(--tech-grid-line) 1px,
+        transparent 1px
+      );
+    background-size:
+      336px 336px,
+      336px 336px,
+      56px 56px,
+      56px 56px;
+    -webkit-mask-image: radial-gradient(
+      ellipse 82% 70% at 50% 42%,
+      #000 22%,
+      transparent 76%
+    );
+    mask-image: radial-gradient(
+      ellipse 82% 70% at 50% 42%,
+      #000 22%,
+      transparent 76%
+    );
+    animation: tech-grid-pan 26s linear infinite;
+    will-change: background-position;
+    pointer-events: none;
+  }
+  .tech-beam {
+    position: absolute;
+    top: -15%;
+    bottom: -15%;
+    left: 0;
+    width: 32%;
+    background: linear-gradient(
+      90deg,
+      transparent 0%,
+      var(--tech-beam) 45%,
+      var(--tech-beam) 55%,
+      transparent 100%
+    );
+    transform: translateX(-150%) skewX(-16deg);
+    opacity: 0;
+    animation: tech-beam-sweep 10s var(--ease-out) 1s infinite;
+    will-change: transform, opacity;
+    pointer-events: none;
+  }
+  .tech-beam--violet {
+    background: linear-gradient(
+      90deg,
+      transparent 0%,
+      var(--tech-beam-2) 45%,
+      var(--tech-beam-2) 55%,
+      transparent 100%
+    );
+    animation-delay: 6s;
+  }
+  .tech-dot {
+    position: absolute;
+    width: 6px;
+    height: 6px;
+    border-radius: 9999px;
+    background: var(--tech-dot-color, var(--portal-secondary));
+    box-shadow: 0 0 12px 2px var(--tech-dot-glow);
+    opacity: 0.55;
+    animation: tech-dot-pulse 5.5s ease-in-out infinite;
+    will-change: transform, opacity;
+    pointer-events: none;
+  }
+  .tech-ambience--soft .tech-grid {
+    opacity: 0.45;
+  }
+  .tech-ambience--soft .tech-beam,
+  .tech-ambience--soft .tech-dot {
+    opacity: 0.35;
+  }
+
+  /* 品牌 Logo 辉光（认证页迎宾重点） */
+  .brand-halo {
+    filter: drop-shadow(0 0 14px rgba(47, 127, 116, 0.38))
+      drop-shadow(0 0 30px rgba(74, 143, 191, 0.28));
+  }
+  .dark .brand-halo {
+    filter: drop-shadow(0 0 16px rgba(127, 212, 198, 0.45))
+      drop-shadow(0 0 34px rgba(143, 199, 240, 0.28));
   }
 
   /* ========== Toast 弹窗通知 ========== */
@@ -644,6 +793,15 @@
   @media (min-width: 1024px) {
     .scroll-tabs {
       scroll-padding-inline: 2rem;
+    }
+  }
+  @media (max-width: 767px) {
+    .tech-grid {
+      animation: none;
+    }
+    .tech-beam,
+    .tech-dot {
+      display: none;
     }
   }
 }
@@ -938,8 +1096,8 @@
     margin-left: -21rem;
     background: radial-gradient(
       circle at 35% 35%,
-      rgba(3, 105, 161, 0.2) 0%,
-      rgba(14, 165, 233, 0.12) 42%,
+      rgba(127, 212, 198, 0.28) 0%,
+      rgba(143, 199, 240, 0.18) 42%,
       transparent 70%
     );
     animation: aurora-drift-1 16s ease-in-out infinite alternate;
@@ -951,8 +1109,8 @@
     height: 30rem;
     background: radial-gradient(
       circle at 60% 40%,
-      rgba(20, 184, 166, 0.14) 0%,
-      rgba(34, 211, 238, 0.1) 45%,
+      rgba(143, 227, 163, 0.22) 0%,
+      rgba(127, 212, 198, 0.16) 45%,
       transparent 70%
     );
     animation: aurora-drift-2 20s ease-in-out infinite alternate;
@@ -964,8 +1122,8 @@
     height: 26rem;
     background: radial-gradient(
       circle at 40% 60%,
-      rgba(99, 102, 241, 0.16) 0%,
-      rgba(139, 92, 246, 0.1) 45%,
+      rgba(169, 162, 232, 0.24) 0%,
+      rgba(143, 199, 240, 0.18) 45%,
       transparent 70%
     );
     animation: aurora-drift-3 24s ease-in-out infinite alternate;
@@ -973,24 +1131,24 @@
   .dark .aurora-blob-1 {
     background: radial-gradient(
       circle at 35% 35%,
-      rgba(56, 189, 248, 0.16) 0%,
-      rgba(14, 165, 233, 0.08) 42%,
+      rgba(127, 212, 198, 0.16) 0%,
+      rgba(143, 199, 240, 0.1) 42%,
       transparent 70%
     );
   }
   .dark .aurora-blob-2 {
     background: radial-gradient(
       circle at 60% 40%,
-      rgba(45, 212, 191, 0.1) 0%,
-      rgba(34, 211, 238, 0.07) 45%,
+      rgba(143, 227, 163, 0.12) 0%,
+      rgba(127, 212, 198, 0.08) 45%,
       transparent 70%
     );
   }
   .dark .aurora-blob-3 {
     background: radial-gradient(
       circle at 40% 60%,
-      rgba(129, 140, 248, 0.14) 0%,
-      rgba(167, 139, 250, 0.09) 45%,
+      rgba(169, 162, 232, 0.16) 0%,
+      rgba(143, 199, 240, 0.1) 45%,
       transparent 70%
     );
   }

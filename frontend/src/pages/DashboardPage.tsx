@@ -39,6 +39,7 @@ import { AuroraBackground } from "../components/bits/AuroraBackground";
 import { FadeIn } from "../components/bits/FadeIn";
 import { LineIcon } from "../components/bits/LineIcon";
 import { StrokeText } from "../components/bits/StrokeText";
+import { TechAmbience } from "../components/bits/TechAmbience";
 
 // 绑定手机功能暂未完善：置为 true 即恢复显示（代码与接口保留）。
 const PHONE_BINDING_ENABLED = false;
@@ -597,6 +598,8 @@ export function DashboardPage() {
       <FloatingBackground theme="auto" transparent scrollWind shapeCount={10} />
       {/* 流动光层：低浓度极光，为已登录页补充色彩呼吸（内容区相对定位压在其上） */}
       <AuroraBackground className="aurora-soft" />
+      {/* 科技氛围层：用户中心用 soft 版，克制不打扰 */}
+      <TechAmbience soft />
       <AppHeader
         title="用户中心"
         actions={
@@ -644,7 +647,7 @@ export function DashboardPage() {
               <section className="card p-6">
                 <h2 className="mb-4 text-base font-semibold text-foreground">
                   <span className="inline-flex items-center gap-2">
-                    <LineIcon name="user" className="h-4 w-4 text-accent-cyan" />
+                    <LineIcon name="user" className="h-4 w-4 text-accent-ice" />
                     基本资料
                   </span>
                   <span aria-hidden="true" className="flow-rule mt-2 w-14" />
@@ -727,7 +730,7 @@ export function DashboardPage() {
               <section className="card p-6">
                 <h2 className="mb-4 text-base font-semibold text-foreground">
                   <span className="inline-flex items-center gap-2">
-                    <LineIcon name="mail" className="h-4 w-4 text-accent-indigo" />
+                    <LineIcon name="mail" className="h-4 w-4 text-accent-lilac" />
                     更换登录邮箱
                   </span>
                   <span aria-hidden="true" className="flow-rule mt-2 w-14" />
@@ -833,7 +836,7 @@ export function DashboardPage() {
           <section className="card p-6">
             <h2 className="mb-4 text-base font-semibold text-foreground">
               <span className="inline-flex items-center gap-2">
-                <LineIcon name="lock" className="h-4 w-4 text-accent-amber" />
+                <LineIcon name="lock" className="h-4 w-4 text-accent-sand" />
                 修改密码
               </span>
               <span aria-hidden="true" className="flow-rule mt-2 w-14" />
@@ -899,7 +902,7 @@ export function DashboardPage() {
             <section className="card p-6">
               <h2 className="mb-4 text-base font-semibold text-foreground">
                 <span className="inline-flex items-center gap-2">
-                  <LineIcon name="phone" className="h-4 w-4 text-accent-teal" />
+                  <LineIcon name="phone" className="h-4 w-4 text-accent-aqua" />
                   绑定手机
                 </span>
                 <span aria-hidden="true" className="flow-rule mt-2 w-14" />
@@ -973,7 +976,7 @@ export function DashboardPage() {
           <section className="card p-6">
             <h2 className="mb-4 text-base font-semibold text-foreground">
               <span className="inline-flex items-center gap-2">
-                <LineIcon name="shield" className="h-4 w-4 text-accent-violet" />
+                <LineIcon name="shield" className="h-4 w-4 text-accent-sage" />
                 安全设置
               </span>
               <span aria-hidden="true" className="flow-rule mt-2 w-14" />
@@ -1128,7 +1131,7 @@ export function DashboardPage() {
             <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
               <h2 className="text-base font-semibold text-foreground">
                 <span className="inline-flex items-center gap-2">
-                  <LineIcon name="monitor" className="h-4 w-4 text-accent-cyan" />
+                  <LineIcon name="monitor" className="h-4 w-4 text-accent-ice" />
                   登录设备
                   <span className="text-sm font-normal text-muted">
                     共 <AnimatedNumber value={sessions.length} /> 个会话
@@ -1193,7 +1196,7 @@ export function DashboardPage() {
             <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
               <h2 className="text-base font-semibold text-foreground">
                 <span className="inline-flex items-center gap-2">
-                  <LineIcon name="shield" className="h-4 w-4 text-accent-teal" />
+                  <LineIcon name="shield" className="h-4 w-4 text-accent-aqua" />
                   可信设备
                   <span className="text-sm font-normal text-muted">
                     7 天内登录免二次验证（仅登录环节）
@@ -1249,7 +1252,7 @@ export function DashboardPage() {
           <section className="card p-6">
             <h2 className="mb-4 text-base font-semibold text-foreground">
               <span className="inline-flex flex-wrap items-center gap-2">
-                <LineIcon name="grid" className="h-4 w-4 text-accent-rose" />
+                <LineIcon name="grid" className="h-4 w-4 text-accent-mint" />
                 应用广场
                 <span className="text-sm font-normal text-muted">
                   共 <AnimatedNumber value={apps.length} /> 个网站

@@ -74,14 +74,14 @@ interface ThemeColors {
 /** 深色 / 浅色主题调色板 */
 const THEME_COLORS: Record<"dark" | "light", ThemeColors> = {
   dark: {
-    background: [26, 28, 30], // #1A1C1E
-    stroke: [200, 205, 210], // 银灰描边
+    background: [23, 35, 33], // #172321（海玻璃夜色）
+    stroke: [168, 190, 184], // 雾绿描边
     strokeAlpha: 0.55, // 描边自身透明度（与形状整体透明度相乘）
     fillAlpha: 0.04, // 填充自身透明度（极淡的填充）
   },
   light: {
-    background: [245, 246, 248], // #F5F6F8
-    stroke: [105, 112, 125], // 浅色背景改用深灰描边，否则银灰会几乎不可见
+    background: [246, 251, 249], // #F6FBF9（海玻璃）
+    stroke: [90, 105, 100], // 浅色背景改用雾绿灰描边
     strokeAlpha: 0.5,
     fillAlpha: 0.05,
   },

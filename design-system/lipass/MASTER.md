@@ -12,7 +12,8 @@
 **Project:** Li&Pass
 **Generated:** 2026-08-12 10:23:37
 **Updated:** 2026-08-17（与 `frontend/src/index.css`、`frontend/src/components/` 对齐；
-新增强调色板与流动光效，详见 `docs/superpowers/specs/2026-08-17-ui-color-light-design.md`）
+全站切换为「海玻璃 Sea Glass」淡色系并新增科技氛围层，详见
+`docs/superpowers/specs/2026-08-17-ui-color-light-design.md`）
 **Category:** SSO 统一登录门户（Li&Pass）
 
 > **来源声明：** 本文件描述当前前端实现使用的视觉系统；最终以 `frontend/src/index.css` 的
@@ -29,39 +30,40 @@
 
 | 角色 | 浅色 | 深色 | Tailwind 令牌 |
 | --- | --- | --- | --- |
-| 背景 | `#F8FAFC` | `#0B1220` | `bg-background` |
-| 表面 | `#FFFFFF` | `#111A2C` | `bg-surface` |
-| 表面 2 | `#F1F5F9` | `#1B2740` | `bg-surface-2` |
-| 前景 | `#0F172A` | `#E2E8F0` | `text-foreground` |
-| 弱化文本 | `#64748B` | `#94A3B8` | `text-muted` |
-| 边框 | `#E2E8F0` | `#263449` | `border-border` |
-| 主色 | `#0369A1` | `#38BDF8` | `bg-primary / text-primary` |
-| 主色悬停 | `#075985` | `#7DD3FC` | `hover:bg-primary-hover` |
-| 主色前景 | `#FFFFFF` | `#082F49` | `text-primary-foreground` |
-| 次级色 | `#0EA5E9` | `#7DD3FC` | `text-secondary / bg-secondary-soft` |
-| 成功 | `#15803D` | `#4ADE80` | `text-success / bg-success-soft` |
-| 警告 | `#B45309` | `#FBBF24` | `text-warning / bg-warning-soft` |
-| 危险 | `#DC2626` | `#F87171` | `text-destructive / bg-destructive-soft` |
-| 焦点环 | `#0369A1` | `#38BDF8` | `focus:ring-primary/20` |
+| 背景 | `#F6FBF9` | `#172321` | `bg-background` |
+| 表面 | `#FFFFFF` | `#21302C` | `bg-surface` |
+| 表面 2 | `#EEF6F3` | `#2A3B36` | `bg-surface-2` |
+| 前景 | `#35423F` | `#E9F2EF` | `text-foreground` |
+| 弱化文本 | `#71807A` | `#9FB4AE` | `text-muted` |
+| 边框 | `#E1ECE8` | `#324640` | `border-border` |
+| 主色 | `#2F7F74` | `#7FD4C6` | `bg-primary / text-primary` |
+| 主色悬停 | `#27685F` | `#A5E4D9` | `hover:bg-primary-hover` |
+| 主色前景 | `#FFFFFF` | `#12312B` | `text-primary-foreground` |
+| 次级色 | `#4A8FBF` | `#8FC7F0` | `text-secondary / bg-secondary-soft` |
+| 成功 | `#2F8F5F` | `#67DCA8` | `text-success / bg-success-soft` |
+| 警告 | `#A16207` | `#F5D67B` | `text-warning / bg-warning-soft` |
+| 危险 | `#CF3D3D` | `#F27E6E` | `text-destructive / bg-destructive-soft` |
+| 焦点环 | `#2F7F74` | `#7FD4C6` | `focus:ring-primary/20` |
 
 **强调色板（信息分层，装饰性小面积使用）：**
 
 | 色相 | 浅色 strong / soft | 深色 strong / soft | Tailwind 令牌 |
 | --- | --- | --- | --- |
-| cyan | `#0E7490` / `#CFFAFE` | `#67E8F9` / `rgba(103,232,249,.14)` | `text-accent-cyan / bg-accent-cyan-soft` |
-| teal | `#0F766E` / `#CCFBF1` | `#5EEAD4` / `rgba(94,234,212,.14)` | `text-accent-teal / bg-accent-teal-soft` |
-| indigo | `#4338CA` / `#E0E7FF` | `#A5B4FC` / `rgba(165,180,252,.16)` | `text-accent-indigo / bg-accent-indigo-soft` |
-| violet | `#6D28D9` / `#EDE9FE` | `#C4B5FD` / `rgba(196,181,253,.16)` | `text-accent-violet / bg-accent-violet-soft` |
-| amber | `#B45309` / `#FEF3C7` | `#FCD34D` / `rgba(252,211,77,.14)` | `text-accent-amber / bg-accent-amber-soft` |
-| rose | `#BE123C` / `#FFE4E6` | `#FDA4AF` / `rgba(253,164,175,.14)` | `text-accent-rose / bg-accent-rose-soft` |
+| ice | `#4A8FBF` / `#DFF1FA` | `#8FC7F0` / `rgba(143,199,240,.16)` | `text-accent-ice / bg-accent-ice-soft` |
+| aqua | `#2F7F74` / `#D9F4EE` | `#7FD4C6` / `rgba(127,212,198,.16)` | `text-accent-aqua / bg-accent-aqua-soft` |
+| lilac | `#7A6FC4` / `#EDEAFB` | `#A9A2E8` / `rgba(169,162,232,.18)` | `text-accent-lilac / bg-accent-lilac-soft` |
+| sage | `#6E8F5E` / `#EAF2E3` | `#A9CC8F` / `rgba(169,204,143,.18)` | `text-accent-sage / bg-accent-sage-soft` |
+| mint | `#3F8F63` / `#E3F6E9` | `#8FE3A3` / `rgba(143,227,163,.16)` | `text-accent-mint / bg-accent-mint-soft` |
+| sand | `#A9865B` / `#F7EFE0` | `#D9BE94` / `rgba(217,190,148,.16)` | `text-accent-sand / bg-accent-sand-soft` |
 
 stable 哈希分配见 `frontend/src/lib/accent.ts` 的 `accentFor(id)`；Bento 深色卡标签色
-（明暗主题共用，卡面恒为深色）另设 `--portal-bento-{sky,indigo,teal,violet,amber,rose}[-rgb]` 令牌。
+（明暗主题共用，卡面恒为深色）另设 `--portal-bento-{ice,aqua,lilac,sage,mint,sand}[-rgb]` 令牌。
 
-**色彩说明：** 安全蓝 + 中性石板灰（Trust & Authority / Minimalism）；前景/背景对比满足
-WCAG AA（正文 ≥ 4.5:1）。强调色 strong 均取 700 级（浅色）/300–400 级（深色），
-配 soft 底时文本对比 ≥ 4.5:1；amber/rose 只做装饰（瓦片/图例/规则线），状态语义色不被替代。
-深色模式使用去饱和浅色调变体，而非简单反色。
+**色彩说明：** 海玻璃（Sea Glass）——磨砂浅水绿 + 冰蓝 + 蛋白石；全淡色系、**无粉色、无重色**。
+前景/背景对比满足 WCAG AA（正文 ≥ 4.5:1）。强调色 strong 均取雾面 600 级（浅色）/300 级（深色），
+配 soft 底时文本对比 ≥ 4.5:1；强调色只做装饰（瓦片/图例/规则线），状态语义色不被替代。
+按钮/签名描边/流光线统一使用粉彩渐变（`--brand-gradient`/`--flow-gradient`），按钮文字用深青
+`--brand-fg` 保证对比。深色模式为柔和的深水绿夜色（不压黑），而非简单反色。
 
 ### 字体
 
@@ -78,9 +80,9 @@ WCAG AA（正文 ≥ 4.5:1）。强调色 strong 均取 700 级（浅色）/300�
 
 | Token | 值 |
 | --- | --- |
-| `--shadow-sm` | `0 0.6px 1.8px rgba(15,23,42,0.02), 0 2.4px 7.2px rgba(15,23,42,0.04)` |
-| `--shadow-md` | 在 `sm` 上叠加 `0 8px 24px rgba(15,23,42,0.06)` |
-| `--shadow-lg` | 在 `md` 上叠加 `0 8px 32px rgba(15,23,42,0.08)` |
+| `--shadow-sm` | `0 0.6px 1.8px rgba(24,58,51,0.04), 0 2.4px 7.2px rgba(24,58,51,0.05)` |
+| `--shadow-md` | 在 `sm` 上叠加 `0 8px 24px rgba(24,58,51,0.08)` |
+| `--shadow-lg` | 在 `md` 上叠加 `0 8px 32px rgba(24,58,51,0.1)` |
 | `--ease-out` | `cubic-bezier(0.25, 0.1, 0.25, 1)`（入场） |
 | `--ease-spring` | `cubic-bezier(0.34, 1.56, 0.64, 1)`（按压/弹窗） |
 | 时长 | `--motion-fast: 150ms`、`--motion-base: 250ms`、`--motion-slow: 350ms` |
@@ -93,10 +95,13 @@ WCAG AA（正文 ≥ 4.5:1）。强调色 strong 均取 700 级（浅色）/300�
 | 位置 | 效果 | 周期 |
 | --- | --- | --- |
 | `.btn-primary::after` | 斜向扫光 + 长停顿（`btn-sheen`），disabled 不发光 | 5s |
-| `.card-signature` | 蓝→青→紫→青蓝描边沿 140° 流动（`signature-flow`） | 14s |
-| `.flow-rule` | 主色→次级→靛→紫→青渐变流动线（分区标题/顶栏） | 8s |
+| `.card-signature` | 海玻璃粉彩描边沿 140° 流动（`signature-flow`） | 14s |
+| `.flow-rule` | 浅水绿→冰蓝→淡丁香→鼠尾草渐变流动线（分区标题/顶栏） | 8s |
 | `.aurora-soft` | 已登录页低浓度极光层（认证页保持默认浓度） | 16/20/24s |
 | `.pill-tab.is-active::after` | 活动标签扫光（复用 `btn-sheen`） | 5s |
+| `.tech-grid` | 缓移网格（56px 基线 + 336px 亮线，径向渐隐遮罩） | 26s |
+| `.tech-beam` | 周期性扫掠光束（两条错峰，斜切 16°） | 10s |
+| `.tech-dot` | 呼吸光点（6 枚，错峰缩放/透明度脉动） | 5.5s |
 
 ---
 
@@ -104,7 +109,7 @@ WCAG AA（正文 ≥ 4.5:1）。强调色 strong 均取 700 级（浅色）/300�
 
 ### 按钮（`.btn` 系列）
 
-- `.btn-primary`：主色 → 主色悬停的纵向渐变背景 + 主色前景；hover 渐变下移并抬升阴影（`background-position` 过渡）。
+- `.btn-primary`：海玻璃粉彩渐变（`--brand-gradient`）+ 深青文字（`--brand-fg`）；hover 渐变平移并抬升阴影（`background-position` 过渡）。
 - `.btn-primary::after`：斜向流光扫过按钮并长时间停顿，明暗主题各配不同亮度扫光；`disabled` 关闭。
 - `.btn-secondary`：透明/表面背景 + 边框；hover 换 `surface-2`。
 - `.btn-danger`：危险色背景 + 白色前景；hover 透明度降低。
@@ -115,8 +120,16 @@ WCAG AA（正文 ≥ 4.5:1）。强调色 strong 均取 700 级（浅色）/300�
 
 - `bg-surface` + `border-border` + `rounded-2xl` + 弥散阴影。
 - hover：`translateY(-1px)` 并切换 `--shadow-lg`；交互式卡片加 `.card-interactive`。
-- `.card-signature`：认证页专用，叠加于 `.card` 之上，以蓝→青→紫低透明度渐变替代描边（padding-box 表面 + border-box 渐变边框双背景）。
+- `.card-signature`：认证页专用，叠加于 `.card` 之上，以海玻璃粉彩渐变替代描边（padding-box 表面 + border-box 渐变边框双背景）。
   描边层以 `background-position` 动画缓慢流动（14s）。
+
+### 科技氛围层（`TechAmbience`）
+
+- 位置：`frontend/src/components/bits/TechAmbience.tsx`，纯 CSS 装饰层，无第三方依赖。
+- 结构：`.tech-grid`（缓移网格）+ 两条 `.tech-beam`（错峰扫掠光束）+ 六枚 `.tech-dot`（呼吸光点）。
+- 接入：认证页 `AuthShell` 默认浓度；用户中心 `TechAmbience soft` 淡版；管理后台不接入（极致克制）。
+- 约束：`aria-hidden`、`pointer-events: none`、移动端（<768px）隐藏光束与光点并停用网格动画；
+  `prefers-reduced-motion` 下由全局规则降为单帧。
 
 ### 表单（`.label` / `.input` / `.input-sm`）
 
@@ -194,6 +207,7 @@ WCAG AA（正文 ≥ 4.5:1）。强调色 strong 均取 700 级（浅色）/300�
 
 ## Anti-Patterns（Do NOT Use）
 
+- ❌ 粉色系（粉红/品红/玫瑰）与大面积重色背景 —— 全站淡色系是硬性约束，强调色只用海玻璃六色。
 - ❌ 用 emoji 代替图标 —— 使用 SVG（项目内 `Brand`、`icons.svg`、Heroicons 风格图标）。
 - ❌ 可点击元素缺少 `cursor-pointer`。
 - ❌ 布局抖动型 hover（避免 scale 变换破坏布局；仅允许 1px 上移与阴影变化）。

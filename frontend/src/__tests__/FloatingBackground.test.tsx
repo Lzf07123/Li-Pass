@@ -158,7 +158,7 @@ describe("FloatingBackground", () => {
     advanceFrames(1);
     const context = contexts[0]!;
     // 初始为浅色主题的深灰描边
-    expect(context.strokeStyle).toBe("rgba(105, 112, 125, 0.5)");
+    expect(context.strokeStyle).toBe("rgba(90, 105, 100, 0.5)");
 
     document.documentElement.classList.add("dark");
     // 等待 MutationObserver 回调，再推进约 480ms 让颜色过渡完成
@@ -166,7 +166,7 @@ describe("FloatingBackground", () => {
       await new Promise((resolve) => setTimeout(resolve, 0));
     });
     advanceFrames(200); // 指数平滑收敛：约 3.2s 后通道值取整到目标
-    expect(context.strokeStyle).toMatch(/^rgba\(200, 205, 210, /);
+    expect(context.strokeStyle).toMatch(/^rgba\(168, 190, 184, /);
   });
 
   it("calm 聚焦减速：速度降至一半", () => {
