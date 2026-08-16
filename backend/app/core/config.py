@@ -28,7 +28,8 @@ class Settings(BaseSettings):
     session_cookie_samesite: str = "lax"
     session_ttl_days: int = 30
     session_default_ttl_days: int = 1
-    session_idle_days: int = 7
+    # 空闲超时按分钟配置：主流 IdP 以 30 分钟～数小时计，7 天对安全产品过宽。
+    session_idle_minutes: int = 720
     # 登录可信设备：勾选「信任此设备」后该设备 7 天内登录免二次验证（仅登录环节）。
     trusted_device_ttl_days: int = 7
     cors_origins: list[str] = ["http://localhost:5173"]
@@ -220,8 +221,8 @@ class Settings(BaseSettings):
             raise ValueError("NOTIFICATION_RETENTION_DAYS 必须 ≥1")
         if self.ephemeral_retention_hours < 1:
             raise ValueError("EPHEMERAL_RETENTION_HOURS 必须 ≥1")
-        if self.session_idle_days < 1:
-            raise ValueError("SESSION_IDLE_DAYS 必须 ≥1")
+        if self.session_idle_minutes < 5:
+            raise ValueError("SESSION_IDLE_MINUTES 必须 ≥5（过短会导致误下线）")
         if self.session_default_ttl_days < 1:
             raise ValueError("SESSION_DEFAULT_TTL_DAYS 必须 ≥1")
         if self.session_default_ttl_days > self.session_ttl_days:

@@ -95,6 +95,36 @@ def me(user: User = Depends(get_current_user)) -> dict:
     return serialize_user(user)
 
 
+def _as_utc_session(dt: datetime) -> datetime:
+    if dt.tzinfo is None:
+        return dt.replace(tzinfo=timezone.utc)
+    return dt.astimezone(timezone.utc)
+
+
+@router.get("/me/session")
+def session_info(
+    request: Request,
+    db: Session = Depends(get_db),
+) -> dict:
+    """当前门户会话的生命周期信息：前端据此做空闲提醒与到期兜底。"""
+    session = get_current_session(request, db)
+    settings = get_settings()
+    now = datetime.now(timezone.utc)
+    last_used = _as_utc_session(session.last_used_at)
+    expires = _as_utc_session(session.expires_at)
+    idle_limit = timedelta(minutes=settings.session_idle_minutes)
+    idle_remaining = int((last_used + idle_limit - now).total_seconds())
+    absolute_remaining = int((expires - now).total_seconds())
+    return {
+        "session_id": str(session.id),
+        "expires_at": expires.isoformat(),
+        "last_used_at": last_used.isoformat(),
+        "idle_limit_minutes": settings.session_idle_minutes,
+        "idle_remaining_seconds": max(0, idle_remaining),
+        "absolute_remaining_seconds": max(0, absolute_remaining),
+    }
+
+
 @router.get("/me/step-up")
 def stepup_status_endpoint(
     request: Request,
@@ -433,7 +463,7 @@ def revoke_all_sessions(
     """退出除当前会话外的全部登录设备；当前会话不受影响。"""
     settings = get_settings()
     now = datetime.now(timezone.utc)
-    idle_cutoff = now - timedelta(days=settings.session_idle_days)
+    idle_cutoff = now - timedelta(minutes=settings.session_idle_minutes)
     # 先清理本用户过期/空闲超时的“僵尸”会话，与列表口径一致，
     # 避免把它们计入退出数量；只作用于当前用户，不影响他人。
     db.execute(

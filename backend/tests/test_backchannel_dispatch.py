@@ -2,15 +2,19 @@ import urllib.parse
 from datetime import datetime, timezone
 
 import httpx
+import httpcore
+import pytest
 
 from app.models.oidc_client_session import OIDCClientSession
 from app.models.session import Session as SessionModel
 from app.models.user import User
 from app.security.jwt import decode_token
 from app.services.federated_logout import (
+    _PinnedDNSBackend,
     LogoutTarget,
     collect_logout_targets,
     dispatch_backchannel_logout,
+    resolve_safe_backchannel_target,
 )
 from tests.helpers import create_client
 
@@ -98,3 +102,36 @@ def test_collect_logout_targets_only_backchannel_clients(db_session) -> None:
     assert [(t.client_id, t.sid, t.sub) for t in targets] == [
         ("cli_bc", str(portal.id), str(user.id))
     ]
+
+
+def test_pinned_backend_dials_resolved_ip(monkeypatch) -> None:
+    calls: list[tuple[str, int]] = []
+
+    def fake_connect(self, host, port, timeout=None, local_address=None, socket_options=None):
+        calls.append((host, port))
+        raise httpcore.ConnectError("no route")
+
+    monkeypatch.setattr(httpcore.SyncBackend, "connect_tcp", fake_connect)
+    backend = _PinnedDNSBackend({"rp.example": ["192.0.2.1"]})
+    with pytest.raises(httpcore.ConnectError):
+        backend.connect_tcp("rp.example", 443)
+    assert calls == [("192.0.2.1", 443)]
+
+
+def test_resolve_safe_target_pins_public_addresses(monkeypatch) -> None:
+    from types import SimpleNamespace
+
+    monkeypatch.setattr(
+        "app.services.federated_logout.get_settings",
+        lambda: SimpleNamespace(environment="production"),
+    )
+    monkeypatch.setattr(
+        "app.services.federated_logout.socket.getaddrinfo",
+        lambda host, port: [(2, 1, 6, "", ("93.184.216.34", 0))],
+    )
+    host, port, pinned = resolve_safe_backchannel_target(
+        "https://rp.example/backchannel"
+    )
+    assert host == "rp.example"
+    assert port == 443
+    assert pinned == ["93.184.216.34"]

@@ -5,6 +5,7 @@ from sqlalchemy import select
 from app.models.session import Session as SessionModel
 from app.models.user import User, UserStatus
 from tests.helpers import login_with_email_2fa
+from app.core.config import get_settings
 import app.api.routes.auth as auth_module
 
 
@@ -187,7 +188,10 @@ def test_session_idle_timeout_revokes(client, db_session, captured_email) -> Non
     assert client.get("/api/v1/me").status_code == 200
 
     session = db_session.scalar(select(SessionModel))
-    session.last_used_at = datetime.now(timezone.utc) - timedelta(days=8)
+    idle_minutes = get_settings().session_idle_minutes
+    session.last_used_at = datetime.now(timezone.utc) - timedelta(
+        minutes=idle_minutes + 60
+    )
     db_session.commit()
 
     assert client.get("/api/v1/me").status_code == 401

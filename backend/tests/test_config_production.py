@@ -49,6 +49,15 @@ def test_unknown_environment_rejected(monkeypatch) -> None:
         _settings(monkeypatch, ENVIRONMENT="prod")
 
 
+def test_session_idle_minutes_default_and_validation() -> None:
+    assert Settings(_env_file=None).session_idle_minutes == 720
+
+
+def test_session_idle_minutes_below_five_rejected(monkeypatch) -> None:
+    with pytest.raises(ValueError, match="SESSION_IDLE_MINUTES"):
+        _settings(monkeypatch, SESSION_IDLE_MINUTES="1")
+
+
 def test_notification_settings_defaults(monkeypatch) -> None:
     monkeypatch.delenv("ADMIN_NOTIFICATION_RATE_LIMIT", raising=False)
     monkeypatch.delenv("ADMIN_NOTIFICATION_RATE_WINDOW_SECONDS", raising=False)

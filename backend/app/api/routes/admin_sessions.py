@@ -102,7 +102,7 @@ def list_sessions(
     """列出全站仍在线的门户会话，供管理员监控并手动强制下线。"""
     settings = get_settings()
     now = datetime.now(timezone.utc)
-    idle_cutoff = now - timedelta(days=settings.session_idle_days)
+    idle_cutoff = now - timedelta(minutes=settings.session_idle_minutes)
 
     # 已过期或空闲超时的会话视为已下线，先批量吊销，避免“僵尸”记录；
     # 用 SQL UPDATE 一次处理，而不是全量加载后在 Python 里逐条判断。
@@ -218,7 +218,7 @@ def revoke_all_sessions(
     _enforce_revoke_rate_limit(actor, db)
     settings = get_settings()
     now = datetime.now(timezone.utc)
-    idle_cutoff = now - timedelta(days=settings.session_idle_days)
+    idle_cutoff = now - timedelta(minutes=settings.session_idle_minutes)
     # 先清理过期/空闲超时的“僵尸”会话，与列表接口口径一致，
     # 避免把它们也算进“在线”数量。
     db.execute(
