@@ -5,6 +5,7 @@
 > （无粉色、无重色），并新增主界面科技氛围层；字体、布局与氛围动效标准不变。
 > **适用范围**：Li&Pass 统一登录门户的全部前端界面（认证页、用户中心、管理后台、授权确认页）。
 > **配套文档**：技术落地令牌与组件规格见 [MASTER.md](./MASTER.md)；代码事实以 `frontend/src/index.css` 的 `@theme` 令牌与 `frontend/src/lib/brand.ts` 为准。
+> **全量方案**：色彩/光效/动效/按钮状态的完整设计与决策历史见 [DESIGN-SOLUTION.md](./DESIGN-SOLUTION.md)。
 
 ---
 

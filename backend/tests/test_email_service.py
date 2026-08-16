@@ -8,10 +8,14 @@ from app.services.email import (
     warn_email_config,
 )
 from app.services.email_templates import (
+    VerificationKind,
+    password_reset_copy,
     render_account_deleted,
     render_custom_notification,
     render_invite,
+    render_password_reset,
     render_verification,
+    verification_copy,
 )
 import pytest
 
@@ -127,9 +131,9 @@ def test_verification_message_has_branded_html_alternative() -> None:
     )
     message = service._build_message(
         "a@example.com",
-        "Li&Pass 邮箱验证码",
-        "你的验证码是 123456，10 分钟内有效。",
-        render_verification("123456"),
+        "Li&Pass 注册验证码",
+        "你正在注册 Li&Pass 账号。你的验证码是 123456，10 分钟内有效。",
+        render_verification("123456", VerificationKind.register),
     )
     assert message.is_multipart()
     html_text = _part_content(message, "text/html")
@@ -137,8 +141,64 @@ def test_verification_message_has_branded_html_alternative() -> None:
     assert "123456" in html_text
     assert "#0369A1" in html_text
     assert "Li&amp;Pass" in html_text
-    assert "验证你的邮箱" in html_text
+    assert "验证邮箱，完成注册" in html_text
+    assert "你正在注册" in html_text
     assert "prefers-color-scheme" in html_text
+
+
+@pytest.mark.parametrize(
+    ("kind", "expected_subject", "expected_operation"),
+    [
+        (
+            VerificationKind.register,
+            "Li&Pass 注册验证码",
+            "你正在注册 Li&Pass 账号",
+        ),
+        (
+            VerificationKind.login_2fa,
+            "Li&Pass 登录验证码",
+            "你正在登录 Li&Pass 账号",
+        ),
+        (
+            VerificationKind.step_up,
+            "Li&Pass 敏感操作验证码",
+            "你正在进行账号敏感操作",
+        ),
+        (
+            VerificationKind.change_email,
+            "Li&Pass 更换登录邮箱验证码",
+            "你正在更换 Li&Pass 账号的登录邮箱",
+        ),
+        (
+            VerificationKind.bind_phone,
+            "Li&Pass 绑定手机号验证码",
+            "你正在为 Li&Pass 账号绑定手机号",
+        ),
+    ],
+)
+def test_verification_templates_distinguish_operation(
+    kind: VerificationKind,
+    expected_subject: str,
+    expected_operation: str,
+) -> None:
+    copy = verification_copy(kind)
+    assert copy["subject"] == expected_subject
+    assert expected_operation in copy["plain"]
+    assert expected_operation in copy["intro"]
+    html_text = render_verification("123456", kind)
+    assert expected_operation in html_text
+    assert copy["title"] in html_text
+    assert "123456" in html_text
+
+
+def test_password_reset_template_states_operation() -> None:
+    copy = password_reset_copy()
+    assert "你正在重置 Li&Pass 账号密码" in copy["intro"]
+    assert "你正在重置 Li&Pass 账号密码" in copy["plain"]
+    assert "你的密码不会被修改" in copy["hint"]
+    html_text = render_password_reset("123456")
+    assert "你正在重置 Li&Pass 账号密码" in html_text
+    assert "你的密码不会被修改" in html_text
 
 
 def test_message_embeds_brand_logo_as_cid() -> None:

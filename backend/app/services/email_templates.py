@@ -1,10 +1,15 @@
 """Li&Pass 品牌风 HTML 邮件模板。
 
 依据 design-system/lipass/BRAND.md 的品牌令牌（安全蓝、石板灰、
-克制排版与 Z 形品牌暗线）生成五类邮件的 HTML 版本。所有动态内容
+克制排版与 Z 形品牌暗线）生成各类邮件的 HTML 版本。所有动态内容
 一律 HTML 转义，正文通过 white-space:pre-line 保留换行。
+
+验证码邮件按「将要进行的操作」区分类型（VerificationKind），邮件
+标题、主题与正文必须写明操作本身，避免用户把一种验证码误用到其它
+操作上，也降低钓鱼邮件诱导用户转发验证码的风险。
 """
 
+import enum
 import html
 from importlib.resources import files as resource_files
 
@@ -88,6 +93,115 @@ _SHELL = """<!doctype html>
 _FOOTER_SYSTEM = "此邮件由系统自动发送，请勿直接回复。"
 
 
+class VerificationKind(str, enum.Enum):
+    """验证码邮件对应的用户操作类型。"""
+
+    register = "register"
+    login_2fa = "login_2fa"
+    step_up = "step_up"
+    change_email = "change_email"
+    bind_phone = "bind_phone"
+
+
+_VERIFICATION_COPY: dict[VerificationKind, dict[str, str]] = {
+    VerificationKind.register: {
+        "subject": "Li&Pass 注册验证码",
+        "title": "验证邮箱，完成注册",
+        "intro": (
+            "你正在注册 Li&Pass 账号。请输入以下验证码完成邮箱验证；"
+            "验证通过后将自动开启登录二次验证。"
+        ),
+        "hint": "验证码 10 分钟内有效。如果不是你本人操作，请忽略此邮件。",
+        "plain": (
+            "你正在注册 Li&Pass 账号。你的验证码是 {code}，10 分钟内有效。"
+            "如果不是你本人操作，请忽略此邮件。"
+        ),
+    },
+    VerificationKind.login_2fa: {
+        "subject": "Li&Pass 登录验证码",
+        "title": "登录二次验证",
+        "intro": "你正在登录 Li&Pass 账号。请输入以下验证码完成登录：",
+        "hint": (
+            "验证码 10 分钟内有效。如果不是你本人操作，"
+            "请立即修改密码并忽略此邮件。"
+        ),
+        "plain": (
+            "你正在登录 Li&Pass 账号。你的登录验证码是 {code}，"
+            "10 分钟内有效。如果不是你本人操作，"
+            "请立即修改密码并忽略此邮件。"
+        ),
+    },
+    VerificationKind.step_up: {
+        "subject": "Li&Pass 敏感操作验证码",
+        "title": "敏感操作复核",
+        "intro": (
+            "你正在进行账号敏感操作（如注销账号、修改密码等）的二次验证。"
+            "请输入以下验证码继续："
+        ),
+        "hint": (
+            "验证码 10 分钟内有效。如果不是你本人操作，"
+            "请立即修改密码并联系平台管理员。"
+        ),
+        "plain": (
+            "你正在进行 Li&Pass 账号敏感操作的二次验证。"
+            "你的验证码是 {code}，10 分钟内有效。"
+            "如果不是你本人操作，请立即修改密码并联系平台管理员。"
+        ),
+    },
+    VerificationKind.change_email: {
+        "subject": "Li&Pass 更换登录邮箱验证码",
+        "title": "更换登录邮箱",
+        "intro": (
+            "你正在更换 Li&Pass 账号的登录邮箱。"
+            "请输入以下验证码完成更换："
+        ),
+        "hint": (
+            "验证码 10 分钟内有效。如果不是你本人操作，"
+            "请立即修改密码并忽略此邮件。"
+        ),
+        "plain": (
+            "你正在更换 Li&Pass 账号的登录邮箱。"
+            "你的验证码是 {code}，10 分钟内有效。"
+            "如果不是你本人操作，请立即修改密码并忽略此邮件。"
+        ),
+    },
+    VerificationKind.bind_phone: {
+        "subject": "Li&Pass 绑定手机号验证码",
+        "title": "绑定手机号",
+        "intro": "你正在为 Li&Pass 账号绑定手机号。请输入以下验证码完成绑定：",
+        "hint": "验证码 10 分钟内有效。如果不是你本人操作，请忽略此邮件。",
+        "plain": (
+            "你正在为 Li&Pass 账号绑定手机号。"
+            "你的验证码是 {code}，10 分钟内有效。"
+            "如果不是你本人操作，请忽略此邮件。"
+        ),
+    },
+}
+
+_PASSWORD_RESET_COPY = {
+    "subject": "Li&Pass 重置密码",
+    "title": "重置密码",
+    "intro": "你正在重置 Li&Pass 账号密码。请输入以下验证码继续：",
+    "hint": (
+        "验证码 10 分钟内有效。如果不是你本人操作，"
+        "请忽略此邮件，你的密码不会被修改。"
+    ),
+    "plain": (
+        "你正在重置 Li&Pass 账号密码。你的重置验证码是 {code}，"
+        "10 分钟内有效。如果不是你本人操作，请忽略此邮件，"
+        "你的密码不会被修改。"
+    ),
+}
+
+
+def verification_copy(kind: VerificationKind) -> dict[str, str]:
+    return _VERIFICATION_COPY[kind]
+
+
+def password_reset_copy() -> dict[str, str]:
+    return _PASSWORD_RESET_COPY
+
+
 def _shell(title: str, body: str, footer: str) -> str:
     return _SHELL.format(
         style=_STYLE,
@@ -121,30 +235,31 @@ def _button(link: str, label: str) -> str:
     )
 
 
-def render_verification(code: str) -> str:
+def render_verification(code: str, kind: VerificationKind) -> str:
+    copy = _VERIFICATION_COPY[kind]
     return _shell(
-        "验证你的邮箱",
+        copy["title"],
         '<p class="body" style="margin:0 0 12px;font-size:14px;'
-        "line-height:1.7;color:#334155;\">你正在验证邮箱地址。"
-        "请输入以下验证码完成验证：</p>"
+        "line-height:1.7;color:#334155;\">" + html.escape(copy["intro"]) + "</p>"
         + _code(code)
         + '<p class="muted" style="margin:16px 0 0;font-size:12px;'
-        'line-height:1.6;color:#64748B;">验证码 10 分钟内有效。'
-        "如果不是你本人操作，请忽略此邮件。</p>",
+        "line-height:1.6;color:#64748B;\">" + html.escape(copy["hint"]) + "</p>",
         _FOOTER_SYSTEM,
     )
 
 
 def render_password_reset(code: str) -> str:
     return _shell(
-        "重置密码",
+        _PASSWORD_RESET_COPY["title"],
         '<p class="body" style="margin:0 0 12px;font-size:14px;'
-        "line-height:1.7;color:#334155;\">我们收到你的密码重置请求。"
-        "请输入以下验证码继续：</p>"
+        "line-height:1.7;color:#334155;\">"
+        + html.escape(_PASSWORD_RESET_COPY["intro"])
+        + "</p>"
         + _code(code)
         + '<p class="muted" style="margin:16px 0 0;font-size:12px;'
-        'line-height:1.6;color:#64748B;">验证码 10 分钟内有效。'
-        "如果不是你本人操作，请忽略此邮件，你的密码不会被修改。</p>",
+        "line-height:1.6;color:#64748B;\">"
+        + html.escape(_PASSWORD_RESET_COPY["hint"])
+        + "</p>",
         _FOOTER_SYSTEM,
     )
 
