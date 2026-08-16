@@ -19,6 +19,7 @@ import type {
   MessageListOut,
   RevokeSessionsResult,
   SendNotificationResult,
+  SessionInfo,
   SessionOut,
   SiteSettings,
   StepUpStatus,
@@ -131,6 +132,10 @@ export const authApi = {
     api<{ redirect_to: string | null }>("/api/v1/auth/logout", {
       method: "POST",
     }),
+  logoutLocal: () =>
+    api<{ message: string }>("/api/v1/auth/logout/local", {
+      method: "POST",
+    }),
   me: () => api<UserOut>("/api/v1/me"),
   requestPasswordReset: (data: { email: string }) =>
     api<{ message: string }>("/api/v1/auth/password/reset", {
@@ -233,6 +238,7 @@ export const adminStatsApi = {
 };
 
 export const meApi = {
+  sessionInfo: () => api<SessionInfo>("/api/v1/me/session"),
   updateProfile: (data: {
     nickname?: string;
     avatar_url?: string | null;

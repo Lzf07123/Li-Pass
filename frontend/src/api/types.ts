@@ -8,12 +8,23 @@ export interface UserOut {
   email_notifications: boolean;
   role: string;
   status: string;
+  session?: SessionInfo;
+}
+
+export interface SessionInfo {
+  session_id: string;
+  expires_at: string;
+  last_used_at: string;
+  idle_limit_minutes: number;
+  idle_remaining_seconds: number;
+  absolute_remaining_seconds: number;
 }
 
 export interface ConsentInfo {
   request_id: string;
   client: { name: string; logo_url: string | null; description: string };
   scopes: string[];
+  user: { email: string; nickname: string };
 }
 
 export interface ClientOut {

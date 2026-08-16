@@ -270,7 +270,7 @@ export function LoginPage() {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             className="input"
-            autoComplete="email"
+            autoComplete="username"
             required
           />
         </label>

@@ -835,6 +835,42 @@ def logout(
     return {"redirect_to": redirect_to}
 
 
+@router.post("/logout/local", response_model=dict)
+def local_logout(
+    request: Request,
+    response: Response,
+    db: Session = Depends(get_db),
+) -> dict:
+    """仅退出当前门户会话（用于授权确认页「使用其他账号登录」）。
+
+    与全局登出不同：不派发回程登出、不串跳网站、不吊销客户端登录链接——
+    用户只是在本浏览器切换账号，其它网站与设备的登录状态保持不变。
+    """
+    token = request.cookies.get(settings.session_cookie_name) or request.cookies.get(
+        LEGACY_SESSION_COOKIE_NAME
+    )
+    if token:
+        session = db.scalar(
+            select(SessionModel).where(SessionModel.token_hash == hash_token(token))
+        )
+        if session is not None and session.revoked_at is None:
+            session.revoked_at = datetime.now(timezone.utc)
+            db.commit()
+            log_audit(
+                db,
+                "user",
+                str(session.user_id),
+                "logout_local",
+                category="auth",
+                target_type="user",
+                target_id=str(session.user_id),
+                ip=request.client.host if request.client else None,
+                user_agent=request.headers.get("user-agent"),
+            )
+    clear_session_cookie(response)
+    return {"message": "已退出当前账号"}
+
+
 @router.post("/password/reset", status_code=status.HTTP_202_ACCEPTED)
 def request_password_reset(
     payload: PasswordResetRequest,

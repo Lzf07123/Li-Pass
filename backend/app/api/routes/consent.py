@@ -46,6 +46,7 @@ def consent_info(
             "description": client.description,
         },
         "scopes": pending.scope.split(),
+        "user": {"email": user.email, "nickname": user.nickname},
     }
 
 

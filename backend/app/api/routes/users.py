@@ -90,24 +90,13 @@ def _avatar_ext(content: bytes) -> str | None:
     return None
 
 
-@router.get("/me", response_model=UserOut)
-def me(user: User = Depends(get_current_user)) -> dict:
-    return serialize_user(user)
-
-
 def _as_utc_session(dt: datetime) -> datetime:
     if dt.tzinfo is None:
         return dt.replace(tzinfo=timezone.utc)
     return dt.astimezone(timezone.utc)
 
 
-@router.get("/me/session")
-def session_info(
-    request: Request,
-    db: Session = Depends(get_db),
-) -> dict:
-    """当前门户会话的生命周期信息：前端据此做空闲提醒与到期兜底。"""
-    session = get_current_session(request, db)
+def _session_lifecycle(session: SessionModel) -> dict:
     settings = get_settings()
     now = datetime.now(timezone.utc)
     last_used = _as_utc_session(session.last_used_at)
@@ -123,6 +112,26 @@ def session_info(
         "idle_remaining_seconds": max(0, idle_remaining),
         "absolute_remaining_seconds": max(0, absolute_remaining),
     }
+
+
+@router.get("/me", response_model=dict)
+def me(
+    request: Request,
+    db: Session = Depends(get_db),
+) -> dict:
+    session = get_current_session(request, db)
+    user = get_current_user(request, db)
+    return {**serialize_user(user), "session": _session_lifecycle(session)}
+
+
+@router.get("/me/session")
+def session_info(
+    request: Request,
+    db: Session = Depends(get_db),
+) -> dict:
+    """当前门户会话的生命周期信息：前端据此做空闲提醒与到期兜底。"""
+    session = get_current_session(request, db)
+    return _session_lifecycle(session)
 
 
 @router.get("/me/step-up")

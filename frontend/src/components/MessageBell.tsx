@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 
 import { userMessagesApi } from "../api/client";
@@ -7,20 +7,30 @@ import { LineIcon } from "./bits/LineIcon";
 export function MessageBell() {
   const [unread, setUnread] = useState<number | null>(null);
 
-  useEffect(() => {
-    let cancelled = false;
+  const load = useCallback(() => {
     userMessagesApi
       .unreadCount()
-      .then((data) => {
-        if (!cancelled) setUnread(data.unread);
-      })
-      .catch(() => {
-        if (!cancelled) setUnread(null);
-      });
-    return () => {
-      cancelled = true;
-    };
+      .then((data) => setUnread(data.unread))
+      .catch(() => setUnread(null));
   }, []);
+
+  useEffect(() => {
+    let lastRefresh = 0;
+    load();
+    const onVisible = () => {
+      if (document.visibilityState !== "visible") return;
+      const now = Date.now();
+      if (now - lastRefresh < 500) return;
+      lastRefresh = now;
+      load();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener("focus", onVisible);
+    return () => {
+      document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("focus", onVisible);
+    };
+  }, [load]);
 
   if (unread === null) return null;
   return (

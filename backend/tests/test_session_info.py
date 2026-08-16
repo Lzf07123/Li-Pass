@@ -17,3 +17,12 @@ def test_me_session_returns_idle_info(client, captured_email) -> None:
     assert body["idle_limit_minutes"] == get_settings().session_idle_minutes
     assert body["idle_remaining_seconds"] > 0
     assert body["absolute_remaining_seconds"] > 0
+
+
+def test_me_includes_session_lifecycle(client, captured_email) -> None:
+    register_and_login(client, captured_email)
+    body = client.get("/api/v1/me").json()
+    assert body["session"]["session_id"]
+    assert body["session"]["idle_limit_minutes"] == (
+        get_settings().session_idle_minutes
+    )

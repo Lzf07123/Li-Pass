@@ -32,6 +32,7 @@ import { StepUp2faForm } from "../components/StepUp2faForm";
 import { useAsyncAction } from "../hooks/useAsyncAction";
 import { useBreathOnChange } from "../hooks/useBreathOnChange";
 import { useStepUp } from "../hooks/useStepUp";
+import { useSessionIdle } from "../hooks/useSessionIdle";
 import { useToast } from "../hooks/useToast";
 import { FadeIn } from "../components/bits/FadeIn";
 import { LineIcon } from "../components/bits/LineIcon";
@@ -74,6 +75,7 @@ export function DashboardPage() {
   const navigate = useNavigate();
   const toast = useToast();
   const stepUp = useStepUp();
+  useSessionIdle(user?.session);
   const sessionsBreathing = useBreathOnChange(sessions);
   const appsBreathing = useBreathOnChange(apps);
   const emailNoticeId = useRef<number | null>(null);

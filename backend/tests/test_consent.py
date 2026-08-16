@@ -16,6 +16,7 @@ def test_consent_info_and_approve(client, captured_email, db_session) -> None:
     assert response.status_code == 200
     assert response.json()["client"]["name"] == "Demo"
     assert response.json()["scopes"] == ["openid", "profile"]
+    assert response.json()["user"]["email"] == "a@example.com"
 
     response = client.post(f"/api/v1/consent/{request_id}/approve")
     assert response.status_code == 200
