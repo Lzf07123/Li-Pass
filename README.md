@@ -73,6 +73,27 @@ docker compose --profile bundle up -d --build
 
 启动后通过单域名网关访问 http://localhost （前端 `/`、后端 API `/api`、OIDC `/oauth2`、演示站 `/demo`）。前端与后端容器**不向宿主机开放端口**，唯一对外入口是网关（nginx）的 80 端口。健康检查：`GET /healthz`（存活）、`GET /readyz`（就绪）。开发环境邮件验证码默认打印到后端容器日志（`docker compose logs backend | grep "code="`）。
 
+### 本地开发热更新（改动即时生效）
+
+容器化单域名栈默认按生产形态构建，改代码需要重新 `--build`。本地开发可叠加
+`docker-compose.dev.yaml` 覆盖文件：保持与生产相同的网关拓扑，同时获得前后端热更新。
+
+```bash
+docker compose -f docker-compose.yaml -f docker-compose.dev.yaml \
+  --profile bundle up -d --build
+```
+
+- 后端：`backend/app/**` 改动由 uvicorn `--reload`（WatchFiles）自动重启；数据库迁移文件改动不触发重载，需 `docker compose -f docker-compose.yaml -f docker-compose.dev.yaml restart backend`（启动时自动执行 `alembic upgrade head`）。
+- 前端：`frontend/src/**` 改动由 Vite HMR 即时热替换；网关透传 WebSocket 升级请求（`gateway/nginx.conf.template` 已支持 Upgrade），容器内源码挂载并开启轮询监听（`VITE_WATCH_POLLING=true`），规避 macOS/Docker Desktop 下 bind mount 的 inotify 事件丢失。
+- 依赖（`requirements.txt` / `package*.json`）、compose、`.env` 或网关模板改动不属于热更新范围：重新 `up -d --build`（前端依赖变化时追加 `--force-recreate frontend`）。
+
+开发验证码同样打印到后端日志：
+
+```bash
+docker compose -f docker-compose.yaml -f docker-compose.dev.yaml \
+  logs -f backend | grep 'code='
+```
+
 `bundle` profile 会一并启动编排内的 PostgreSQL 与 Redis。如果改用远程 PostgreSQL/Redis，只需在 `.env` 中配置 `DATABASE_URL` / `REDIS_URL`，并去掉 `--profile bundle`（编排内不再启动这两个服务）：
 
 ```bash

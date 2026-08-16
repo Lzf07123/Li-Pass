@@ -151,6 +151,7 @@
 
 ### 运维工具
 
+- 本地开发热更新策略：新增 `docker-compose.dev.yaml` 覆盖文件——叠加在 `docker-compose.yaml` 上时，backend 挂载源码并以 uvicorn `--reload`（WatchFiles）自动重启，frontend 切换为容器内 Vite dev server（HMR）并开启轮询监听（`VITE_WATCH_POLLING=true`，规避 macOS/Docker Desktop bind mount 的 inotify 事件丢失），node_modules 使用独立命名卷；网关 nginx 模板支持按 `Upgrade` 头透传 WebSocket（普通请求连接语义不变），使 HMR 与单域名网关拓扑兼容。用法见 [README §本地开发热更新](README.md)；迁移/依赖/compose/`.env`/网关模板改动仍按「重启或重建对应服务」处理。
 - 开发环境已知行为：`PENDING_REQUEST_STORE/TWOFA_STORE/RATE_LIMITER=memory` 依赖单 worker 进程内状态，且 uvicorn `--limit-max-requests 10000` 会在重启 worker 时清空限流计数与进行中的 2FA 挑战；生产环境配置校验已强制使用 redis 并建议多 worker 时同步放大连接池（见 [部署文档 §环境变量](docs/deployment.md)）。
 - 编排文件与前端环境变量文件示例化：仓库改为提交 `docker-compose.example.yaml`（复制为 `docker-compose.yaml` 使用，本机版已 gitignore、可按环境就地修改）；`frontend/.env.example` 改为注释模板（同源网关留空 / 直连后端两种用法示例）；备份/恢复脚本在未复制编排文件时自动回退到 example；README/AGENTS/部署文档同步补充 `cp` 步骤。品牌/站点信息（应用名、备案文案、页脚链接）同时环境变量化：`brand.example.ts`（复制为 `brand.ts` 使用，后者已 gitignore）优先读 `VITE_APP_NAME`/`VITE_APP_TAGLINE`/`VITE_ICP_FILING_*`/`VITE_POLICE_FILING_*`/`VITE_FOOTER_LINKS`，未设置回退内置默认值；前端 Dockerfile 与 compose 增加同名 build args，示例文件补充全部可选项；CI 前端任务增加「复制 brand.example.ts」步骤。
 - 补齐网关 `nginx:1.27-alpine` 的 `IMAGE_REGISTRY` 前缀：现在编排内全部镜像（PostgreSQL/Redis/nginx 与三个自建服务，以及三个 Dockerfile 的基础镜像）都可用同一个镜像站前缀统一替换加速。

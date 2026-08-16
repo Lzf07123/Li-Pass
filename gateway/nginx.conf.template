@@ -8,6 +8,13 @@ upstream frontend_http {
     keepalive 32;
 }
 
+# 开发热更新：Vite HMR 通过 WebSocket 升级请求连接前端 dev server，
+# 按 Upgrade 头把 Connection 切换为 upgrade；普通请求保持默认连接语义。
+map $http_upgrade $connection_upgrade {
+    default upgrade;
+    ''      close;
+}
+
 # API JSON 与 HTML 响应压缩（前端构建产物已由前端容器自行压缩）
 gzip on;
 gzip_vary on;
@@ -98,5 +105,19 @@ server {
     # 其余全部交给前端 SPA
     location / {
         proxy_pass http://frontend_http;
+        # 生产为前端 nginx 静态服务，开发为 Vite dev server：
+        # 透传 HMR WebSocket 升级（Upgrade/Connection）与较长的读写超时。
+        # 注意 nginx 规则：location 内声明 proxy_set_header 后不再继承 server 级，
+        # 因此这里显式重复通用头。
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-Host $host;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection $connection_upgrade;
+        proxy_read_timeout 3600s;
+        proxy_send_timeout 3600s;
     }
 }
