@@ -102,8 +102,8 @@ stable 哈希分配见 `frontend/src/lib/accent.ts` 的 `accentFor(id)`；Bento 
 | `.pill-tab.is-active::after` | 活动标签扫光（复用 `btn-sheen`） | 4s |
 | `.tech-grid` | 缓移网格（56px 基线 + 336px 亮线，径向渐隐遮罩） | 12s |
 | `.card-halo` | 认证卡后的浅水绿呼吸辉光（含轻微缩放） | 4.5s |
-| `.tech-beam` | 周期性扫掠光束（三条错峰，斜切 16°） | 6s |
-| `.tech-dot` | 呼吸光点（8 枚，错峰缩放/透明度脉动 + 7px 浮动） | 3.6s |
+| `.tech-beam` | 周期性扫掠光束（三条错峰，斜切 16°） | 10s |
+| `.tech-dot` | 呼吸光点（8 枚，错峰缩放/透明度脉动 + 7px 浮动） | 6s |
 
 ---
 
