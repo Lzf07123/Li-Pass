@@ -123,6 +123,11 @@ def callback():
         return "id_token 校验失败", 400
     if claims.get("nonce") != session.get("nonce"):
         return "nonce 校验失败", 400
+    expected_at_hash = base64.urlsafe_b64encode(
+        hashlib.sha256(token["access_token"].encode()).digest()[:16]
+    ).rstrip(b"=").decode()
+    if claims.get("at_hash") != expected_at_hash:
+        return "at_hash 校验失败", 400
     user_response = requests.get(
         USERINFO_URL,
         headers={"Authorization": f"Bearer {token['access_token']}"},

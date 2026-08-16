@@ -79,7 +79,7 @@ docker compose -f docker-compose.yaml --env-file .env exec backend \
 | `SESSION_COOKIE_SAMESITE` | 见下方「SameSite 与部署拓扑」 |
 | `SESSION_COOKIE_NAME` | 会话 Cookie 名（默认 `lipass_session`）；后端同时兼容接受旧名 `portal_session`，旧浏览器里的会话自然过期前仍可登录，详见「标识迁移」 |
 | `SESSION_TTL_DAYS` / `SESSION_DEFAULT_TTL_DAYS` | 勾选“记住我”/未勾选时的会话有效期（默认 30 天 / 1 天；未勾选同时使用会话级 Cookie，关闭浏览器即失效） |
-| `SESSION_IDLE_DAYS` | 会话空闲超时天数（默认 7 天，超过即强制下线） |
+| `SESSION_IDLE_MINUTES` | 会话空闲超时分钟数（默认 `720`，即 12 小时，且必须 ≥5；超过即强制下线）。自本次发布起替代旧的 `SESSION_IDLE_DAYS`，升级时请把原天数换算为分钟 |
 | `TRUSTED_DEVICE_TTL_DAYS` | 登录可信设备有效期（默认 7）：用户完成登录 2FA 时勾选「信任此设备」后，该设备在此天数内登录免二次验证；豁免**仅限登录环节**，敏感操作复核不受影响 |
 | `PUBLIC_REGISTRATION_ENABLED` | 公开注册入口默认值（默认 `true`）；`false` 时注册页提示“注册渠道暂时关闭，只接收邀请注册”，后端同时拒绝公开注册请求。管理后台「站点设置」可运行时覆盖该默认值（存入 `site_settings` 表） |
 | `DATABASE_URL` / `REDIS_URL` | 数据与缓存连接串：留空时默认编排内 PostgreSQL/Redis（需 `bundle` profile）；填写远程地址即切换为远程实例 |
@@ -90,6 +90,8 @@ docker compose -f docker-compose.yaml --env-file .env exec backend \
 | `LOGIN_RATE_LIMIT` / `LOGIN_RATE_WINDOW_SECONDS` | 按邮箱+IP 的登录失败次数限流（默认 5 次/15 分钟，第 6 次失败返回 429） |
 | `LOGIN_IP_RATE_LIMIT` / `LOGIN_IP_RATE_WINDOW_SECONDS` | 按来源 IP 的登录尝试次数限流（默认 20 次/15 分钟，在 Argon2 之前前置拦截） |
 | `LOGIN_EMAIL_RATE_LIMIT` / `LOGIN_EMAIL_RATE_WINDOW_SECONDS` | 全局限邮箱登录限流，防分布式 IP 爆破（默认 10 次/15 分钟）。注意这是短时账号级锁定：窗口内对同一邮箱的尝试超过阈值后，无论来源 IP 都会被拒绝，攻击者可用错误密码尝试暂时锁住目标账号；需在防爆破与可用性之间权衡 |
+| `AUTHORIZE_RATE_LIMIT` / `AUTHORIZE_RATE_WINDOW_SECONDS` | `/oauth2/authorize` 按 IP 限流（默认 120 次/60 秒，防滥用/DoS） |
+| `TOKEN_RATE_LIMIT` / `TOKEN_RATE_WINDOW_SECONDS` | `/oauth2/token` 按 IP 限流（默认 120 次/60 秒；超限返回 `429 {"error":"rate_limited"}`） |
 | `STEPUP_WINDOW_MINUTES` | 敏感操作 step-up 复核窗口时长（默认 `30` 分钟）：一次密码复核后，该会话窗口内执行其它敏感操作免再次输入密码；`0` 关闭窗口（每操作必验）。窗口按会话隔离且固定时长，登录成功不自动授窗 |
 | `STEPUP_RATE_LIMIT` / `STEPUP_RATE_WINDOW_SECONDS` | 按邮箱+IP 的敏感操作复核失败限流（默认 5 次/15 分钟，第 6 次失败返回 429） |
 | `STEPUP_EMAIL_RATE_LIMIT` / `STEPUP_EMAIL_RATE_WINDOW_SECONDS` | 全局限邮箱复核尝试限流，防持有会话的分布式爆破（默认 10 次/15 分钟；短时账号锁定权衡与登录邮箱限流一致） |

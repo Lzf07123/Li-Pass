@@ -43,6 +43,10 @@ Li&Pass 是一个符合 OIDC/OAuth2 授权码流程的身份提供商（IdP）�
   "id_token_signing_alg_values_supported": ["RS256"],
   "scopes_supported": ["openid", "profile", "email"],
   "code_challenge_methods_supported": ["S256"],
+  "token_endpoint_auth_methods_supported": ["none", "client_secret_post"],
+  "claims_supported": [
+    "sub", "email", "email_verified", "nickname", "name", "picture", "acr", "sid"
+  ],
   "end_session_endpoint": "https://auth.example.com/oauth2/end-session",
   "backchannel_logout_supported": true,
   "frontchannel_logout_supported": false
@@ -124,8 +128,8 @@ GET https://your-site.example/callback?error=access_denied&state=RANDOM_STATE
 
 - 校验 `state` 与发起时一致；不一致立即中止，不得继续登录流程。
 - 收到 `error` 时按失败处理并向用户说明（`account_blocked` 表示账号被该网站封禁），**不得当成登录成功**。
-- 拿到 `code` 后立即用 `code + code_verifier`（机密客户端加 `client_secret`）POST 换令牌；授权码只能使用一次、10 分钟有效，换码失败即作废并重新发起。
-- 校验 `id_token`：按 `kid` 从 JWKS 选钥做 RS256 验签；`iss` 等于发现文档 issuer；`aud` 等于自身 `client_id`；`nonce` 一致；`iat`/`exp` 有效。`access_token` 的 `aud` 是 userinfo 端点，**不要**按 `client_id` 校验（见 §3.5）。
+- 拿到 `code` 后立即用 `code + code_verifier`（**机密客户端也必须携带 code_verifier**，另加 `client_secret`）POST 换令牌；授权码只能使用一次、10 分钟有效，换码失败即作废并重新发起。
+- 校验 `id_token`：按 `kid` 从 JWKS 选钥做 RS256 验签；`iss` 等于发现文档 issuer；`aud` 等于自身 `client_id`；`nonce` 一致（未请求 nonce 时该 claim 不存在）；`iat`/`exp` 有效；`at_hash` 等于 `base64url(SHA256(access_token) 左 16 字节)`。`access_token` 的 `aud` 是 userinfo 端点，**不要**按 `client_id` 校验（见 §3.5）。
 - 用 `access_token` 调 userinfo 建立本地会话，并按 `(sub, sid)` 绑定门户会话标识（`sid` 在 `id_token` 中），供回程登出精确定位下线。
 - 本端点只处理授权码，不得接收用户密码等敏感信息。
 
@@ -185,8 +189,9 @@ GET https://your-site.example/logout?next=<下一目标或门户登录页的 URL
 
 - [ ] 回调地址已登记为 `GET` 端点，且与代码实际使用值**逐字符一致**（含协议、路径与端口）
 - [ ] 回调端点校验 `state`；`error=access_denied`（含 `account_blocked`）按失败处理
-- [ ] 换令牌带 PKCE `code_verifier`（机密客户端另带 `client_secret`）；授权码一次性使用
-- [ ] `id_token` 校验完整（验签 / `kid` 选钥 / `iss` / `aud` / `nonce` / `iat` / `exp`）；`access_token` 仅用于 userinfo，且不按 `client_id` 校验其 `aud`
+- [ ] 换令牌带 PKCE `code_verifier`（**机密客户端同样必填**，另带 `client_secret`）；授权码一次性使用
+- [ ] `id_token` 校验完整（验签 / `kid` 选钥 / `iss` / `aud` / `nonce` / `iat` / `exp` / `at_hash`）；`access_token` 仅用于 userinfo，且不按 `client_id` 校验其 `aud`
+- [ ] token 端点错误按 RFC 6749 的 `error`/`error_description` 字段解析（不再是 `detail`）
 - [ ] 本地会话绑定 `(sub, sid)`（`sid` 取自 `id_token`）
 - [ ] 登出通道二选一：已实现回程登出，或已提供登出地址（浏览器串跳）
 - [ ] 回程登出（如选，`POST` 端点）：验签、`iss`/`aud`、120 秒新鲜窗口、`jti` 防重放、`events` 检查、按 `(sub, sid)` 下线、成功返回 2xx；生产 https 且公网可达
@@ -194,7 +199,7 @@ GET https://your-site.example/logout?next=<下一目标或门户登录页的 URL
 - [ ] 使用 RP 发起登出时，已登记登出回跳白名单（精确匹配）
 - [ ] 使用网站黑名单时：授权跳回 `access_denied`、换令牌与 userinfo 返回 403，均按失败处理
 
-## 3. 授权码 + PKCE 流程（公开客户端）
+## 3. 授权码 + PKCE 流程（全部客户端）
 
 ### 3.1 生成 PKCE
 
@@ -296,24 +301,25 @@ curl -X POST {issuer}/oauth2/token \
 | `code` | 是 | 授权码 |
 | `redirect_uri` | 是 | 与发起授权时逐字符一致 |
 | `client_id` | 是 | 客户端标识 |
-| `code_verifier` | 公开客户端必填 | PKCE verifier（S256） |
+| `code_verifier` | 全部客户端必填 | PKCE verifier（S256，机密客户端同样强制） |
 | `client_secret` | 机密客户端必填 | 服务端保管 |
 
-**成功响应**：`200 application/json`，字段如上（`access_token` / `token_type` / `expires_in` / `id_token`），无 `refresh_token`。
+**成功响应**：`200 application/json`，字段如上（`access_token` / `token_type` / `expires_in` / `id_token`），无 `refresh_token`。`id_token` 携带 `at_hash`，取值 `base64url(SHA256(access_token) 左 16 字节)`，接入方校验 id_token 时需按此核对（OIDC Core §3.3.2.11）。
 
-**错误响应**：`application/json`，错误码在 `detail` 字段（注意：不是 OAuth 标准的 `error` 字段）：
+**错误响应**：`application/json`，采用 RFC 6749 §5.2 标准格式（`error` + `error_description`）：
 
 ```json
-{"detail": "invalid_grant"}
+{"error": "invalid_grant", "error_description": "授权码无效、过期或已被使用"}
 ```
 
-| HTTP 状态 | `detail` 值 | 含义 |
+| HTTP 状态 | `error` 值 | 含义 |
 | --- | --- | --- |
 | `400` | `unsupported_grant_type` | `grant_type` 非法 |
 | `400` | `invalid_client` | client_id 不存在或停用 |
-| `401` | `invalid_client` | 机密客户端 secret 错误 |
+| `401` | `invalid_client` | 机密客户端 secret 错误（附带 `WWW-Authenticate: Basic`） |
 | `400` | `invalid_grant` | 授权码无效/过期/已使用、redirect_uri 不符或 PKCE 校验失败 |
-| `403` | `该账号已被此网站限制访问` | 账号在该网站的黑名单中（中文提示，非 OAuth 错误码） |
+| `403` | `access_denied` | 账号在该网站的黑名单中（`error_description` 为中文提示） |
+| `429` | `rate_limited` | 触发 token 端点限流 |
 
 ### 3.4 获取用户信息
 
@@ -425,7 +431,7 @@ const user = await fetch(`${issuer}/oauth2/userinfo`, {
 | 登出地址 | 登出地址（§2.3.2） | 选填；与「回程登出地址」至少二选一；取消授权时也会跳转该地址清会话 |
 | 登出回跳白名单（每行一个） | 登出回跳页（§2.3.3） | 使用 RP 发起登出（§8.2）时必填 |
 | 回程登出地址 | 回程登出接口（§2.3.1） | 选填（推荐）；生产必须 https 且公网可达 |
-| 客户端类型 | — | 必选其一：公开客户端（仅 PKCE）或机密客户端（生成 `client_secret`，只显示一次） |
+| 客户端类型 | — | 必选其一：公开客户端或机密客户端（生成 `client_secret`，只显示一次）；两类客户端换码都必须带 PKCE `code_verifier` |
 
 也可用管理 API：`POST /api/v1/admin/clients`。
 
@@ -478,13 +484,15 @@ curl -u CLIENT_ID:CLIENT_SECRET -X DELETE \
 | `unsupported_response_type` | authorize | `302` 到门户首页 `?error=...` | `response_type` 非 `code`，不回跳第三方 |
 | `unauthorized_client` | authorize | `302` 到门户首页 `?error=...` | 客户端不存在/停用 |
 | `invalid_redirect_uri` | authorize | `302` 到门户首页 `?error=...` | 回调地址不在白名单 |
-| `unsupported_grant_type` | token | `400`，`{"detail":"unsupported_grant_type"}` | `grant_type` 非法 |
-| `invalid_client` | token | `400`（不存在/停用）或 `401`（secret 错误），`{"detail":"invalid_client"}` | client_id/secret 错误 |
-| `invalid_grant` | token | `400`，`{"detail":"invalid_grant"}` | 授权码无效/过期/已使用、redirect_uri 不符或 PKCE 校验失败 |
+| `unsupported_grant_type` | token | `400`，`{"error":"unsupported_grant_type","error_description":...}` | `grant_type` 非法 |
+| `invalid_client` | token | `400`（不存在/停用）或 `401`（secret 错误），`{"error":"invalid_client",...}` | client_id/secret 错误 |
+| `invalid_grant` | token | `400`，`{"error":"invalid_grant",...}` | 授权码无效/过期/已使用、redirect_uri 不符或 PKCE 校验失败 |
+| `access_denied` | token | `403`，`{"error":"access_denied","error_description":"该账号已被此网站限制访问"}` | 账号在该网站的黑名单中 |
+| `rate_limited` | token | `429`，`{"error":"rate_limited",...}` | 触发 token 端点限流 |
 | `invalid_token` | userinfo | `401`，`{"detail":"invalid_token"}` | 缺少 Bearer 令牌、令牌无效或已过期 |
-| `该账号已被此网站限制访问` | token / userinfo | `403`，`{"detail":"该账号已被此网站限制访问"}` | 账号在该网站的黑名单中（中文提示，非 OAuth 错误码） |
+| `该账号已被此网站限制访问` | userinfo | `403`，`{"detail":"该账号已被此网站限制访问"}` | 账号在该网站的黑名单中（中文提示，非 OAuth 错误码） |
 
-注意：authorize 阶段的错误经 `302` 的 query 参数返回（标准 `error`/`error_description`/`state`）；token 与 userinfo 阶段的 JSON 错误统一放在 `detail` 字段（不是 OAuth 标准的 `error` 字段）。
+注意：authorize 阶段的错误经 `302` 的 query 参数返回（标准 `error`/`error_description`/`state`）；token 端点自本次发布起改用 RFC 6749 标准的 `error`/`error_description` 字段；userinfo 与 `/oauth2/client/*` 管理接口仍使用 `detail` 字段。
 
 ## 8. 登出与联邦登出
 
