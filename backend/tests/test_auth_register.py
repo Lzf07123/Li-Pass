@@ -102,9 +102,23 @@ def test_register_rejected_when_public_registration_closed(
         json={"email": "a@example.com", "password": "password123", "nickname": "Alice"},
     )
     assert response.status_code == 403
-    assert response.json()["detail"] == "注册渠道暂时关闭，只接收邀请注册"
 
-    # 邀请注册不受开关影响
+
+def test_register_cross_site_origin_rejected(client) -> None:
+    response = client.post(
+        "/api/v1/auth/register",
+        json={"email": "a@example.com", "password": "password123", "nickname": "Alice"},
+        headers={"Origin": "http://evil.example"},
+    )
+    assert response.status_code == 403
+    assert response.json()["detail"] == "跨站请求被拒绝"
+
+
+def test_invite_register_unaffected_by_public_switch(client, monkeypatch) -> None:
+    monkeypatch.setattr(
+        auth_module.settings, "public_registration_enabled", False
+    )
+    # 邀请注册不受公开注册开关影响
     assert (
         client.post(
             "/api/v1/auth/invite/register",

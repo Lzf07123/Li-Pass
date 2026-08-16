@@ -80,6 +80,10 @@ router = APIRouter(prefix="/api/v1/auth", tags=["auth"])
 settings = get_settings()
 logger = logging.getLogger(__name__)
 
+# 登录账号枚举时序防护：邮箱不存在时也执行一次同参数的 Argon2 校验，
+# 使「无此账号」与「密码错误」两条路径耗时一致。哈希在进程启动时生成一次。
+_DUMMY_PASSWORD_HASH = hash_password("lipass-dummy-timing-equalizer")
+
 
 def _as_utc(dt: datetime) -> datetime:
     if dt.tzinfo is None:
@@ -470,7 +474,13 @@ def login(
         raise HTTPException(status.HTTP_429_TOO_MANY_REQUESTS, "尝试次数过多，请稍后再试")
     user_agent = request.headers.get("user-agent")
     user = db.scalar(select(User).where(User.email == email_for_limit))
-    if user is None or not verify_password(payload.password, user.password_hash):
+    password_ok = user is not None and verify_password(
+        payload.password, user.password_hash
+    )
+    if user is None:
+        # 防枚举：不存在的邮箱同样跑一遍 Argon2，避免响应时间泄露账号是否存在。
+        verify_password(payload.password, _DUMMY_PASSWORD_HASH)
+    if not password_ok:
         count = get_rate_limiter().hit(
             "login",
             f"{payload.email.lower()}:{ip}",

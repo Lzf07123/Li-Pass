@@ -147,13 +147,21 @@ def create_app() -> FastAPI:
 
     _allowed_origins = {str(origin).rstrip("/") for origin in settings.cors_origins}
 
+    # 登录/注册虽不携带会话 Cookie，但浏览器跨站提交会造成登录 CSRF
+    # （把受害者登录进攻击者账号）与跨站注册滥用，同样要求 Origin 白名单。
+    _origin_guarded_auth_paths = {
+        "/api/v1/auth/login",
+        "/api/v1/auth/register",
+    }
+
     @app.middleware("http")
     async def csrf_origin_check(request, call_next):
         """带会话 Cookie 的写请求必须声明允许的 Origin，阻断跨站 CSRF。
 
         浏览器发出的 POST/PUT/PATCH/DELETE 都会携带 Origin；缺失 Origin 视为
-        非浏览器客户端（curl 等），不构成 CSRF 场景。第三方 OAuth 客户端直接
-        调用 /oauth2/token 时不携带本门户会话 Cookie，不受此检查影响。
+        非浏览器客户端（curl 等），不构成 CSRF 场景。登录/注册端点无论是否
+        携带会话 Cookie 都执行同样检查。第三方 OAuth 客户端直接调用
+        /oauth2/token 时不携带本门户会话 Cookie，不受此检查影响。
         """
         if request.method in {"POST", "PUT", "PATCH", "DELETE"}:
             origin = request.headers.get("origin")
@@ -161,7 +169,10 @@ def create_app() -> FastAPI:
                 request.cookies.get(settings.session_cookie_name)
                 or request.cookies.get(LEGACY_SESSION_COOKIE_NAME)
             )
-            if origin and has_session_cookie:
+            guarded = has_session_cookie or (
+                request.url.path in _origin_guarded_auth_paths
+            )
+            if origin and guarded:
                 if origin.rstrip("/") not in _allowed_origins:
                     return JSONResponse(
                         status_code=403, content={"detail": "跨站请求被拒绝"}
