@@ -50,7 +50,15 @@ def set_trusted_device_cookie(response: Response, token: str, ttl: timedelta) ->
 
 
 def clear_trusted_device_cookie(response: Response) -> None:
-    response.delete_cookie(TRUSTED_DEVICE_COOKIE, path="/")
+    """删除可信设备 Cookie；属性与设置时一致，确保生产 HTTPS 下可被清除。"""
+    settings = get_settings()
+    response.delete_cookie(
+        TRUSTED_DEVICE_COOKIE,
+        path="/",
+        secure=settings.session_cookie_secure,
+        httponly=True,
+        samesite=settings.session_cookie_samesite,
+    )
 
 
 def grant(db: Session, user_id: uuid.UUID, request: Request, response: Response) -> TrustedDevice:

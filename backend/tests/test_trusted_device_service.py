@@ -9,6 +9,7 @@ from app.models.user import User
 from app.services import trusted_devices
 from app.services.trusted_devices import (
     TRUSTED_DEVICE_COOKIE,
+    clear_trusted_device_cookie,
     find_valid,
     grant,
     revoke_all,
@@ -114,3 +115,22 @@ def test_revoke_one_and_all(db_session) -> None:
 def test_trusted_device_ttl_default() -> None:
     assert Settings(_env_file=None).trusted_device_ttl_days == 7
     assert trusted_devices.get_settings().trusted_device_ttl_days == 7
+
+
+def test_clear_trusted_device_cookie_matches_set_attributes(monkeypatch) -> None:
+    """删除 Cookie 的属性必须与设置时一致，生产 HTTPS 下才能被清除。"""
+    settings = Settings(
+        _env_file=None,
+        session_cookie_secure=True,
+        session_cookie_samesite="strict",
+    )
+    monkeypatch.setattr(trusted_devices, "get_settings", lambda: settings)
+    response = Response()
+    clear_trusted_device_cookie(response)
+    header = response.headers["set-cookie"].lower()
+    assert TRUSTED_DEVICE_COOKIE in header
+    assert "secure" in header
+    assert "samesite=strict" in header
+    assert "httponly" in header
+    assert "path=/" in header
+    assert "max-age=0" in header or "expires=thu, 01 jan 1970" in header
