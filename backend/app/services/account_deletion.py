@@ -1,4 +1,5 @@
 from pathlib import Path
+from datetime import datetime, timezone
 
 from sqlalchemy import delete, update
 from sqlalchemy.orm import Session
@@ -31,9 +32,8 @@ def delete_user_account(db: Session, user: User, *, commit: bool = True) -> None
     # 防止旧验证码在邮箱重新注册后仍可被使用。
     db.execute(delete(Otp).where(Otp.target == user.email))
 
-    # 邀请注册的账号被删除后，把已消费的邀请还原为“待注册”，
-    # 避免管理端残留一条“已使用”却无对应账号的邀请记录；
-    # 还原后的邀请链接可在有效期内再次完成注册。
+    # 邀请注册的账号被删除后，把已消费的邀请标记为“已取消”，原链接立即失效；
+    # 同时避免残留一条“待注册”记录阻塞管理员对该邮箱重新发起邀请。
     db.execute(
         update(AccountInvite)
         .where(
@@ -41,7 +41,7 @@ def delete_user_account(db: Session, user: User, *, commit: bool = True) -> None
             AccountInvite.used_at.is_not(None),
             AccountInvite.cancelled_at.is_(None),
         )
-        .values(used_at=None)
+        .values(cancelled_at=datetime.now(timezone.utc))
         .execution_options(synchronize_session=False)
     )
 
