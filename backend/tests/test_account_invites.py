@@ -402,7 +402,7 @@ def test_admin_resend_expired_invite_revives(
     )
 
 
-def test_used_invite_restored_after_user_deleted_and_can_resend(
+def test_deleted_invited_account_cancels_invite_and_allows_reinvite(
     client, captured_email, db_session
 ) -> None:
     _login_admin(client, db_session)
@@ -410,13 +410,17 @@ def test_used_invite_restored_after_user_deleted_and_can_resend(
         "/api/v1/admin/users/invite",
         json={"email": "deleted@example.com", "nickname": "Deleted"},
     )
-    token = _token_from_link(
+    old_token = _token_from_link(
         [m for m in captured_email.messages if m[0] == "invite"][-1][2]
     )
     assert (
         client.post(
             "/api/v1/auth/invite/register",
-            json={"token": token, "nickname": "My Name", "password": "password123"},
+            json={
+                "token": old_token,
+                "nickname": "My Name",
+                "password": "password123",
+            },
         ).status_code
         == 201
     )
@@ -431,7 +435,7 @@ def test_used_invite_restored_after_user_deleted_and_can_resend(
         for row in rows
     )
 
-    # 注册后删除账号：邀请还原为“待注册”，可再次使用同一链接注册
+    # 注册后删除账号：已消费的邀请标记为“已取消”，旧链接立即失效
     assert (
         client.post(
             f"/api/v1/admin/users/{user.id}/delete",
@@ -442,29 +446,35 @@ def test_used_invite_restored_after_user_deleted_and_can_resend(
         == 200
     )
     rows = client.get("/api/v1/admin/users").json()
-    restored = next(
+    cancelled = next(
         row
         for row in rows
         if row["email"] == "deleted@example.com" and row["kind"] == "invite"
     )
-    assert restored["status"] == "invited"
+    assert cancelled["status"] == "cancelled"
+    assert (
+        client.post(
+            "/api/v1/auth/invite/register",
+            json={
+                "token": old_token,
+                "nickname": "Zombie",
+                "password": "password123",
+            },
+        ).status_code
+        == 400
+    )
 
-    # 重发邀请：复用已还原的邀请，不生成重复记录
+    # 重新邀请：已取消的历史记录不再阻塞，能发出全新邀请并完成注册
     before = len([m for m in captured_email.messages if m[0] == "invite"])
     response = client.post(
-        f"/api/v1/admin/users/invites/{restored['id']}/resend"
+        "/api/v1/admin/users/invite",
+        json={"email": "deleted@example.com", "nickname": "Deleted"},
     )
     assert response.status_code == 200
     assert (
         len([m for m in captured_email.messages if m[0] == "invite"])
         == before + 1
     )
-    # 再次重发：复用已生成的有效邀请，不再产生重复行
-    again = client.post(
-        f"/api/v1/admin/users/invites/{restored['id']}/resend"
-    )
-    assert again.status_code == 200
-    assert len(db_session.scalars(select(AccountInvite)).all()) == 1
     new_token = _token_from_link(
         [m for m in captured_email.messages if m[0] == "invite"][-1][2]
     )
@@ -475,7 +485,6 @@ def test_used_invite_restored_after_user_deleted_and_can_resend(
         ).status_code
         == 201
     )
-    assert len(db_session.scalars(select(AccountInvite)).all()) == 1
 
 
 def test_resend_invite_rejected_when_email_registered(
