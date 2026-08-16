@@ -3,7 +3,7 @@ import uuid
 from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, EmailStr, Field, field_validator
 from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
@@ -17,7 +17,7 @@ from app.models.recovery_code import RecoveryCode
 from app.models.session import Session as SessionModel
 from app.models.user import User, UserRole, UserStatus
 from app.schemas.auth import PasswordConfirm
-from app.security.passwords import hash_password
+from app.security.passwords import hash_password, validate_password_strength
 from app.security.tokens import generate_token, hash_token
 from app.services.account_deletion import delete_user_account
 from app.services.admin_stats import invalidate_admin_stats_cache
@@ -53,6 +53,11 @@ class AdminResetPassword(BaseModel):
     # step-up 窗口内可省略：30 分钟内已复核过管理员密码。
     current_password: str | None = Field(default=None, min_length=1, max_length=128)
 
+    @field_validator("new_password")
+    @classmethod
+    def _check_new_password(cls, value: str) -> str:
+        return validate_password_strength(value)
+
 
 class AdminDeleteUser(BaseModel):
     # 删除账号属于不可逆操作：要求管理员本人当前密码复核，
@@ -72,6 +77,11 @@ class AdminCreateUser(BaseModel):
     current_password: str | None = Field(
         default=None, min_length=1, max_length=128
     )
+
+    @field_validator("password")
+    @classmethod
+    def _check_password(cls, value: str) -> str:
+        return validate_password_strength(value)
 
 
 class AdminInviteUser(BaseModel):
