@@ -1189,7 +1189,7 @@
       rgba(143, 199, 240, 0.22) 42%,
       transparent 70%
     );
-    animation: aurora-drift-1 11s ease-in-out infinite alternate;
+    animation: aurora-drift-1 18s ease-in-out infinite alternate;
   }
   .aurora-blob-2 {
     right: -10rem;
@@ -1202,7 +1202,7 @@
       rgba(127, 212, 198, 0.2) 45%,
       transparent 70%
     );
-    animation: aurora-drift-2 13s ease-in-out infinite alternate;
+    animation: aurora-drift-2 22s ease-in-out infinite alternate;
   }
   .aurora-blob-3 {
     left: -8rem;
@@ -1215,7 +1215,7 @@
       rgba(143, 199, 240, 0.22) 45%,
       transparent 70%
     );
-    animation: aurora-drift-3 16s ease-in-out infinite alternate;
+    animation: aurora-drift-3 28s ease-in-out infinite alternate;
   }
   .aurora-blob-4 {
     left: 52%;
@@ -1228,7 +1228,7 @@
       rgba(74, 143, 191, 0.1) 45%,
       transparent 70%
     );
-    animation: aurora-drift-4 14s ease-in-out infinite alternate;
+    animation: aurora-drift-4 24s ease-in-out infinite alternate;
   }
   .dark .aurora-blob-1 {
     background: radial-gradient(
