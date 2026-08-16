@@ -46,11 +46,13 @@ frontend/                React SPA 门户（Node >=22.14）
 ├── src/index.css        Tailwind 4 @theme 令牌（视觉事实来源）
 └── src/__tests__/       前端测试（vitest）
 
-gateway/                 单域名 nginx 网关：/ → 前端、/api + /oauth2 → 后端、/demo → 演示站
+gateway/                 单域名 nginx 网关：/ → 前端、/api + /oauth2 → 后端、/demo → 演示站；支持 Upgrade 透传（Vite HMR）
 examples/demo-site/      示例 OIDC 接入站（Flask）
-scripts/                 PostgreSQL 备份/恢复脚本
+scripts/                 PostgreSQL 备份/恢复（backup-db/restore-db）与生产零停机热更新（hot_update）
 docs/                    部署、对接、设计规格与实施计划
 docker-compose.example.yaml  编排示例（复制为 docker-compose.yaml 使用，后者已 gitignore）：gateway + frontend + backend + postgres + redis（profile: bundle）、demo-site（profile: demo）
+docker-compose.dev.yaml  本地开发热更新覆盖文件（Vite HMR + uvicorn --reload，仅本地）
+docker-compose.hot.yaml  生产级零停机热更新覆盖文件（backend-code/frontend-web 卷 + SIGHUP worker 回收）
 ```
 
 关键事实：**唯一对外入口是 gateway 的 :80**；前端/后端容器不向宿主机映射端口，生产 HTTPS 由部署环境负责。API 前缀 `/api/v1`；OIDC 在 `/oauth2/*` 与 `/.well-known/openid-configuration`。
@@ -96,10 +98,14 @@ npx tsc -b && npm run lint && npm test && npm run build
 编排冒烟：
 
 ```bash
-docker compose --profile bundle config -q        # 校验编排
+docker compose --profile bundle config -q         # 校验基础编排
+docker compose -f docker-compose.yaml -f docker-compose.dev.yaml --profile bundle config -q   # 本地热更新覆盖
+docker compose -f docker-compose.yaml -f docker-compose.hot.yaml --profile bundle config -q   # 生产热更新覆盖
 docker compose --profile bundle up -d --build     # 启动（含 postgres/redis）
 docker compose logs backend | grep 'code='        # 开发环境邮件验证码
 curl -fsS http://localhost/healthz http://localhost/readyz
+bash -n scripts/hot_update.sh                     # 热更新脚本语法
+bash scripts/hot_update.sh --dry-run status       # 只读预览（生产热更新形态）
 ```
 
 首次使用前先 `cp docker-compose.example.yaml docker-compose.yaml`（本机版不提交，可按环境就地修改）。

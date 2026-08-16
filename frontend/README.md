@@ -19,6 +19,10 @@ npm run dev
 前端由容器内 Vite dev server 提供 HMR（经单域名网关透传 WebSocket；容器内以轮询监听源码变化，
 由 `VITE_WATCH_POLLING=true` 控制）。
 
+生产零停机更新：仓库根执行 `bash scripts/hot_update.sh frontend`，脚本会在一次性 node 容器内
+自动 `npm ci`（依赖缓存卷 + `package-lock.json` 哈希增量）并 `npm run build`，再把新 `dist`
+热换装进 `frontend-web` 卷并 reload（详见仓库根 README 与 `docs/deployment.md`）。
+
 项目内 `.npmrc` 已把 npm 源指向 `https://registry.npmmirror.com/`（国内加速；USTC 的 npm 镜像已停服并重定向到该源），Docker 构建与本地 `npm ci` 均生效。海外网络或 CI 如遇镜像不可达，可临时用 `npm config set registry https://registry.npmjs.org/` 覆盖。
 
 ## 脚本
