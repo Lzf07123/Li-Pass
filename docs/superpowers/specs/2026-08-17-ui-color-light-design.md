@@ -172,3 +172,11 @@ ui-ux-pro-max 检索结论一致），所有信任关键动作（登录、授权
 - 管理后台接入 `aurora-soft` + `TechAmbience soft`；表格/卡片仍为不透明 `bg-surface`，
   光束只在内容间隙与页边可见，可读性不受影响；移动端仍隐藏光束/光点。
 - 性能边界不变：仅 `transform/opacity/background-position`，`prefers-reduced-motion` 单帧。
+
+## 12. V2.3 增补（修复关键帧缺失并提速）
+
+- **缺陷**：`tech-grid-pan`/`tech-beam-sweep`/`tech-dot-pulse` 三个关键帧只有 `animation` 引用、从未定义，
+  网格/光束/光点完全静止（光束基态 `opacity:0` 且动画不生效，故不可见）——这正是「光效不动」的根因。
+- **修复与提速**：补齐三组关键帧；网格 26s→12s，光束 8s→6s 且三条错峰更频繁（0.5s/2.5s/4.5s），
+  光点 5.5s→3.6s 并加 7px 上下浮动；极光 16~24s→11~16s、振幅加大，签名描边 14s→9s，
+  按钮扫光 5s→4s，卡片辉光 6s→4.5s（含轻微缩放）。动画约束与降级策略不变。

@@ -80,7 +80,7 @@
     transparent 58%
   );
   transform: translateX(-130%);
-  animation: btn-sheen 5s var(--ease-out) 1.5s infinite;
+  animation: btn-sheen 4s var(--ease-out) 1s infinite;
   pointer-events: none;
   z-index: 0;
 }
