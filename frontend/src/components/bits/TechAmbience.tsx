@@ -12,6 +12,8 @@ const DOTS: Array<{
   { left: "78%", top: "72%", color: "var(--portal-accent-sage)", delay: "0.8s" },
   { left: "47%", top: "11%", color: "var(--portal-accent-mint)", delay: "3.4s" },
   { left: "36%", top: "86%", color: "var(--portal-accent-sand)", delay: "4.2s" },
+  { left: "64%", top: "58%", color: "var(--portal-accent-aqua)", delay: "2s" },
+  { left: "24%", top: "44%", color: "var(--portal-accent-ice)", delay: "5s" },
 ];
 
 /**
@@ -27,6 +29,7 @@ export function TechAmbience({ soft = false }: { soft?: boolean }) {
       <div className="tech-grid" />
       <div className="tech-beam" />
       <div className="tech-beam tech-beam--violet" />
+      <div className="tech-beam tech-beam--sage" />
       {DOTS.map((dot, index) => (
         <span
           key={index}

@@ -81,7 +81,9 @@ export function AuthShell({
               }
             }}
           >
-            <div className="card card-signature p-6 sm:p-8">{children}</div>
+            <div className="card card-halo card-signature p-6 sm:p-8">
+              {children}
+            </div>
           </div>
         </div>
       </div>

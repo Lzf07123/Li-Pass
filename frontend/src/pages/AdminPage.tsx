@@ -10,6 +10,7 @@ import { PillTabs } from "../components/PillTabs";
 import { SiteFooter } from "../components/SiteFooter";
 import { AuroraBackground } from "../components/bits/AuroraBackground";
 import { FadeIn } from "../components/bits/FadeIn";
+import { TechAmbience } from "../components/bits/TechAmbience";
 import { useSessionIdle } from "../hooks/useSessionIdle";
 
 // 面板级代码分割：管理后台 8 个标签按需加载，避免访问任一标签都下载
@@ -121,6 +122,7 @@ export function AdminPage() {
       />
       {/* 流动光层：后台浓度再降一档，仅作极淡的色彩呼吸 */}
       <AuroraBackground className="aurora-soft" />
+      <TechAmbience soft />
       <AppHeader
         title="管理后台"
         actions={
