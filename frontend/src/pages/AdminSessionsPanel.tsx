@@ -391,7 +391,9 @@ export function AdminSessionsPanel() {
         }}
       >
         <span>
-          将强制下线除你当前会话外的全部在线会话（当前共 {total} 个在线会话），相关用户需要重新登录。
+          将强制下线除你当前会话外的全部在线会话（当前共{" "}
+          <CountUp from={0} to={total} className="tabular-nums" /> 个在线会话），
+          相关用户需要重新登录。
         </span>
       </ConfirmDialog>
     </section>

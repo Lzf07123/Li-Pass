@@ -204,3 +204,12 @@ ui-ux-pro-max 检索结论一致），所有信任关键动作（登录、授权
   （用户中心 + 会话/用户/应用/审计面板）；旧组件与其测试移除，新增 `CountUp.test.tsx`。
 - 规格外补强：`prefers-reduced-motion` 或无 `requestAnimationFrame`（SSR/测试）时直接显示目标值；
   沿用 `motion` 依赖，无新增包。
+
+## 17. V2.8 增补（问候语居中 + 计数全量接入）
+
+- 用户中心问候语此前因 `BlurText` 容器 `display:flex` 导致左对齐，容器补 `justify-center` 后真正居中
+  （认证页标题一并修正）。
+- 全量计数接入 `CountUp`：数据统计六张概览卡（`MagicBento.title` 放宽为 ReactNode）、认证方式分布、
+  地域汇总徽章、会话下线确认弹窗、应用广场「已登录 · N 台设备」；坐标轴/时间/百分比/字节等度量值保持静态。
+- 测试：整句文本断言改用 `textContent` 函数匹配（嵌套 CountUp span 后 getByText 不再聚合）；
+  无省份数据的色阶图例断言加 `selector` 限定，避免命中徽章内的 0。

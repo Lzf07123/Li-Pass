@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { MouseEvent as ReactMouseEvent } from "react";
 
+import { CountUp } from "../bits/CountUp";
+
 export interface RegionDatum {
   name: string;
   value: number;
@@ -270,9 +272,15 @@ export function ChinaMap({
       )}
 
       <div className="mt-2 flex flex-wrap items-center gap-2">
-        <span className="badge badge-muted">海外 {numberFormat.format(others.overseas)}</span>
-        <span className="badge badge-muted">内网 {numberFormat.format(others.internal)}</span>
-        <span className="badge badge-muted">其它 {numberFormat.format(others.unknown)}</span>
+        <span className="badge badge-muted">
+          海外 <CountUp from={0} to={others.overseas} separator="," className="tabular-nums" />
+        </span>
+        <span className="badge badge-muted">
+          内网 <CountUp from={0} to={others.internal} separator="," className="tabular-nums" />
+        </span>
+        <span className="badge badge-muted">
+          其它 <CountUp from={0} to={others.unknown} separator="," className="tabular-nums" />
+        </span>
       </div>
 
       <table className="mt-3 w-full text-sm">

@@ -55,6 +55,17 @@ function statsResponse(overrides: Record<string, unknown> = {}) {
 describe("AdminStatsPanel", () => {
   beforeEach(() => {
     vi.unstubAllGlobals();
+    // CountUp 在 prefers-reduced-motion 下直接落定目标值，避免弹簧墙钟动画的不稳定
+    vi.stubGlobal(
+      "matchMedia",
+      vi
+        .fn()
+        .mockReturnValue({
+          matches: true,
+          addEventListener: vi.fn(),
+          removeEventListener: vi.fn(),
+        }),
+    );
   });
 
   it("渲染概览、图表图例与认证方式分布", async () => {
@@ -81,7 +92,11 @@ describe("AdminStatsPanel", () => {
     expect(
       screen.getByRole("link", { name: /^累计登录次数/ }),
     ).toHaveAttribute("href", "/admin/audit");
-    expect(screen.getByText("共 9 个在线会话")).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        (_, element) => element?.textContent === "共 9 个在线会话",
+      ),
+    ).toBeInTheDocument();
     expect(screen.getByText("密码")).toBeInTheDocument();
     expect(screen.getByText("邮箱验证码")).toBeInTheDocument();
     expect(
@@ -93,8 +108,12 @@ describe("AdminStatsPanel", () => {
       screen.getByText(/登录来源地域分布（近 30 天）/),
     ).toBeInTheDocument();
     expect(screen.getAllByText("广东省").length).toBeGreaterThanOrEqual(1);
-    expect(screen.getByText("海外 4")).toBeInTheDocument();
-    expect(screen.getByText("内网 2")).toBeInTheDocument();
+    expect(
+      screen.getByText((_, element) => element?.textContent === "海外 4"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText((_, element) => element?.textContent === "内网 2"),
+    ).toBeInTheDocument();
   });
 
   it("切换时间范围后按对应 days 重新请求", async () => {

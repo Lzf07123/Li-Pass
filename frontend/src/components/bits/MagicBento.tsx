@@ -14,7 +14,8 @@ const MOBILE_BREAKPOINT = 768;
 
 export type MagicBentoItem = {
   label: string;
-  title: string;
+  /** 数值/主文案：可以是字符串或任意节点（如 CountUp） */
+  title: ReactNode;
   description: string;
   /** 数值/主文案加粗放大（适合统计数字） */
   emphasize?: boolean;
