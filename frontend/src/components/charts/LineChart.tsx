@@ -22,11 +22,11 @@ interface LineChartProps {
 
 const DEFAULT_COLORS = [
   "var(--portal-primary)",
-  "var(--portal-accent-teal)",
-  "var(--portal-accent-violet)",
-  "var(--portal-accent-amber)",
-  "var(--portal-accent-rose)",
-  "var(--portal-accent-cyan)",
+  "var(--portal-accent-aqua)",
+  "var(--portal-accent-lilac)",
+  "var(--portal-accent-sage)",
+  "var(--portal-accent-mint)",
+  "var(--portal-accent-ice)",
 ];
 
 const PADDING = { top: 16, right: 12, bottom: 28, left: 42 };

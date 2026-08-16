@@ -8,8 +8,8 @@ import "./MagicBento.css";
 
 const DEFAULT_PARTICLE_COUNT = 12;
 const DEFAULT_SPOTLIGHT_RADIUS = 300;
-const DEFAULT_GLOW_LIGHT = "3, 105, 161";
-const DEFAULT_GLOW_DARK = "56, 189, 248";
+const DEFAULT_GLOW_LIGHT = "47, 127, 116";
+const DEFAULT_GLOW_DARK = "127, 212, 198";
 const MOBILE_BREAKPOINT = 768;
 
 export type MagicBentoItem = {

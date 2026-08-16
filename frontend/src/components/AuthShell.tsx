@@ -9,6 +9,7 @@ import { Brand } from "./Brand";
 import { FloatingBackground } from "./FloatingBackground";
 import { SiteFooter } from "./SiteFooter";
 import { ThemeToggle } from "./ThemeToggle";
+import { TechAmbience } from "./bits/TechAmbience";
 
 export function AuthShell({
   title,
@@ -36,6 +37,8 @@ export function AuthShell({
       />
       {/* ReactBits 风格极光背景（位于几何形状之上，作为第二层氛围） */}
       <AuroraBackground />
+      {/* 科技氛围层：缓移网格 + 扫掠光束 + 呼吸光点（主界面光效） */}
+      <TechAmbience />
 
       <div className="relative flex flex-1 items-center justify-center">
         <div className="w-full max-w-md">
@@ -43,7 +46,7 @@ export function AuthShell({
             className="animate-fade-up-slow mb-8 flex w-full flex-col items-center gap-3 text-center"
             style={{ animationDelay: "0.05s" }}
           >
-            <Brand className="h-12 w-12 drop-shadow-sm" />
+            <Brand className="brand-halo h-12 w-12" />
             <div>
               <h1>
                 <StrokeText

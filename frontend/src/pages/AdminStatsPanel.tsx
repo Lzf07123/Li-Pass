@@ -25,20 +25,20 @@ const AUTH_METHOD_LABEL: Record<string, string> = {
 
 /** 认证方式分布条：每种方式一个固定色相，与图表/占位瓦片同族 */
 const AUTH_METHOD_COLORS: Record<string, string> = {
-  password: "var(--portal-accent-cyan)",
-  email_otp: "var(--portal-accent-teal)",
-  totp: "var(--portal-accent-violet)",
-  recovery: "var(--portal-accent-amber)",
+  password: "var(--portal-accent-ice)",
+  email_otp: "var(--portal-accent-aqua)",
+  totp: "var(--portal-accent-lilac)",
+  recovery: "var(--portal-accent-sand)",
 };
 
 /** 概览 Bento 卡：六张卡各一个色相（卡面恒为深色，两套主题共用亮色标签） */
 const CARD_ACCENTS: Array<{ rgb: string; hex: string }> = [
-  { rgb: "var(--portal-bento-sky-rgb)", hex: "var(--portal-bento-sky)" },
-  { rgb: "var(--portal-bento-indigo-rgb)", hex: "var(--portal-bento-indigo)" },
-  { rgb: "var(--portal-bento-teal-rgb)", hex: "var(--portal-bento-teal)" },
-  { rgb: "var(--portal-bento-violet-rgb)", hex: "var(--portal-bento-violet)" },
-  { rgb: "var(--portal-bento-amber-rgb)", hex: "var(--portal-bento-amber)" },
-  { rgb: "var(--portal-bento-rose-rgb)", hex: "var(--portal-bento-rose)" },
+  { rgb: "var(--portal-bento-ice-rgb)", hex: "var(--portal-bento-ice)" },
+  { rgb: "var(--portal-bento-aqua-rgb)", hex: "var(--portal-bento-aqua)" },
+  { rgb: "var(--portal-bento-lilac-rgb)", hex: "var(--portal-bento-lilac)" },
+  { rgb: "var(--portal-bento-sage-rgb)", hex: "var(--portal-bento-sage)" },
+  { rgb: "var(--portal-bento-mint-rgb)", hex: "var(--portal-bento-mint)" },
+  { rgb: "var(--portal-bento-sand-rgb)", hex: "var(--portal-bento-sand)" },
 ];
 
 const numberFormat = new Intl.NumberFormat("zh-CN");
@@ -151,12 +151,12 @@ export function AdminStatsPanel() {
         {
           name: "登录人数",
           values: stats.daily.map((point) => point.login_users),
-          color: "var(--portal-accent-teal)",
+          color: "var(--portal-accent-ice)",
         },
         {
           name: "新增注册",
           values: stats.daily.map((point) => point.registrations),
-          color: "var(--portal-accent-violet)",
+          color: "var(--portal-accent-lilac)",
           dashed: true,
         },
       ]

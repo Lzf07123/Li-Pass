@@ -1,16 +1,16 @@
 /**
- * 低饱和强调色板：安全蓝主色之外的六个信息分层色相。
+ * 海玻璃强调色板：浅水绿主色之外的六个信息分层色相（全部雾面低饱和）。
  * 只用于装饰性小面积（图标瓦片、图例、分区规则线、Bento 标签），
  * 状态语义色（success/warning/destructive）永远不由此处替代。
  */
 
 export const ACCENT_KEYS = [
-  "cyan",
-  "teal",
-  "indigo",
-  "violet",
-  "amber",
-  "rose",
+  "ice",
+  "aqua",
+  "lilac",
+  "sage",
+  "mint",
+  "sand",
 ] as const;
 
 export type AccentKey = (typeof ACCENT_KEYS)[number];
@@ -32,28 +32,28 @@ export const ACCENT_CLASSES: Record<
   AccentKey,
   { tile: string; text: string }
 > = {
-  cyan: {
-    tile: "bg-accent-cyan-soft text-accent-cyan",
-    text: "text-accent-cyan",
+  ice: {
+    tile: "bg-accent-ice-soft text-accent-ice",
+    text: "text-accent-ice",
   },
-  teal: {
-    tile: "bg-accent-teal-soft text-accent-teal",
-    text: "text-accent-teal",
+  aqua: {
+    tile: "bg-accent-aqua-soft text-accent-aqua",
+    text: "text-accent-aqua",
   },
-  indigo: {
-    tile: "bg-accent-indigo-soft text-accent-indigo",
-    text: "text-accent-indigo",
+  lilac: {
+    tile: "bg-accent-lilac-soft text-accent-lilac",
+    text: "text-accent-lilac",
   },
-  violet: {
-    tile: "bg-accent-violet-soft text-accent-violet",
-    text: "text-accent-violet",
+  sage: {
+    tile: "bg-accent-sage-soft text-accent-sage",
+    text: "text-accent-sage",
   },
-  amber: {
-    tile: "bg-accent-amber-soft text-accent-amber",
-    text: "text-accent-amber",
+  mint: {
+    tile: "bg-accent-mint-soft text-accent-mint",
+    text: "text-accent-mint",
   },
-  rose: {
-    tile: "bg-accent-rose-soft text-accent-rose",
-    text: "text-accent-rose",
+  sand: {
+    tile: "bg-accent-sand-soft text-accent-sand",
+    text: "text-accent-sand",
   },
 };

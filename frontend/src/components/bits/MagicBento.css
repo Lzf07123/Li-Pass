@@ -1,19 +1,19 @@
 /* React Bits MagicBento 主题适配版：深色产品展示卡 + 主色光效，
    光色经 --glow-color（RGB 三元组）与 --glow-* 变量由组件驱动。 */
 .magic-bento {
-  --glow-color: 3, 105, 161;
-  --bento-card-bg: #0f172a;
+  --glow-color: 47, 127, 116;
+  --bento-card-bg: #1a2b27;
   --bento-card-border: rgba(255, 255, 255, 0.08);
-  --bento-fg: #e2e8f0;
-  --bento-muted: #94a3b8;
-  --bento-label: #38bdf8;
+  --bento-fg: #e9f2ef;
+  --bento-muted: #9fb4ae;
+  --bento-label: #7fd4c6;
   position: relative;
   user-select: none;
 }
 
 .dark .magic-bento {
-  --glow-color: 56, 189, 248;
-  --bento-card-bg: #111a2c;
+  --glow-color: 127, 212, 198;
+  --bento-card-bg: #21302c;
 }
 
 .card-grid {
