@@ -197,3 +197,10 @@ ui-ux-pro-max 检索结论一致），所有信任关键动作（登录、授权
 
 - 按用户要求与极光同比例（约 1.67×）放慢：光束 6s→10s（三条错峰 0.8/4.2/7.5s），
   光点 3.6s→6s（8 枚延迟同步等比缩放）；网格、描边、按钮扫光与卡片辉光节奏不变。
+
+## 16. V2.7 增补（计数组件改用 CountUp）
+
+- 按 React Bits 规格接入 `CountUp`（`motion/react`），替换全部 6 处旧 `AnimatedNumber` 计数
+  （用户中心 + 会话/用户/应用/审计面板）；旧组件与其测试移除，新增 `CountUp.test.tsx`。
+- 规格外补强：`prefers-reduced-motion` 或无 `requestAnimationFrame`（SSR/测试）时直接显示目标值；
+  沿用 `motion` 依赖，无新增包。

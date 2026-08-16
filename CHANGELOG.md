@@ -15,6 +15,7 @@
 
 ### 功能
 
+- 计数组件改用 React Bits `CountUp`（JavaScript + CSS 变体，`motion/react` 弹簧驱动）：用户中心与四个管理面板的「共 N 个…」计数统一由新 `CountUp`（`from=0`、`duration=0.8s`、`tabular-nums`）渲染，支持千位分隔、up/down 方向、视口触发与 onStart/onEnd 回调；移除旧 `AnimatedNumber` 组件及其测试；`prefers-reduced-motion` 或无 `requestAnimationFrame` 的环境直接显示目标值。复用已安装的 `motion`，无新增依赖。
 - 极光层节奏放慢：四枚光斑周期由 11/13/16/14s 调整为 18/22/28/24s，回归舒缓的呼吸感；随后扫掠光束与光点按同比例（约 1.67×）放慢——光束 6s→10s（三条错峰 0.8/4.2/7.5s），光点 3.6s→6s（各光点延迟同步等比缩放）。
 - 主界面展示主文字改用 React Bits `BlurText`（JavaScript + CSS 变体，`motion/react` 驱动）：认证页标题与用户中心问候语按词错峰从模糊中浮现（`direction="top"`、delay 100–120ms、stepDuration 0.35s），替代原 StrokeText 描边写字动画；支持按词/按字母、上下方向、自定义关键帧与完成回调，进入视口才触发；新增依赖 `motion`（生产按需分包，`npm audit` 0 漏洞）；`prefers-reduced-motion` 下静态渲染整段文本，不产生模糊位移动画。
 - 光效强化并覆盖管理后台：科技氛围层升级为三条错峰扫掠光束（8s 周期）、8 枚呼吸光点、更明显的缓移网格；认证卡新增浅水绿呼吸辉光（`card-halo`）；极光层新增第四枚暖沙光斑并整体提亮（浅色 +20~25%、深色 +25% 透明度）；管理后台接入淡版极光层与科技氛围层（`aurora-soft` + `TechAmbience soft`，表格区仍为不透明表面，可读性不受影响）。全部动效仍仅动 `transform/opacity/background-position`，`prefers-reduced-motion` 下自动单帧。

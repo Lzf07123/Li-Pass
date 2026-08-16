@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 
 import { adminBlocksApi, adminClientsApi } from "../api/client";
-import { AnimatedNumber } from "../components/AnimatedNumber";
+import { CountUp } from "../components/bits/CountUp";
 import { AsyncButton } from "../components/AsyncButton";
 import { ConfirmDialog } from "../components/ConfirmDialog";
 import { Modal } from "../components/Modal";
@@ -328,7 +328,7 @@ export function AdminClientsPage() {
       <h2 className="text-lg font-semibold text-foreground">
         授权网站管理
         <span className="ml-2 text-sm font-normal text-muted">
-          共 <AnimatedNumber value={clients.length} /> 个应用
+          共 <CountUp from={0} to={clients.length} duration={0.8} className="tabular-nums" /> 个应用
         </span>
       </h2>
 

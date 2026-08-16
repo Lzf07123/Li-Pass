@@ -37,9 +37,9 @@ function listResponse(items: unknown[], total: number) {
 describe("AdminSessionsPanel", () => {
   beforeEach(() => {
     vi.unstubAllGlobals();
-    // AnimatedNumber 在 prefers-reduced-motion 下直接显示目标值，避免依赖
+    // CountUp 在 prefers-reduced-motion 下直接显示目标值，避免依赖
     // requestAnimationFrame 的墙钟动画（CI 上不稳定）。动画行为由
-    // AnimatedNumber.test.tsx 单独覆盖。
+    // CountUp.test.tsx 单独覆盖。
     vi.stubGlobal(
       "matchMedia",
       vi.fn().mockReturnValue({ matches: true, addEventListener: vi.fn() })

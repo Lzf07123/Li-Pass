@@ -18,7 +18,6 @@ import type {
   TwoFaStatus,
   UserOut,
 } from "../api/types";
-import { AnimatedNumber } from "../components/AnimatedNumber";
 import { AppHeader } from "../components/AppHeader";
 import { AsyncButton } from "../components/AsyncButton";
 import { ConfirmDialog } from "../components/ConfirmDialog";
@@ -37,6 +36,7 @@ import { useToast } from "../hooks/useToast";
 import { ACCENT_CLASSES, accentFor } from "../lib/accent";
 import { AuroraBackground } from "../components/bits/AuroraBackground";
 import { BlurText } from "../components/bits/BlurText";
+import { CountUp } from "../components/bits/CountUp";
 import { FadeIn } from "../components/bits/FadeIn";
 import { LineIcon } from "../components/bits/LineIcon";
 import { TechAmbience } from "../components/bits/TechAmbience";
@@ -1128,7 +1128,7 @@ export function DashboardPage() {
                   <LineIcon name="monitor" className="h-4 w-4 text-accent-ice" />
                   登录设备
                   <span className="text-sm font-normal text-muted">
-                    共 <AnimatedNumber value={sessions.length} /> 个会话
+                    共 <CountUp from={0} to={sessions.length} duration={0.8} className="tabular-nums" /> 个会话
                   </span>
                 </span>
                 <span aria-hidden="true" className="flow-rule mt-2 w-14" />
@@ -1249,7 +1249,7 @@ export function DashboardPage() {
                 <LineIcon name="grid" className="h-4 w-4 text-accent-mint" />
                 应用广场
                 <span className="text-sm font-normal text-muted">
-                  共 <AnimatedNumber value={apps.length} /> 个网站
+                  共 <CountUp from={0} to={apps.length} duration={0.8} className="tabular-nums" /> 个网站
                 </span>
               </span>
               <span aria-hidden="true" className="flow-rule mt-2 w-14" />

@@ -157,6 +157,15 @@ stable 哈希分配见 `frontend/src/lib/accent.ts` 的 `accentFor(id)`；Bento 
   `animationFrom/animationTo/easing` 自定义与 `onAnimationComplete` 回调。
 - 无障碍：`prefers-reduced-motion: reduce` 时静态渲染整段文本，跳过模糊位移动画。
 
+### 数字滚动（`CountUp`）
+
+- 位置：`frontend/src/components/bits/CountUp.tsx`，React Bits CountUp 的 TypeScript 移植版
+  （`motion/react` 弹簧：`damping=20+40/duration`、`stiffness=100/duration`）。
+- 用法：用户中心/会话监控/用户管理/应用管理/审计日志的「共 N 个…」计数，
+  `from={0}`、`duration={0.8}`、`className="tabular-nums"`；支持 `separator` 千位分隔、
+  `direction="up|down"`、`startWhen` 视口触发与 `onStart/onEnd` 回调。
+- 无障碍：`prefers-reduced-motion` 或无 `requestAnimationFrame` 的环境直接显示目标值，不做墙钟动画。
+
 ### Bento 展示网格（`MagicBento` / `.magic-bento-card`）
 
 - 位置：`frontend/src/components/bits/MagicBento.tsx` + `MagicBento.css`，后台「数据统计」概览卡片使用；基于 gsap，移植 React Bits MagicBento。

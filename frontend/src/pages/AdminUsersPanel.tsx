@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 
 import { adminUsersApi, twofaApi } from "../api/client";
-import { AnimatedNumber } from "../components/AnimatedNumber";
+import { CountUp } from "../components/bits/CountUp";
 import { AsyncButton } from "../components/AsyncButton";
 import { ConfirmDialog } from "../components/ConfirmDialog";
 import { Modal } from "../components/Modal";
@@ -477,7 +477,7 @@ export function AdminUsersPanel({ currentAdminId }: { currentAdminId: string }) 
         <h2 className="text-lg font-semibold text-foreground">
           用户管理
           <span className="ml-2 text-sm font-normal text-muted">
-            共 <AnimatedNumber value={users.length} /> 个账号
+            共 <CountUp from={0} to={users.length} duration={0.8} className="tabular-nums" /> 个账号
           </span>
         </h2>
         <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">

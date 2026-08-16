@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 
 import { adminSessionsApi } from "../api/client";
 import type { AdminSessionOut } from "../api/types";
-import { AnimatedNumber } from "../components/AnimatedNumber";
+import { CountUp } from "../components/bits/CountUp";
 import { AsyncButton } from "../components/AsyncButton";
 import { ConfirmDialog } from "../components/ConfirmDialog";
 import { useAsyncAction } from "../hooks/useAsyncAction";
@@ -169,7 +169,7 @@ export function AdminSessionsPanel() {
         <h2 className="text-lg font-semibold text-foreground">
           会话监控
           <span className="ml-2 text-sm font-normal text-muted">
-            共 <AnimatedNumber value={total} /> 个在线会话
+            共 <CountUp from={0} to={total} duration={0.8} className="tabular-nums" /> 个在线会话
           </span>
         </h2>
         <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
