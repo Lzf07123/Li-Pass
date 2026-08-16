@@ -101,4 +101,27 @@ describe("MagicBento", () => {
       "/admin/sessions",
     );
   });
+
+  it("item 级 accent 覆盖卡片的辉光与标签色变量", () => {
+    render(
+      <MagicBento
+        enableSpotlight={false}
+        items={[
+          {
+            label: "账号总数",
+            title: "128",
+            description: "",
+            emphasize: true,
+            accent: { rgb: "45, 212, 191", hex: "#2dd4bf" },
+          },
+        ]}
+      />,
+    );
+
+    const card = document.querySelector(
+      ".magic-bento-card",
+    ) as HTMLElement;
+    expect(card.style.getPropertyValue("--glow-color")).toBe("45, 212, 191");
+    expect(card.style.getPropertyValue("--bento-label")).toBe("#2dd4bf");
+  });
 });
