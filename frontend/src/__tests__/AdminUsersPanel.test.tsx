@@ -59,4 +59,26 @@ describe("AdminUsersPanel", () => {
       expect(screen.getByText("网络异常")).toBeInTheDocument()
     );
   });
+
+  it("批量启用只在被点击的按钮上显示处理中", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(usersResponse())
+      .mockImplementationOnce(() => new Promise(() => {}));
+    vi.stubGlobal("fetch", fetchMock);
+    renderWithProviders(<AdminUsersPanel currentAdminId="admin-1" />);
+
+    await screen.findByText("alice@example.com");
+    fireEvent.click(screen.getByLabelText("选择 alice@example.com"));
+    fireEvent.click(screen.getByRole("button", { name: "批量启用" }));
+
+    const pendingButton = await screen.findByRole("button", {
+      name: "处理中…",
+    });
+    expect(pendingButton).toHaveAttribute("aria-busy", "true");
+
+    const disableButton = screen.getByRole("button", { name: "批量禁用" });
+    expect(disableButton).not.toHaveAttribute("aria-busy");
+    expect(disableButton).toBeDisabled();
+  });
 });

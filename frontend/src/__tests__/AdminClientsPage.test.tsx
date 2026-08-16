@@ -34,6 +34,55 @@ describe("AdminClientsPage", () => {
     await waitFor(() => expect(screen.getByText("Demo")).toBeInTheDocument());
   });
 
+  it("停用某个应用时仅该行按钮显示处理中", async () => {
+    const client = (id: string, name: string) => ({
+      id,
+      client_id: `cli_${id}`,
+      name,
+      description: "",
+      logo_url: null,
+      redirect_uris: ["http://localhost:3001/callback"],
+      scopes: ["openid"],
+      require_consent_every_time: false,
+      is_active: true,
+      created_at: "2026-08-12T00:00:00Z",
+    });
+    const fetchMock = vi.fn((input: RequestInfo | URL) => {
+      const url = String(input);
+      if (/\/api\/v1\/admin\/clients\/[^/]+$/.test(url)) {
+        return new Promise(() => {});
+      }
+      if (url.includes("/blocks")) {
+        return Promise.resolve(
+          new Response("[]", {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          }),
+        );
+      }
+      return Promise.resolve(
+        new Response(JSON.stringify([client("1", "Demo"), client("2", "Blog")]), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        }),
+      );
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    renderWithProviders(<AdminClientsPage />);
+
+    await waitFor(() => expect(screen.getByText("Blog")).toBeInTheDocument());
+    fireEvent.click(screen.getAllByRole("button", { name: "停用" })[0]);
+
+    const pendingButton = await screen.findByRole("button", {
+      name: "处理中…",
+    });
+    expect(pendingButton).toHaveAttribute("aria-busy", "true");
+
+    const remaining = screen.getByRole("button", { name: "停用" });
+    expect(remaining).not.toHaveAttribute("aria-busy");
+    expect(remaining).toBeDisabled();
+  });
+
   it("渲染黑名单列表", async () => {
     const fetchMock = vi
       .fn()
