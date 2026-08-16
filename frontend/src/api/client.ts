@@ -42,6 +42,11 @@ async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
       ...(init.headers ?? {}),
     },
   });
+  if (response.status === 401 && isSessionGuardedPath(path)) {
+    // 会话被吊销/过期：通知全局监听器清空用户态并带 next 跳登录。
+    // 登录/找回密码等认证端点自身的 401 不触发，避免误跳。
+    window.dispatchEvent(new Event("lipass:unauthorized"));
+  }
   if (response.status === 204) {
     return undefined as T;
   }
@@ -63,6 +68,14 @@ async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
     throw new Error(`请求失败：${response.status}`);
   }
   return response.json() as Promise<T>;
+}
+
+function isSessionGuardedPath(path: string): boolean {
+  return (
+    !path.startsWith("/api/v1/auth/") &&
+    !path.startsWith("/oauth2/") &&
+    !path.startsWith("/api/v1/oauth/logout-requests/")
+  );
 }
 
 export const authApi = {

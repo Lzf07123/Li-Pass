@@ -75,7 +75,13 @@ export function AdminPage() {
     authApi
       .me()
       .then(setMe)
-      .catch(() => navigate("/login"));
+      .catch(() =>
+        navigate(
+          `/login?next=${encodeURIComponent(
+            window.location.pathname + window.location.search,
+          )}`,
+        ),
+      );
   }, [navigate]);
 
   if (!segment || tab !== segment) {

@@ -1,0 +1,14 @@
+/* 兜底背景：CSS bundle 未就绪时避免刷新瞬间白屏。
+   外链以兼容生产 CSP 的 style-src 'self'（内联 <style> 会被拦截）。 */
+html,
+body,
+#root {
+  background-color: #f8fafc;
+  min-height: 100%;
+}
+
+html.dark,
+html.dark body,
+html.dark #root {
+  background-color: #0b1220;
+}

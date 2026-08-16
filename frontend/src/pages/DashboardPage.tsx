@@ -115,7 +115,13 @@ export function DashboardPage() {
           })
           .catch(() => undefined);
       })
-      .catch(() => navigate("/login"));
+      .catch(() =>
+        navigate(
+          `/login?next=${encodeURIComponent(
+            window.location.pathname + window.location.search,
+          )}`,
+        ),
+      );
     return () => {
       cancelled = true;
     };

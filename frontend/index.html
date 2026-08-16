@@ -19,32 +19,9 @@
       content="Li&amp;Pass —— 统一登录门户，一次注册，通行所有授权网站。"
     />
     <title>Li&amp;Pass · 统一登录门户</title>
-    <script>
-      // 在首帧渲染前应用主题，避免明暗闪烁
-      (function () {
-        try {
-          var stored = localStorage.getItem("portal-theme");
-          var dark = stored
-            ? stored === "dark"
-            : window.matchMedia("(prefers-color-scheme: dark)").matches;
-          if (dark) document.documentElement.classList.add("dark");
-        } catch (e) {}
-      })();
-    </script>
-    <style>
-      /* 兜底背景：CSS bundle 未就绪时避免刷新瞬间白屏 */
-      html,
-      body,
-      #root {
-        background-color: #f8fafc;
-        min-height: 100%;
-      }
-      html.dark,
-      html.dark body,
-      html.dark #root {
-        background-color: #0b1220;
-      }
-    </style>
+    <!-- 首帧前应用主题与兜底背景：外链以兼容生产 CSP（default-src 'self'） -->
+    <link rel="stylesheet" href="/preflight.css" />
+    <script src="/theme-init.js"></script>
   </head>
   <body>
     <div id="root"></div>
