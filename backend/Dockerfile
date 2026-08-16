@@ -46,4 +46,4 @@ RUN mkdir -p /app/keys /app/uploads && chown -R 10001:10001 /app
 USER 10001
 
 EXPOSE 8000
-CMD ["sh", "-c", "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000 --proxy-headers --forwarded-allow-ips \"${FORWARDED_ALLOW_IPS:-127.0.0.1}\" --workers \"${UVICORN_WORKERS:-1}\" --limit-max-requests 10000"]
+CMD ["sh", "-c", "alembic upgrade head && exec uvicorn app.main:app --host 0.0.0.0 --port 8000 --proxy-headers --forwarded-allow-ips \"${FORWARDED_ALLOW_IPS:-127.0.0.1}\" --workers \"${UVICORN_WORKERS:-1}\" --limit-max-requests 10000"]
