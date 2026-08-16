@@ -18,6 +18,7 @@ def test_recovery_codes_roundtrip(db_session) -> None:
     db_session.refresh(user)
     codes = generate_recovery_codes(db_session, user)
     assert len(codes) == 10
+    assert all(len(code) == 32 for code in codes)
     assert consume_recovery_code(db_session, user, codes[0]) is True
     assert consume_recovery_code(db_session, user, codes[0]) is False
     assert consume_recovery_code(db_session, user, codes[1]) is True

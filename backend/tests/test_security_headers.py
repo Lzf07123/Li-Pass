@@ -46,7 +46,12 @@ def test_security_headers(client) -> None:
     assert response.headers["x-content-type-options"] == "nosniff"
     assert response.headers["x-frame-options"] == "DENY"
     assert response.headers["referrer-policy"] == "no-referrer"
-    assert "default-src 'self'" in response.headers["content-security-policy"]
+    csp = response.headers["content-security-policy"]
+    assert "default-src 'self'" in csp
+    assert "object-src 'none'" in csp
+    assert "base-uri 'self'" in csp
+    assert "form-action 'self'" in csp
+    assert "frame-ancestors 'none'" in csp
     assert response.headers["accept-ch"] == (
         "Sec-CH-UA-Model, Sec-CH-UA-Platform-Version"
     )

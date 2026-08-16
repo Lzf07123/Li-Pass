@@ -74,6 +74,7 @@ from app.services.trusted_devices import (
     TRUSTED_DEVICE_COOKIE,
     find_valid,
     grant,
+    revoke_all as revoke_all_trusted_devices,
 )
 
 router = APIRouter(prefix="/api/v1/auth", tags=["auth"])
@@ -908,6 +909,16 @@ def confirm_password_reset(
     ).all()
     for session in sessions:
         session.revoked_at = now
+    revoked_trusted = revoke_all_trusted_devices(db, user.id)
     db.commit()
     log_audit(db, "user", str(user.id), "password_reset", category="auth")
+    if revoked_trusted:
+        log_audit(
+            db,
+            "user",
+            str(user.id),
+            "trusted_device_revoked",
+            category="security",
+            detail={"reason": "password_reset", "count": revoked_trusted},
+        )
     return {"message": "密码已重置"}

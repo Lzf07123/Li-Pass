@@ -287,7 +287,8 @@ def _build_csp(settings) -> str:
     )
     return (
         f"default-src 'self'; connect-src 'self' {_origin(settings.jwt_issuer)}; "
-        f"img-src 'self' data:; style-src {style_src}"
+        f"img-src 'self' data:; style-src {style_src}; object-src 'none'; "
+        f"base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
     )
 
 

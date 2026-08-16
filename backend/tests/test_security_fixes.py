@@ -79,7 +79,7 @@ def test_recovery_codes_use_hmac_and_high_entropy(client, captured_email, db_ses
         },
     ).json()
     code = enable["recovery_codes"][0]
-    assert len(code) == 16
+    assert len(code) == 32
     stored = db_session.scalar(select(RecoveryCode)).code_hash
     assert stored != hashlib.sha256(code.encode()).hexdigest()
 
