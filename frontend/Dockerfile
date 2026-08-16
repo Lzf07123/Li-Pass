@@ -26,6 +26,9 @@ COPY package*.json .npmrc ./
 RUN --mount=type=cache,target=/root/.npm \
     npm ci --no-audit --no-fund
 COPY . .
+# brand.ts 不在仓库跟踪（示例文件为 brand.example.ts）：构建上下文中已放置
+# 自定义品牌配置时优先保留，否则用示例兜底，保证全新检出/CI 外构建可复现。
+RUN test -f src/lib/brand.ts || cp src/lib/brand.example.ts src/lib/brand.ts
 RUN npm run build
 
 FROM ${IMAGE_REGISTRY}nginx:1.27-alpine
