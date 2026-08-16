@@ -15,6 +15,7 @@
 
 ### 功能
 
+- 视觉设计全量方案定稿：新增 `design-system/lipass/DESIGN-SOLUTION.md`（决策时间线、双主题全量令牌、组件/光效/文字计数动效、按钮状态规范与验收清单），BRAND.md/MASTER.md 增补指引；并同步提炼进上层 Li&Design 模板仓库（`REUSABLE-BRAND-SCHEME.md` V1.2 + `reusable-tokens.template.css` V1.2：槽位 20→22 项、新增六强调色/次级色/按钮半透明着色/流光线/科技光效令牌，占位符基准 60→128 处，新增「关键帧必须定义」与「按钮 pending 单一」验收项）。
 - 用户中心问候语「你好，{昵称}」修正为真正居中（`BlurText` 容器加 `justify-center`，此前 flex 布局导致左对齐）；项目内全部计数展示统一接入 `CountUp`——数据统计六张概览卡数值、认证方式分布条数量、地域汇总徽章（海外/内网/其它）、会话监控「全部下线」确认弹窗中的在线数、应用广场「已登录 · N 台设备」等均改为弹簧滚动计数；图表坐标轴、时间戳、百分比与字节等度量值保持静态文本。
 - 计数组件改用 React Bits `CountUp`（JavaScript + CSS 变体，`motion/react` 弹簧驱动）：用户中心与四个管理面板的「共 N 个…」计数统一由新 `CountUp`（`from=0`、`duration=0.8s`、`tabular-nums`）渲染，支持千位分隔、up/down 方向、视口触发与 onStart/onEnd 回调；移除旧 `AnimatedNumber` 组件及其测试；`prefers-reduced-motion` 或无 `requestAnimationFrame` 的环境直接显示目标值。复用已安装的 `motion`，无新增依赖。
 - 极光层节奏放慢：四枚光斑周期由 11/13/16/14s 调整为 18/22/28/24s，回归舒缓的呼吸感；随后扫掠光束与光点按同比例（约 1.67×）放慢——光束 6s→10s（三条错峰 0.8/4.2/7.5s），光点 3.6s→6s（各光点延迟同步等比缩放）。

@@ -193,11 +193,11 @@ def test_resend_failure_preserves_old_code(
             self.base = base
             self.fail_next = True
 
-        def send_verification(self, to, code):
+        def send_verification(self, to, code, kind=auth_module.VerificationKind.register):
             if self.fail_next:
                 self.fail_next = False
                 raise RuntimeError("smtp down")
-            self.base.send_verification(to, code)
+            self.base.send_verification(to, code, kind)
 
     monkeypatch.setattr(
         "app.api.routes.auth.get_email_service",

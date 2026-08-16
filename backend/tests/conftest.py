@@ -22,6 +22,7 @@ import app.models  # noqa: F401  确保模型注册到 Base.metadata
 from app.core.db import get_db
 from app.main import create_app
 from app.models.base import Base
+from app.services.email_templates import VerificationKind
 
 
 @pytest.fixture(autouse=True)
@@ -86,8 +87,13 @@ class CapturingEmailService:
     def __init__(self) -> None:
         self.messages: list[tuple[str, str, str]] = []
 
-    def send_verification(self, to: str, code: str) -> None:
-        self.messages.append(("verification", to, code))
+    def send_verification(
+        self,
+        to: str,
+        code: str,
+        kind: VerificationKind = VerificationKind.register,
+    ) -> None:
+        self.messages.append(("verification", to, code, kind.value))
 
     def send_password_reset(self, to: str, code: str) -> None:
         self.messages.append(("reset", to, code))

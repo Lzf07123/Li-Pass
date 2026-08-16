@@ -51,6 +51,7 @@ from app.security.passwords import (
 )
 from app.security.tokens import generate_token, hash_token
 from app.services.email import get_email_service
+from app.services.email_templates import VerificationKind
 from app.services.otps import create_otp, otp_attempts_exhausted, verify_otp
 from app.services.audit import log_audit, log_rate_limit_rejected_once
 from app.services.federated_logout import (
@@ -203,7 +204,9 @@ def register(
         )
         code = create_otp(db, OtpPurpose.register, email)
         try:
-            get_email_service().send_verification(email, code)
+            get_email_service().send_verification(
+                email, code, VerificationKind.register
+            )
             db.commit()
         except Exception:
             # 邮件发送失败：回滚验证码变更（用户行已提交，保持未验证状态），
@@ -304,7 +307,9 @@ def resend_verify_email(
     if user is not None and user.email_verified_at is None:
         code = create_otp(db, OtpPurpose.register, email)
         try:
-            get_email_service().send_verification(email, code)
+            get_email_service().send_verification(
+                email, code, VerificationKind.register
+            )
             db.commit()
             log_audit(
                 db,
@@ -671,7 +676,9 @@ def send_twofa_code(
     )
     code = create_otp(db, OtpPurpose.two_fa, user.email)
     try:
-        get_email_service().send_verification(user.email, code)
+        get_email_service().send_verification(
+            user.email, code, VerificationKind.login_2fa
+        )
         db.commit()
     except Exception:
         db.rollback()

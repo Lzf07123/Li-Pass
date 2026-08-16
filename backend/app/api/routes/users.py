@@ -49,6 +49,7 @@ from app.services.device_info import describe_session_device
 from app.services.avatar_cleanup import delete_avatar_file
 from app.services.audit import log_audit, log_rate_limit_rejected_once, mask_phone
 from app.services.email import get_email_service
+from app.services.email_templates import VerificationKind
 from app.services.federated_logout import (
     collect_logout_targets,
     collect_logout_targets_for_user_client,
@@ -187,7 +188,9 @@ def send_stepup_code(
         )
     code = create_otp(db, OtpPurpose.two_fa, user.email)
     try:
-        get_email_service().send_verification(user.email, code)
+        get_email_service().send_verification(
+            user.email, code, VerificationKind.step_up
+        )
         db.commit()
     except Exception:
         db.rollback()
@@ -341,7 +344,9 @@ def request_email_change(
     )
     code = create_otp(db, OtpPurpose.change_email, new_email)
     try:
-        get_email_service().send_verification(new_email, code)
+        get_email_service().send_verification(
+            new_email, code, VerificationKind.change_email
+        )
         db.commit()
     except Exception:
         db.rollback()
@@ -518,7 +523,9 @@ def send_phone_bind_code(
         )
     code = create_otp(db, OtpPurpose.bind_phone, user.email)
     try:
-        get_email_service().send_verification(user.email, code)
+        get_email_service().send_verification(
+            user.email, code, VerificationKind.bind_phone
+        )
         db.commit()
         log_audit(
             db,

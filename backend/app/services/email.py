@@ -10,12 +10,15 @@ from email.message import EmailMessage
 from app.core.config import Settings, get_settings
 from app.services.email_templates import (
     LOGO_BYTES,
+    VerificationKind,
+    password_reset_copy,
     render_account_deleted,
     render_custom_notification,
     render_email_changed,
     render_invite,
     render_password_reset,
     render_verification,
+    verification_copy,
 )
 
 logger = logging.getLogger(__name__)
@@ -32,7 +35,12 @@ TRANSIENT_SMTP_ERRORS = (
 
 class EmailService(ABC):
     @abstractmethod
-    def send_verification(self, to: str, code: str) -> None: ...
+    def send_verification(
+        self,
+        to: str,
+        code: str,
+        kind: VerificationKind = VerificationKind.register,
+    ) -> None: ...
 
     @abstractmethod
     def send_password_reset(self, to: str, code: str) -> None: ...
@@ -82,11 +90,16 @@ class ConsoleEmailService(EmailService):
     def _send(self, subject: str, to: str, code: str) -> None:
         print(f"[email:{get_settings().email_backend}] {subject} -> {to}: code={code}")
 
-    def send_verification(self, to: str, code: str) -> None:
-        self._send("verify your email", to, code)
+    def send_verification(
+        self,
+        to: str,
+        code: str,
+        kind: VerificationKind = VerificationKind.register,
+    ) -> None:
+        self._send(verification_copy(kind)["subject"], to, code)
 
     def send_password_reset(self, to: str, code: str) -> None:
-        self._send("reset your password", to, code)
+        self._send(password_reset_copy()["subject"], to, code)
 
     def send_invite(self, to: str, link: str) -> None:
         print(f"[email:{get_settings().email_backend}] invite -> {to}: {link}")
@@ -231,19 +244,26 @@ class SMTPEmailService(EmailService):
         )
         raise last_error or RuntimeError("SMTP 发送失败")
 
-    def send_verification(self, to: str, code: str) -> None:
+    def send_verification(
+        self,
+        to: str,
+        code: str,
+        kind: VerificationKind = VerificationKind.register,
+    ) -> None:
+        copy = verification_copy(kind)
         self._send_with_retry(
             to,
-            "Li&Pass 邮箱验证码",
-            f"你的验证码是 {code}，10 分钟内有效。",
-            render_verification(code),
+            copy["subject"],
+            copy["plain"].format(code=code),
+            render_verification(code, kind),
         )
 
     def send_password_reset(self, to: str, code: str) -> None:
+        copy = password_reset_copy()
         self._send_with_retry(
             to,
-            "Li&Pass 重置密码",
-            f"你的重置验证码是 {code}，10 分钟内有效。",
+            copy["subject"],
+            copy["plain"].format(code=code),
             render_password_reset(code),
         )
 
