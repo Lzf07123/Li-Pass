@@ -168,7 +168,9 @@ docker compose -f docker-compose.yaml -f docker-compose.hot.yaml \
 - backend：代码放入 `backend-code` 卷、`HOT_UVICORN_WORKERS` 默认 2；更新 = 写卷 + SIGHUP，
   uvicorn 逐个 worker 优雅回收，在途请求不中断；要求 `PENDING_REQUEST_STORE` /
   `TWOFA_STORE` / `RATE_LIMITER` 均为 `redis`。
-- frontend：产物放入 `frontend-web` 卷；更新 = 原地换装 + `nginx -s reload`。
+- frontend：产物放入 `frontend-web` 卷；`scripts/hot_update.sh frontend` 会在一次性
+  node 容器内自动 `npm ci`（package-lock 哈希增量缓存）+ `npm run build`（`VITE_*`
+  自动从 `.env` 注入），再原地换装 + `nginx -s reload`；`--skip-build` 可复用已有 `dist`。
 - gateway：模板重新 envsubst + `nginx -s reload`。
 
 更新、快照、SHA256 校验与回滚统一走 `scripts/hot_update.sh`（用法见

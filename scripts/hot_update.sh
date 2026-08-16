@@ -6,7 +6,8 @@
 #   docker compose -f docker-compose.yaml -f docker-compose.hot.yaml --profile bundle up -d --build
 #
 # 用法：
-#   scripts/hot_update.sh frontend                     # 前端静态产物热换装 + nginx reload
+#   scripts/hot_update.sh frontend                     # 自动构建 dist 并热换装 + nginx reload
+#   scripts/hot_update.sh frontend --skip-build        # 复用已有 dist，跳过自动构建
 #   scripts/hot_update.sh backend                      # 后端代码零停机回收（可选迁移）
 #   scripts/hot_update.sh backend --skip-migrations
 #   scripts/hot_update.sh gateway                      # 网关配置重新 envsubst + reload
@@ -28,8 +29,20 @@ COMPOSE_FILES=(-f "$ROOT_DIR/docker-compose.yaml" -f "$ROOT_DIR/docker-compose.h
 
 DRY_RUN=0
 SKIP_MIGRATIONS=0
+SKIP_BUILD=0
 ROLLBACK_TS=""
 SUBCOMMAND=""
+FRONTEND_BUILD_IMAGE="${FRONTEND_BUILD_IMAGE:-node:22-alpine}"
+FRONTEND_DEPS_VOLUME="${FRONTEND_DEPS_VOLUME:-lipass-frontend-deps}"
+
+CLEANUP=()
+cleanup() {
+  local path
+  for path in "${CLEANUP[@]:-}"; do
+    [[ -n "$path" ]] && rm -rf "$path"
+  done
+}
+trap cleanup EXIT
 
 log()  { printf '%s\n' "$*"; }
 info() { printf '[hot_update] %s\n' "$*"; }
@@ -39,7 +52,8 @@ die()  { printf '[hot_update] ERROR: %s\n' "$*" >&2; exit 1; }
 usage() {
   cat <<'EOF'
 用法:
-  scripts/hot_update.sh frontend                     # 前端静态产物热换装 + nginx reload
+  scripts/hot_update.sh frontend                     # 自动构建 dist 并热换装 + nginx reload
+  scripts/hot_update.sh frontend --skip-build        # 复用已有 dist，跳过自动构建
   scripts/hot_update.sh backend                      # 后端代码零停机回收（可选迁移）
   scripts/hot_update.sh backend --skip-migrations
   scripts/hot_update.sh gateway                      # 网关配置重新 envsubst + reload
@@ -162,8 +176,12 @@ update_frontend() {
   local cid
   ensure_hot_mode
   cid="$(service_container frontend)"
-  [[ -f "$ROOT_DIR/frontend/dist/index.html" ]] ||
-    die "缺少 frontend/dist：请先在仓库执行 (cd frontend && npm ci && npm run build)"
+  if [[ $SKIP_BUILD -eq 1 ]]; then
+    [[ -f "$ROOT_DIR/frontend/dist/index.html" ]] ||
+      die "缺少 frontend/dist：--skip-build 要求已有构建产物"
+  else
+    build_frontend
+  fi
   info "前端热换装开始（${TS}）"
   snapshot frontend /usr/share/nginx/html frontend-html
   mutate docker cp "$ROOT_DIR/frontend/dist/." "$cid:/usr/share/nginx/html/"
@@ -256,7 +274,7 @@ status() {
 acquire_lock() {
   if mkdir "$LOCK_DIR" 2>/dev/null; then
     printf '%s\n' $$ >"$LOCK_DIR/pid"
-    trap 'rm -rf "$LOCK_DIR"' EXIT
+    CLEANUP+=("$LOCK_DIR")
     return 0
   fi
   local pid
@@ -265,10 +283,50 @@ acquire_lock() {
     warn "检测到残留锁（pid=$pid 已不存在），清理后重试"
     rm -rf "$LOCK_DIR"
     mkdir "$LOCK_DIR" && printf '%s\n' $$ >"$LOCK_DIR/pid"
-    trap 'rm -rf "$LOCK_DIR"' EXIT
+    CLEANUP+=("$LOCK_DIR")
     return 0
   fi
   die "另一热更新正在进行（锁: $LOCK_DIR）"
+}
+
+vite_env_file() {
+  local env_file line key value
+  env_file="$(mktemp "${TMPDIR:-/tmp}/lipass-vite-env.XXXXXX")"
+  CLEANUP+=("$env_file")
+  if [[ -f "$ROOT_DIR/.env" ]]; then
+    while IFS= read -r line || [[ -n "$line" ]]; do
+      line="${line#"${line%%[![:space:]]*}"}"
+      [[ "$line" == VITE_*=* ]] || continue
+      key="${line%%=*}"
+      value="${line#*=}"
+      if [[ "$value" == \"*\" ]]; then value="${value#\"}"; value="${value%\"}"; fi
+      if [[ "$value" == \'*\' ]]; then value="${value#\'}"; value="${value%\'}"; fi
+      printf '%s=%s\n' "$key" "$value" >>"$env_file"
+    done <"$ROOT_DIR/.env"
+  fi
+  printf '%s' "$env_file"
+}
+
+build_frontend() {
+  local env_file
+  env_file="$(vite_env_file)"
+  info "前端自动构建开始（镜像 ${FRONTEND_BUILD_IMAGE}，依赖缓存卷 ${FRONTEND_DEPS_VOLUME}）"
+  mutate docker run --rm \
+    -v "$ROOT_DIR/frontend:/app" \
+    -v "$FRONTEND_DEPS_VOLUME:/app/node_modules" \
+    --env-file "$env_file" \
+    -w /app \
+    "$FRONTEND_BUILD_IMAGE" sh -c '
+      lock_hash="$(sha256sum package-lock.json | awk "{print \$1}")"
+      if [ ! -x node_modules/.bin/vite ] ||
+         [ "$(cat node_modules/.lipass-lock-hash 2>/dev/null || true)" != "$lock_hash" ]; then
+        npm ci --no-audit --no-fund
+        echo "$lock_hash" > node_modules/.lipass-lock-hash
+      fi
+      test -f src/lib/brand.ts || cp src/lib/brand.example.ts src/lib/brand.ts
+      npm run build'
+  [[ -f "$ROOT_DIR/frontend/dist/index.html" ]] || die "前端构建完成但缺少 dist/index.html"
+  info "前端自动构建完成"
 }
 
 TS="$(date +%Y%m%d-%H%M%S)"
@@ -277,6 +335,7 @@ while [[ $# -gt 0 ]]; do
   case "$1" in
     --dry-run) DRY_RUN=1; shift ;;
     --skip-migrations) SKIP_MIGRATIONS=1; shift ;;
+    --skip-build) SKIP_BUILD=1; shift ;;
     --rollback)
       ROLLBACK_TS="${2:-}"
       [[ -n "$ROLLBACK_TS" ]] || die "--rollback 需要时间戳目录名参数"

@@ -360,7 +360,7 @@ docker compose -f docker-compose.yaml -f docker-compose.hot.yaml \
 
 | 组件 | 机制 | 前置条件 |
 | --- | --- | --- |
-| frontend | 产物由 `frontend-web` 卷承载；`docker cp` 原地换装 + `nginx -s reload`（index.html 本就 no-cache，带 hash 资产天然多版本并存） | 本地已执行 `cd frontend && npm ci && npm run build` |
+| frontend | 产物由 `frontend-web` 卷承载；脚本自动构建后 `docker cp` 原地换装 + `nginx -s reload`（index.html 本就 no-cache，带 hash 资产天然多版本并存） | 能访问 npm 镜像（脚本在一次性 node 容器内 `npm ci`，依赖缓存于 `lipass-frontend-deps` 卷）；或 `--skip-build` 复用已有 `dist` |
 | backend | 代码由 `backend-code` 卷承载；`docker cp` 换码后向容器发 SIGHUP，uvicorn supervisor 逐个 worker 优雅回收（一个 worker 停、其余继续接流量） | `HOT_UVICORN_WORKERS≥2`（覆盖文件默认 2）；`PENDING_REQUEST_STORE/TWOFA_STORE/RATE_LIMITER=redis`；后端健康 |
 | gateway | `/docker-entrypoint.d/20-envsubst-on-templates.sh` 重新渲染模板 + `nginx -s reload` | 无 |
 
@@ -368,6 +368,7 @@ docker compose -f docker-compose.yaml -f docker-compose.hot.yaml \
 
 ```bash
 bash scripts/hot_update.sh frontend               # 前端热换装
+bash scripts/hot_update.sh frontend --skip-build  # 复用已有 dist，跳过自动构建
 bash scripts/hot_update.sh backend                # 后端零停机更新（自动 alembic upgrade head）
 bash scripts/hot_update.sh backend --skip-migrations
 bash scripts/hot_update.sh gateway                # 网关配置热更新
@@ -376,7 +377,10 @@ bash scripts/hot_update.sh --rollback <ts>        # 用 deploy-backups/<ts> 快�
 bash scripts/hot_update.sh status                 # 只读状态检查
 ```
 
-脚本会做宿主侧快照 + SHA256 清单（`deploy-backups/`，已 gitignore）、互斥锁防并发更新、
+脚本会自动构建前端产物（一次性 `node:22-alpine` 容器：`npm ci` 依赖缓存卷 +
+`package-lock.json` 哈希增量校验 + `npm run build`，`VITE_*` 从根 `.env` 注入；
+构建镜像可用 `FRONTEND_BUILD_IMAGE` 覆盖，缓存卷可用 `FRONTEND_DEPS_VOLUME` 覆盖），
+并做宿主侧快照 + SHA256 清单（`deploy-backups/`，已 gitignore）、互斥锁防并发更新、
 更新后健康检查与 SIGHUP 日志确认；所有子命令支持 `--dry-run` 预览。
 
 边界与注意：
