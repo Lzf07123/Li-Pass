@@ -62,6 +62,10 @@ class AdminCreateUser(BaseModel):
     password: str = Field(min_length=8, max_length=128)
     role: UserRole | None = None
     status: UserStatus | None = None
+    # 代建管理员等于即时提权：与「角色变更」一致，必须密码复核（step-up）。
+    current_password: str | None = Field(
+        default=None, min_length=1, max_length=128
+    )
 
 
 class AdminInviteUser(BaseModel):
@@ -193,6 +197,11 @@ def create_user(
     email = payload.email.lower()
     if db.scalar(select(User).where(User.email == email)) is not None:
         raise HTTPException(status.HTTP_409_CONFLICT, "该邮箱已注册")
+    if payload.role == UserRole.admin:
+        session = get_current_session(request, db)
+        authorize_stepup(
+            request, db, actor, session, payload.current_password
+        )
     user = User(
         email=email,
         nickname=payload.nickname,

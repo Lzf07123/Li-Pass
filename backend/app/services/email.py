@@ -1,4 +1,5 @@
 import logging
+import ssl
 import socket
 import smtplib
 import time
@@ -113,6 +114,7 @@ class SMTPEmailService(EmailService):
         from_addr: str,
         from_name: str,
         use_tls: bool,
+        tls_verify: bool = True,
         timeout: int = 15,
         max_retries: int = 2,
         retry_delay_seconds: float = 1.0,
@@ -132,9 +134,16 @@ class SMTPEmailService(EmailService):
         self.from_addr = from_addr
         self.from_name = from_name
         self.use_tls = use_tls
+        self.tls_verify = tls_verify
         self.timeout = timeout
         self.max_retries = max_retries
         self.retry_delay_seconds = retry_delay_seconds
+
+    def _ssl_context(self) -> ssl.SSLContext:
+        """默认使用系统受信 CA 并校验主机名，杜绝未认证 TLS 下的凭据泄露。"""
+        if self.tls_verify:
+            return ssl.create_default_context()
+        return ssl._create_unverified_context()
 
     def _build_message(
         self, to: str, subject: str, body: str, html_body: str
@@ -164,11 +173,14 @@ class SMTPEmailService(EmailService):
     def _connect(self) -> smtplib.SMTP:
         # 465 为隐式 SSL（SMTP_SSL），587/25 为明文 + STARTTLS。
         # 混用会导致 465 端口握手失败（服务端等待 TLS 而客户端发纯文本）。
+        context = self._ssl_context()
         if self.port == 465:
-            return smtplib.SMTP_SSL(self.host, self.port, timeout=self.timeout)
+            return smtplib.SMTP_SSL(
+                self.host, self.port, timeout=self.timeout, context=context
+            )
         server = smtplib.SMTP(self.host, self.port, timeout=self.timeout)
         if self.use_tls:
-            server.starttls()
+            server.starttls(context=context)
         return server
 
     def _send(self, to: str, subject: str, body: str, html_body: str) -> None:
@@ -414,6 +426,7 @@ def get_email_service() -> EmailService:
             from_addr=settings.smtp_from,
             from_name=settings.smtp_from_name,
             use_tls=settings.smtp_use_tls,
+            tls_verify=settings.smtp_tls_verify,
             timeout=settings.smtp_timeout_seconds,
             max_retries=settings.smtp_max_retries,
             retry_delay_seconds=settings.smtp_retry_delay_seconds,
@@ -425,6 +438,12 @@ def warn_email_config(settings: Settings) -> None:
     """启动时提醒会影响邮件可用性的配置问题。"""
     if settings.email_backend != "smtp":
         return
+    if not settings.smtp_tls_verify:
+        # 关闭证书校验会让 SMTP 凭据暴露在未认证的 TLS 链路上，生产风险高。
+        (logger.error if settings.environment == "production" else logger.warning)(
+            "SMTP_TLS_VERIFY 已关闭：SMTP 凭据可能被中间人窃取，"
+            "仅限内网自签证书场景且请勿在生产长期使用"
+        )
     if (
         "localhost" in settings.frontend_base_url
         or "127.0.0.1" in settings.frontend_base_url

@@ -208,6 +208,10 @@ def register(
                 status.HTTP_503_SERVICE_UNAVAILABLE,
                 "邮件发送失败，请稍后重试或点击“重新发送验证码”",
             )
+    else:
+        # 防账号枚举：已注册邮箱同样执行一次同参数 Argon2 哈希（结果丢弃），
+        # 抹平「已注册」与「未注册」两条路径的响应耗时。
+        hash_password(payload.password)
     # 无论邮箱是否已注册，统一响应，避免账号枚举；重复注册不重复发信。
     return {"message": "注册请求已受理，验证邮件已发送"}
 

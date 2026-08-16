@@ -114,6 +114,7 @@ docker compose -f docker-compose.yaml --env-file .env exec backend \
 | `SMTP_USERNAME` / `SMTP_PASSWORD` | SMTP 登录凭据（按需） |
 | `SMTP_FROM` / `SMTP_FROM_NAME` | 真实发件地址与发件人名称（生产必填 `SMTP_FROM`） |
 | `SMTP_USE_TLS` | 是否使用 STARTTLS（默认 `true`） |
+| `SMTP_TLS_VERIFY` | 是否校验 SMTP TLS 服务器证书与主机名（默认 `true`）。关闭后 SMTP 凭据可能被中间人窃取，仅限内网自签证书等特殊场景，生产关闭会记录 error 级告警 |
 | `SMTP_TIMEOUT_SECONDS` | 单次 SMTP 操作超时（默认 `15`，建议保持 10–20） |
 | `SMTP_MAX_RETRIES` | 瞬时连接失败的自动重试次数（默认 `2`，范围 0–5） |
 | `SMTP_RETRY_DELAY_SECONDS` | 重试间隔秒数（默认 `1`） |

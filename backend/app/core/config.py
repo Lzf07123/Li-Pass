@@ -42,6 +42,9 @@ class Settings(BaseSettings):
     smtp_from: str = ""
     smtp_from_name: str = "Li&Pass"
     smtp_use_tls: bool = True
+    # SMTP TLS 证书校验：默认开启，防止 STARTTLS/465 链路上被 MITM 窃取
+    # SMTP 凭据。仅内网自签证书等特殊场景显式关闭（生产开启时记告警）。
+    smtp_tls_verify: bool = True
     smtp_timeout_seconds: int = 15
     smtp_max_retries: int = 2
     smtp_retry_delay_seconds: float = 1.0
