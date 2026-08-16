@@ -35,6 +35,29 @@ def test_register_duplicate_email(client, captured_email) -> None:
     assert len(captured_email.messages) == 1
 
 
+def test_register_duplicate_email_still_runs_argon2(
+    client, captured_email, monkeypatch
+) -> None:
+    """防账号枚举：已注册邮箱也执行同参数 Argon2，抹平时序差异。"""
+    hashed: list[str] = []
+    real_hash = auth_module.hash_password
+
+    def spy_hash(password: str) -> str:
+        hashed.append(password)
+        return real_hash(password)
+
+    monkeypatch.setattr(auth_module, "hash_password", spy_hash)
+    payload = {
+        "email": "timing@example.com",
+        "password": "password123",
+        "nickname": "T",
+    }
+    assert client.post("/api/v1/auth/register", json=payload).status_code == 201
+    assert client.post("/api/v1/auth/register", json=payload).status_code == 201
+    # 两次请求（首次创建 + 重复注册）都必须执行哈希。
+    assert hashed == ["password123", "password123"]
+
+
 def test_resend_verification_email(client, captured_email, db_session) -> None:
     response = client.post(
         "/api/v1/auth/register",
