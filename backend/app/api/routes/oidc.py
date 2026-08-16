@@ -54,6 +54,7 @@ from app.services.oidc import (
     verify_pkce,
 )
 from app.services.pending_requests import PendingAuthRequest, get_pending_request_store
+from app.services.rate_limit import get_rate_limiter
 from app.services.federated_logout import (
     collect_logout_targets,
     dispatch_backchannel_logout,
@@ -96,6 +97,17 @@ def authorize(
     code_challenge_method: str = Query("S256"),
     db: Session = Depends(get_db),
 ):
+    settings = get_settings()
+    ip = request.client.host if request.client else ""
+    if (
+        get_rate_limiter().hit(
+            "authorize", ip, settings.authorize_rate_window_seconds
+        )
+        > settings.authorize_rate_limit
+    ):
+        raise HTTPException(
+            status.HTTP_429_TOO_MANY_REQUESTS, "请求过于频繁，请稍后再试"
+        )
     frontend = get_settings().frontend_base_url
     if response_type != "code":
         return RedirectResponse(
@@ -187,6 +199,7 @@ def authorize(
         client_id=client.client_id,
         redirect_uri=redirect_uri,
         scope=" ".join(requested),
+        user_id=str(user.id),
         state=state,
         nonce=nonce,
         code_challenge=code_challenge,
@@ -214,6 +227,20 @@ def discovery() -> dict:
         "id_token_signing_alg_values_supported": ["RS256"],
         "scopes_supported": ["openid", "profile", "email"],
         "code_challenge_methods_supported": ["S256"],
+        "token_endpoint_auth_methods_supported": [
+            "none",
+            "client_secret_post",
+        ],
+        "claims_supported": [
+            "sub",
+            "email",
+            "email_verified",
+            "nickname",
+            "name",
+            "picture",
+            "acr",
+            "sid",
+        ],
         "end_session_endpoint": f"{base}/oauth2/end-session",
         "backchannel_logout_supported": True,
         "frontchannel_logout_supported": False,
@@ -370,6 +397,7 @@ def jwks() -> dict:
 
 @router.post("/oauth2/token")
 def token(
+    request: Request,
     grant_type: str = Form(...),
     code: str | None = Form(None),
     redirect_uri: str | None = Form(None),
@@ -378,6 +406,17 @@ def token(
     code_verifier: str | None = Form(None),
     db: Session = Depends(get_db),
 ):
+    settings = get_settings()
+    ip = request.client.host if request.client else ""
+    if (
+        get_rate_limiter().hit("token", ip, settings.token_rate_window_seconds)
+        > settings.token_rate_limit
+    ):
+        return _oauth_error(
+            status.HTTP_429_TOO_MANY_REQUESTS,
+            "rate_limited",
+            "请求过于频繁，请稍后再试",
+        )
     if grant_type != "authorization_code":
         return _oauth_error(
             status.HTTP_400_BAD_REQUEST,

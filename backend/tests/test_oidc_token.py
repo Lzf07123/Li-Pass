@@ -224,8 +224,57 @@ def test_discovery_and_jwks(client) -> None:
     discovery = client.get("/.well-known/openid-configuration").json()
     assert discovery["issuer"] == "http://localhost:8000"
     assert discovery["response_types_supported"] == ["code"]
+    assert discovery["token_endpoint_auth_methods_supported"] == [
+        "none",
+        "client_secret_post",
+    ]
+    assert "sub" in discovery["claims_supported"]
+    assert "acr" in discovery["claims_supported"]
     jwks = client.get("/oauth2/jwks").json()
     assert jwks["keys"][0]["alg"] == "RS256"
+
+
+def test_token_endpoint_rate_limited(client, db_session, monkeypatch) -> None:
+    from app.services.rate_limit import MemoryRateLimiter
+
+    limiter = MemoryRateLimiter()
+    monkeypatch.setattr("app.api.routes.oidc.get_rate_limiter", lambda: limiter)
+    create_client(db_session)
+    for _ in range(120):
+        client.post(
+            "/oauth2/token",
+            data={
+                "grant_type": "authorization_code",
+                "code": "x",
+                "redirect_uri": "http://localhost:3001/callback",
+                "client_id": "cli_demo",
+            },
+        )
+    response = client.post(
+        "/oauth2/token",
+        data={
+            "grant_type": "authorization_code",
+            "code": "x",
+            "redirect_uri": "http://localhost:3001/callback",
+            "client_id": "cli_demo",
+        },
+    )
+    assert response.status_code == 429
+    assert response.json()["error"] == "rate_limited"
+
+
+def test_authorize_endpoint_rate_limited(
+    client, db_session, monkeypatch
+) -> None:
+    from app.services.rate_limit import MemoryRateLimiter
+
+    limiter = MemoryRateLimiter()
+    monkeypatch.setattr("app.api.routes.oidc.get_rate_limiter", lambda: limiter)
+    create_client(db_session)
+    for _ in range(120):
+        client.get("/oauth2/authorize", params=authorize_params())
+    response = client.get("/oauth2/authorize", params=authorize_params())
+    assert response.status_code == 429
 
 
 def test_userinfo_respects_scope(client, captured_email, db_session) -> None:

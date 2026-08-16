@@ -66,6 +66,10 @@ class Settings(BaseSettings):
     login_email_rate_limit: int = 10
     login_email_rate_window_seconds: int = 900
     login_ip_rate_limit: int = 20
+    authorize_rate_limit: int = 120
+    authorize_rate_window_seconds: int = 60
+    token_rate_limit: int = 120
+    token_rate_window_seconds: int = 60
     # 敏感操作 step-up 复核窗口与限流：
     # 一次密码复核成功后，该会话 STEPUP_WINDOW_MINUTES 分钟内免再次输入密码；
     # 0 = 关闭窗口（每次敏感操作都必须重新复核）。
@@ -178,10 +182,15 @@ class Settings(BaseSettings):
             or self.client_block_rate_window_seconds < 1
             or self.audit_retention_days < 1
             or self.session_retention_days < 1
+            or self.authorize_rate_limit < 1
+            or self.authorize_rate_window_seconds < 1
+            or self.token_rate_limit < 1
+            or self.token_rate_window_seconds < 1
         ):
             raise ValueError(
                 "LOGIN_EMAIL_RATE_LIMIT/CLIENT_BLOCK_RATE_LIMIT/AUDIT_RETENTION_DAYS/"
-                "SESSION_RETENTION_DAYS 等配置必须 ≥1"
+                "SESSION_RETENTION_DAYS/AUTHORIZE_RATE_LIMIT/TOKEN_RATE_LIMIT "
+                "等配置必须 ≥1"
             )
         if self.jwt_active_kid and not self.jwt_keys_dir:
             raise ValueError("JWT_ACTIVE_KID 必须与 JWT_KEYS_DIR 同时配置")

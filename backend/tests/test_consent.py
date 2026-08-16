@@ -1,4 +1,5 @@
 from tests.helpers import authorize_params, create_client, register_and_login
+from app.services.pending_requests import PendingAuthRequest, get_pending_request_store
 
 
 def get_request_id(client, captured_email, db_session) -> str:
@@ -39,3 +40,23 @@ def test_consent_requires_session(client, db_session) -> None:
     create_client(db_session)
     response = client.get("/api/v1/consent/whatever")
     assert response.status_code == 401
+
+
+def test_consent_request_bound_to_originating_user(
+    client, captured_email, db_session
+) -> None:
+    """他人发起的待授权请求不能被当前会话用户批准（防串号授权）。"""
+    client_model = create_client(db_session)
+    register_and_login(client, captured_email)
+    pending = PendingAuthRequest(
+        client_id=client_model.client_id,
+        redirect_uri="http://localhost:3001/callback",
+        scope="openid profile",
+        state="st-1",
+        nonce="n-1",
+        code_challenge="c",
+        user_id="00000000-0000-0000-0000-000000000000",
+    )
+    request_id = get_pending_request_store().create(pending)
+    response = client.post(f"/api/v1/consent/{request_id}/approve")
+    assert response.status_code == 403

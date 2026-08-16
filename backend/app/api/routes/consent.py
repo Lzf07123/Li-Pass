@@ -58,6 +58,9 @@ def approve(
 ) -> dict:
     store = get_pending_request_store()
     pending = _get_pending_or_404(request_id)
+    if pending.user_id and pending.user_id != str(user.id):
+        # 待授权请求绑定发起用户：他人会话不得批准/拒绝，防串号授权。
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "该授权请求不属于当前账号")
     client = db.scalar(
         select(OAuthClient).where(
             OAuthClient.client_id == pending.client_id, OAuthClient.is_active.is_(True)
@@ -116,6 +119,8 @@ def deny(
 ) -> dict:
     store = get_pending_request_store()
     pending = _get_pending_or_404(request_id)
+    if pending.user_id and pending.user_id != str(user.id):
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "该授权请求不属于当前账号")
     log_audit(
         db,
         "user",
