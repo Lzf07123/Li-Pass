@@ -4,6 +4,7 @@
 
 ### 破坏性变更
 
+- **恢复码密钥体系升级（存量恢复码作废）**：移除旧版裸 SHA-256 存储恢复码的兼容校验分支，并把 OTP/恢复码 HMAC 密钥改为从加密主密钥域分离派生（不再与 Fernet 数据加密共用密钥材料）；新迁移 `b7e8f9a0c1d2` 会清空 `recovery_codes` 表。存量恢复码一律失效，用户重新开启 TOTP 即可获得新恢复码；未消费的邮箱/重置验证码随密钥切换失效（10 分钟内自然过期，重新获取即可）。详见 [360° 审查问题修复设计](docs/superpowers/specs/2026-08-16-audit-fixes-round2-design.md)。
 - **OIDC token 端点错误格式对齐 RFC 6749**：`POST /oauth2/token` 的错误响应由 `{"detail": "..."}` 改为标准 `{"error": "...", "error_description": "..."}`（HTTP 状态码不变）。此前按 `detail` 字段解析错误的对接方需同步更新（authorize 回跳、userinfo 与 `/oauth2/client/*` 管理接口不受影响）。详见 [对接指南 §3.3/§7](docs/oidc-integration.md)。
 - **PKCE 对全部客户端强制**：`/oauth2/token` 不再对机密客户端豁免 `code_verifier` 校验（OAuth 2.1 对齐）。authorize 端点本就要求 `code_challenge`，因此新接入方无影响；已有机密客户端换码时必须携带 `code_verifier`。
 - **会话空闲超时配置改名**：`SESSION_IDLE_DAYS`（整数天）→ `SESSION_IDLE_MINUTES`（整数分钟，默认 720，≥5）。旧环境变量不再生效，升级时请把原值换算为分钟写入 `.env`。
@@ -29,6 +30,10 @@
 
 ### 安全加固
 
+- 登录 CSRF 补全：`POST /api/v1/auth/2fa/verify`（成功后下发门户会话 Cookie）纳入 Origin 白名单守卫——此前攻击者可用自己的 2FA 挑战与验证码诱导受害者跨站提交，把受害者浏览器登录进攻击者账号（登录串号）；`/api/v1/auth/2fa/send` 与 `/api/v1/auth/email/verify` 一并纳入作纵深防御。非浏览器客户端（无 Origin）行为不变。
+- 服务端密码复杂度校验：注册、邀请注册、重置密码、修改密码与管理端代建/重置密码统一要求长度 ≥8 且小写/大写/数字/符号 4 类字符至少 2 类（与前端强度条「中」档一致）；不满足返回 422「密码强度不足」。
+- 回程登出地址校验拒绝 IPv4-mapped IPv6（如 `::ffff:127.0.0.1`）：此前此类地址可绕过回环/私网判断，现先还原为 IPv4 再做危险网段校验。
+- 生产环境外链头像仅允许 `https`（开发环境仍允许 `http`），与 OAuth 回调地址等 URL 校验口径一致；本地上传头像路径不受影响。
 - SMTP TLS 证书校验默认开启（新增 `SMTP_TLS_VERIFY`，默认 `true`）：此前 `SMTP_SSL`/`STARTTLS` 使用 Python 默认的未认证上下文（不校验证书与主机名），中间人可在 SMTP 链路上窃取邮箱账号密码；现默认走系统受信 CA 并校验主机名，仅内网自签证书等场景可显式关闭（关闭时记日志，生产环境为 error 级告警）。
 - 注册接口邮箱枚举时序抹平：此前「已注册邮箱」直接返回、跳过 Argon2 哈希（毫秒级），「未注册邮箱」执行哈希（百毫秒级），响应文案一致但耗时可区分账号是否存在；现已注册邮箱同样执行一次同参数哈希，消除该时序侧信道。
 - 可信设备 Cookie 清除属性对齐：`lipass_trusted_device` 删除时此前不携带 Secure/SameSite/HttpOnly（与设置时不一致，部分浏览器在 HTTPS 下可能不认可删除），现与设置属性保持一致。
@@ -69,6 +74,7 @@
 
 ### 行为变更
 
+- 弱口令注册/设置密码会被服务端直接拒绝（422），不再仅靠前端强度提示；`GET /oauth2/userinfo` 的 401 响应新增 `WWW-Authenticate: Bearer realm="userinfo"`（RFC 6750）。
 - 管理端代建管理员（`POST /api/v1/admin/users` 且 `role=admin`）必须携带 `current_password`：旧调用方（脚本/自动化）创建管理员时未携带该字段将收到 403「需要重新验证密码」，需同步更新；代建普通用户与邀请注册不受影响。
 - 邮件发送失败统一返回 `503 Service Unavailable`（此前为语义错误的 `502 Bad Gateway`，会污染网关/监控的 502 指标）；覆盖注册、重发验证码、2FA 发码、step-up 发码、手机绑定发码、找回密码与管理端邀请。
 - 授权确认页新增「正在以 xxx 登录」身份展示与「使用其他账号登录」（本地登出后带 `next` 回到原授权流程）。
@@ -105,6 +111,10 @@
 
 ### 缺陷修复
 
+- 并发注册同一邮箱不再出现 500：`POST /api/v1/auth/register` 捕获并发撞邮箱触发的唯一约束冲突，回滚后与「已注册」路径返回相同受理文案（含同参数 Argon2 哈希以维持时序抹平）。
+- 用户侧会话列表与「应用广场 · 已登录设备数」按空闲超时口径过滤：与管理端在线会话统计一致，空闲超时但未触发吊销的会话不再显示为在线（`GET /api/v1/sessions`、`GET /api/v1/apps` 的 `active_sessions`）。
+- 演示站登出漏斗修复：`/demo/logout` 现接受与门户同源的绝对 `next` 地址，门户发起的浏览器串跳不再断链；非同源绝对地址仍回退自身首页（无开放重定向）。
+- 已登录用户访问 `/login?next=<绝对同源地址>` 时改用浏览器导航恢复授权/跳转，不再因 React Router 内部解析落到首页；注册成功提示文案与后端语义对齐（「已受理，请查收验证邮件」）。
 - 管理后台统计口径修正：「在线会话」与「在线会话认证方式分布」此前只按 `expires_at` 判断，把空闲超时但尚未过期的会话也计入在线；现同时要求 `last_used_at` 在 `SESSION_IDLE_MINUTES` 窗口内，与用户中心/会话监控的在线口径一致。
 - 前端镜像在全新检出/干净构建上下文下构建失败：`src/lib/brand.ts` 为本地配置文件未入库（示例为 `brand.example.ts`），缺少该文件时 `tsc` 报 `Cannot find module '../lib/brand'`，`npm run build` 以退出码 2 中止。现 Dockerfile 在构建前检查，文件缺失时用 `brand.example.ts` 兜底复制；构建上下文中已放置自定义 `brand.ts` 时优先保留，与 CI 的复制步骤行为一致。
 - 访客无法打开注册/找回密码/重置密码页：全局 401 兜底会把 `GuestOnly` 的会话探测（`/api/v1/me`）误判为会话失效并跳回登录页，导致从登录页点击「注册新账号」「忘记密码？」后立即被弹回（`/login?next=…`）。现 `GuestOnly` 改用静默探针（`authApi.meSilent`，401 不派发全局跳转事件），访客正常到达目标页；真实会话过期场景的兜底跳转不受影响。
@@ -127,6 +137,7 @@
 
 ### 运维工具
 
+- 开发环境已知行为：`PENDING_REQUEST_STORE/TWOFA_STORE/RATE_LIMITER=memory` 依赖单 worker 进程内状态，且 uvicorn `--limit-max-requests 10000` 会在重启 worker 时清空限流计数与进行中的 2FA 挑战；生产环境配置校验已强制使用 redis 并建议多 worker 时同步放大连接池（见 [部署文档 §环境变量](docs/deployment.md)）。
 - 编排文件与前端环境变量文件示例化：仓库改为提交 `docker-compose.example.yaml`（复制为 `docker-compose.yaml` 使用，本机版已 gitignore、可按环境就地修改）；`frontend/.env.example` 改为注释模板（同源网关留空 / 直连后端两种用法示例）；备份/恢复脚本在未复制编排文件时自动回退到 example；README/AGENTS/部署文档同步补充 `cp` 步骤。品牌/站点信息（应用名、备案文案、页脚链接）同时环境变量化：`brand.example.ts`（复制为 `brand.ts` 使用，后者已 gitignore）优先读 `VITE_APP_NAME`/`VITE_APP_TAGLINE`/`VITE_ICP_FILING_*`/`VITE_POLICE_FILING_*`/`VITE_FOOTER_LINKS`，未设置回退内置默认值；前端 Dockerfile 与 compose 增加同名 build args，示例文件补充全部可选项；CI 前端任务增加「复制 brand.example.ts」步骤。
 - 补齐网关 `nginx:1.27-alpine` 的 `IMAGE_REGISTRY` 前缀：现在编排内全部镜像（PostgreSQL/Redis/nginx 与三个自建服务，以及三个 Dockerfile 的基础镜像）都可用同一个镜像站前缀统一替换加速。
 - 备份脚本输出文件名前缀由 `portal-` 统一为 `lipass-`（脚本依赖 Compose 服务名，随项目改名无需其它改动）。
