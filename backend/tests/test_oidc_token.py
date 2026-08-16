@@ -73,6 +73,12 @@ def test_token_and_userinfo_flow(client, captured_email, db_session) -> None:
     assert id_claims["aud"] == "cli_demo"
 
 
+def test_userinfo_unauthorized_includes_www_authenticate(client) -> None:
+    response = client.get("/oauth2/userinfo")
+    assert response.status_code == 401
+    assert response.headers.get("www-authenticate") == 'Bearer realm="userinfo"'
+
+
 def test_id_token_contains_sid_and_records_client_session(
     client, captured_email, db_session
 ) -> None:

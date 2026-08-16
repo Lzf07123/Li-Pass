@@ -561,18 +561,31 @@ def userinfo(
     authorization: str | None = Header(None),
     db: Session = Depends(get_db),
 ) -> dict:
+    www_authenticate = 'Bearer realm="userinfo"'
     if not authorization or not authorization.startswith("Bearer "):
-        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "invalid_token")
+        raise HTTPException(
+            status.HTTP_401_UNAUTHORIZED,
+            "invalid_token",
+            headers={"WWW-Authenticate": www_authenticate},
+        )
     try:
         claims = decode_token(
             authorization.removeprefix("Bearer "),
             audience=userinfo_audience(get_settings()),
         )
     except pyjwt.PyJWTError:
-        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "invalid_token")
+        raise HTTPException(
+            status.HTTP_401_UNAUTHORIZED,
+            "invalid_token",
+            headers={"WWW-Authenticate": www_authenticate},
+        )
     user = db.get(User, uuid.UUID(claims["sub"]))
     if user is None or user.status != UserStatus.active:
-        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "invalid_token")
+        raise HTTPException(
+            status.HTTP_401_UNAUTHORIZED,
+            "invalid_token",
+            headers={"WWW-Authenticate": www_authenticate},
+        )
     client = db.scalar(
         select(OAuthClient).where(OAuthClient.client_id == claims["client_id"])
     )
