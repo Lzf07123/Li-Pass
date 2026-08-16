@@ -2,6 +2,10 @@
  * 品牌与站点信息集中配置：优先从构建期环境变量（VITE_*，见 frontend/.env.example）
  * 读取，未设置时回退到本文件默认值，保证开箱即用。
  *
+ * 本文件是「示例 + 复制」约定中的示例：请复制为同目录 brand.ts 后按需修改
+ * （brand.ts 已 gitignore，不参与版本控制）：
+ *   cp frontend/src/lib/brand.example.ts frontend/src/lib/brand.ts
+ *
  * 图标约定：路径默认指向 frontend/public/ 下的静态资源。
  * 后期替换品牌图标时，直接覆盖对应文件，或修改下方变量指向新路径即可。
  */

@@ -22,3 +22,6 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# 本地品牌配置：复制 src/lib/brand.example.ts 为 brand.ts 后按需修改
+src/lib/brand.ts

@@ -47,6 +47,9 @@ jobs:
       - name: 安装依赖
         run: npm ci
 
+      - name: 准备本地品牌配置
+        run: cp src/lib/brand.example.ts src/lib/brand.ts
+
       - name: 类型检查
         run: npx tsc -b
 
