@@ -112,8 +112,23 @@ def test_development_csp_keeps_unsafe_inline_for_docs(client) -> None:
     assert "style-src 'self' 'unsafe-inline'" in csp
 
 
-def test_uploads_not_no_store(client) -> None:
-    # 公开头像等静态资源不应带 no-store，允许网关/CDN 长缓存。
-    response = client.get("/uploads/avatars/does-not-exist.png")
-    assert response.status_code == 404
-    assert "cache-control" not in response.headers
+def test_uploads_cache_contract(client) -> None:
+    """头像成功响应可长缓存；404/错误响应必须 no-store，避免缓存错误。"""
+    from pathlib import Path
+
+    from app.core.config import get_settings
+
+    missing = client.get("/uploads/avatars/does-not-exist.png")
+    assert missing.status_code == 404
+    assert missing.headers["cache-control"] == "no-store"
+
+    root = Path(get_settings().avatar_upload_dir)
+    root.mkdir(parents=True, exist_ok=True)
+    payload = root / "cache-probe.png"
+    payload.write_bytes(b"\x89PNG\r\n\x1a\n")
+    try:
+        hit = client.get("/uploads/avatars/cache-probe.png")
+        assert hit.status_code == 200
+        assert hit.headers["cache-control"] == "public, max-age=604800"
+    finally:
+        payload.unlink(missing_ok=True)

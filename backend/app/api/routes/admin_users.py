@@ -280,7 +280,7 @@ def invite_user(
         db.delete(invite)
         db.commit()
         raise HTTPException(
-            status.HTTP_502_BAD_GATEWAY, "邮件发送失败，请检查邮件服务配置"
+            status.HTTP_503_SERVICE_UNAVAILABLE, "邮件发送失败，请检查邮件服务配置"
         )
     log_audit(
         db,
@@ -401,7 +401,7 @@ def resend_invite(
         db.rollback()
         logger.exception("重发邀请邮件失败：%s", invite.email)
         raise HTTPException(
-            status.HTTP_502_BAD_GATEWAY, "邮件发送失败，请检查邮件服务配置"
+            status.HTTP_503_SERVICE_UNAVAILABLE, "邮件发送失败，请检查邮件服务配置"
         )
     db.commit()
     log_audit(

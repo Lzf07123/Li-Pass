@@ -61,4 +61,22 @@ describe("api client", () => {
     expect(events).toEqual([]);
     window.removeEventListener("lipass:unauthorized", listener);
   });
+
+  it("静默会话探针的 401 不派发 unauthorized 事件", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        new Response(JSON.stringify({ detail: "Session expired" }), {
+          status: 401,
+          headers: { "Content-Type": "application/json" },
+        })
+      )
+    );
+    const events: string[] = [];
+    const listener = () => events.push("unauthorized");
+    window.addEventListener("lipass:unauthorized", listener);
+    await expect(authApi.meSilent()).rejects.toThrow("Session expired");
+    expect(events).toEqual([]);
+    window.removeEventListener("lipass:unauthorized", listener);
+  });
 });

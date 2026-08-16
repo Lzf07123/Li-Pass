@@ -15,6 +15,7 @@ from fastapi import (
     status,
 )
 from sqlalchemy import func, or_, select, update
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_session, get_current_user
@@ -191,7 +192,7 @@ def send_stepup_code(
         get_rate_limiter().decrement("otp_send", user.email)
         logger.exception("step-up 复核验证码发送失败：%s", user.email)
         raise HTTPException(
-            status.HTTP_502_BAD_GATEWAY,
+            status.HTTP_503_SERVICE_UNAVAILABLE,
             "邮件发送失败，请稍后重试",
         )
     get_rate_limiter().hit(
@@ -371,7 +372,7 @@ def send_phone_bind_code(
         get_rate_limiter().decrement("otp_send", user.email)
         logger.exception("绑定邮箱验证码发送失败：%s", user.email)
         raise HTTPException(
-            status.HTTP_502_BAD_GATEWAY,
+            status.HTTP_503_SERVICE_UNAVAILABLE,
             "邮件发送失败，请稍后重试",
         )
     return {"message": "验证码已发送至绑定邮箱"}
@@ -383,11 +384,28 @@ def bind_phone(
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> dict:
+    # 手机号全库唯一：先做明确查重给出 409，避免唯一约束冲突炸成 500。
+    if (
+        db.scalar(
+            select(User).where(
+                User.phone == payload.phone, User.id != user.id
+            )
+        )
+        is not None
+    ):
+        raise HTTPException(status.HTTP_409_CONFLICT, "该手机号已被其他账号绑定")
     if not verify_otp(db, OtpPurpose.bind_phone, user.email, payload.code):
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "验证码无效或已过期")
     user.phone = payload.phone
     user.phone_verified_at = datetime.now(timezone.utc)
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError:
+        # 查重与提交之间的并发窗口：另一请求刚绑定了同一号码。
+        db.rollback()
+        raise HTTPException(
+            status.HTTP_409_CONFLICT, "该手机号已被其他账号绑定"
+        )
     log_audit(
         db,
         "user",

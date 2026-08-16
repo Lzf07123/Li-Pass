@@ -75,11 +75,11 @@ server {
         proxy_pass http://backend_http;
     }
 
-    # 后端托管的头像等静态资源：文件名带 UUID，可安全长缓存
+    # 后端托管的头像等静态资源：文件名带 UUID，可安全长缓存。
+    # 缓存头由后端按状态码签发（200 长缓存 / 错误 no-store），
+    # 网关不再覆盖，避免把 404/500 响应也缓存 7 天。
     location /uploads/ {
         proxy_pass http://backend_http;
-        expires 7d;
-        add_header Cache-Control "public, max-age=604800" always;
     }
 
     # OIDC 演示站（剥离 /demo 前缀；上游按 DEMO_PATH_PREFIX 生成正确链接）

@@ -1,5 +1,6 @@
-import uuid
+import re
 import secrets
+import uuid
 from datetime import datetime, timezone
 from urllib.parse import quote
 
@@ -66,6 +67,10 @@ from app.services.logout_requests import (
 
 router = APIRouter(tags=["oidc"])
 
+# RFC 7636：S256 的 code_challenge 是 43 字符 base64url（不加 padding）。
+# 接受 43–128 字符以兼容更保守的客户端实现，其余格式直接 invalid_request。
+_VALID_CODE_CHALLENGE = re.compile(r"^[A-Za-z0-9_-]{43,128}$")
+
 
 def _oauth_error(
     status_code: int,
@@ -129,7 +134,11 @@ def authorize(
         return RedirectResponse(
             redirect_error(redirect_uri, "invalid_scope", state), status_code=302
         )
-    if not code_challenge or code_challenge_method != "S256":
+    if (
+        not code_challenge
+        or code_challenge_method != "S256"
+        or not _VALID_CODE_CHALLENGE.fullmatch(code_challenge)
+    ):
         return RedirectResponse(
             redirect_error(redirect_uri, "invalid_request", state), status_code=302
         )
@@ -346,6 +355,12 @@ def confirm_logout_request(
 ):
     session = get_current_session(request, db)
     pending = _get_pending_logout_or_404(request_id)
+    # 待确认请求在发起时已绑定门户会话（sid）；只有同一会话可以确认，
+    # 防止他人会话确认并混用发起者的回跳地址/state。
+    if pending.sid != str(session.id):
+        raise HTTPException(
+            status.HTTP_404_NOT_FOUND, "登出请求不存在或已过期"
+        )
     settings = get_settings()
     session.revoked_at = datetime.now(timezone.utc)
     db.commit()
@@ -377,10 +392,16 @@ def confirm_logout_request(
 @router.post("/api/v1/oauth/logout-requests/{request_id}/local-only")
 def local_only_logout_request(
     request_id: str,
+    request: Request,
     db: Session = Depends(get_db),
 ) -> dict:
     """仅登出本网站：保留门户会话，删除待确认请求并回跳发起方。"""
+    session = get_current_session(request, db)
     pending = _get_pending_logout_or_404(request_id)
+    if pending.sid != str(session.id):
+        raise HTTPException(
+            status.HTTP_404_NOT_FOUND, "登出请求不存在或已过期"
+        )
     get_logout_request_store().delete(request_id)
     return {
         "redirect_url": _append_state(
@@ -399,11 +420,11 @@ def jwks() -> dict:
 def token(
     request: Request,
     grant_type: str = Form(...),
-    code: str | None = Form(None),
-    redirect_uri: str | None = Form(None),
-    client_id: str = Form(...),
-    client_secret: str | None = Form(None),
-    code_verifier: str | None = Form(None),
+    code: str | None = Form(None, max_length=512),
+    redirect_uri: str | None = Form(None, max_length=1000),
+    client_id: str = Form(..., max_length=128),
+    client_secret: str | None = Form(None, max_length=256),
+    code_verifier: str | None = Form(None, max_length=200),
     db: Session = Depends(get_db),
 ):
     settings = get_settings()

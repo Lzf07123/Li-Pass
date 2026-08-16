@@ -156,7 +156,7 @@ def test_resend_failure_preserves_old_code(
         "/api/v1/auth/email/verify/resend",
         json={"email": "a@example.com"},
     )
-    assert response.status_code == 502
+    assert response.status_code == 503
     assert response.json()["detail"] == "邮件发送失败，请稍后重试"
 
     # 发送失败时回滚新验证码，旧验证码仍然有效
