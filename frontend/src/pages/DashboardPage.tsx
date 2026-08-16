@@ -36,9 +36,9 @@ import { useSessionIdle } from "../hooks/useSessionIdle";
 import { useToast } from "../hooks/useToast";
 import { ACCENT_CLASSES, accentFor } from "../lib/accent";
 import { AuroraBackground } from "../components/bits/AuroraBackground";
+import { BlurText } from "../components/bits/BlurText";
 import { FadeIn } from "../components/bits/FadeIn";
 import { LineIcon } from "../components/bits/LineIcon";
-import { StrokeText } from "../components/bits/StrokeText";
 import { TechAmbience } from "../components/bits/TechAmbience";
 
 // 绑定手机功能暂未完善：置为 true 即恢复显示（代码与接口保留）。
@@ -622,20 +622,14 @@ export function DashboardPage() {
             <FadeIn delay={0}>
               <section className="pt-2 text-center">
                 <h1>
-                  <StrokeText
+                  <BlurText
+                    as="span"
                     text={user.nickname.trim() ? `你好，${user.nickname.trim()}` : "你好"}
-                    strokeColor="var(--portal-primary)"
-                    fillColor="var(--portal-fg)"
-                    strokeWidth={1.3}
-                    drawDuration={1.05}
-                    fillDelay={0.15}
-                    stagger={0.05}
-                    ease="power2.out"
-                    trigger="mount"
-                    fillMode="wipe"
-                    fontSize={36}
-                    fontWeight={700}
-                    letterSpacing={0}
+                    className="block text-4xl font-bold leading-tight tracking-normal"
+                    animateBy="words"
+                    direction="top"
+                    delay={100}
+                    stepDuration={0.35}
                   />
                 </h1>
                 <p className="mt-2 text-sm text-muted">
