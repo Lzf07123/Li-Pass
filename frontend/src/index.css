@@ -89,6 +89,21 @@
   --portal-accent-rose: #be123c;
   --portal-accent-rose-soft: #ffe4e6;
 
+  /* Bento 深色卡标签色：卡片在明暗主题下都保持深色表面，
+     故两套主题共用同一组亮色标签值（不随 .dark 覆盖）。 */
+  --portal-bento-sky: #38bdf8;
+  --portal-bento-sky-rgb: 56, 189, 248;
+  --portal-bento-indigo: #818cf8;
+  --portal-bento-indigo-rgb: 129, 140, 248;
+  --portal-bento-teal: #2dd4bf;
+  --portal-bento-teal-rgb: 45, 212, 191;
+  --portal-bento-violet: #a78bfa;
+  --portal-bento-violet-rgb: 167, 139, 250;
+  --portal-bento-amber: #fbbf24;
+  --portal-bento-amber-rgb: 251, 191, 36;
+  --portal-bento-rose: #fb7185;
+  --portal-bento-rose-rgb: 251, 113, 133;
+
   --portal-ring: #0369a1;
 
   /* 弥散阴影（透明度总和 < 0.1，三层叠加） */

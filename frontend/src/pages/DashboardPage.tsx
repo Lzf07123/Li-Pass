@@ -34,6 +34,8 @@ import { useBreathOnChange } from "../hooks/useBreathOnChange";
 import { useStepUp } from "../hooks/useStepUp";
 import { useSessionIdle } from "../hooks/useSessionIdle";
 import { useToast } from "../hooks/useToast";
+import { ACCENT_CLASSES, accentFor } from "../lib/accent";
+import { AuroraBackground } from "../components/bits/AuroraBackground";
 import { FadeIn } from "../components/bits/FadeIn";
 import { LineIcon } from "../components/bits/LineIcon";
 import { StrokeText } from "../components/bits/StrokeText";
@@ -593,6 +595,8 @@ export function DashboardPage() {
     <div className="relative flex min-h-screen flex-col bg-background">
       {/* 环境呼吸层：活跃但不打扰；开启滚动风速，静止慢呼吸、滚动如风吹 */}
       <FloatingBackground theme="auto" transparent scrollWind shapeCount={10} />
+      {/* 流动光层：低浓度极光，为已登录页补充色彩呼吸（内容区相对定位压在其上） */}
+      <AuroraBackground className="aurora-soft" />
       <AppHeader
         title="用户中心"
         actions={
@@ -638,9 +642,12 @@ export function DashboardPage() {
             </FadeIn>
             <FadeIn delay={0}>
               <section className="card p-6">
-                <h2 className="mb-4 inline-flex items-center gap-2 text-base font-semibold text-foreground">
-                  <LineIcon name="user" className="h-4 w-4 text-primary" />
-                  基本资料
+                <h2 className="mb-4 text-base font-semibold text-foreground">
+                  <span className="inline-flex items-center gap-2">
+                    <LineIcon name="user" className="h-4 w-4 text-accent-cyan" />
+                    基本资料
+                  </span>
+                  <span aria-hidden="true" className="flow-rule mt-2 w-14" />
                 </h2>
                 <p className="mb-4 text-sm text-muted">
                   邮箱：{user.email}（已验证：{user.email_verified ? "是" : "否"}）｜
@@ -654,7 +661,11 @@ export function DashboardPage() {
                       className="h-12 w-12 rounded-full border border-border object-cover"
                     />
                   ) : (
-                    <span className="flex h-12 w-12 items-center justify-center rounded-full bg-primary-soft text-lg font-bold text-primary">
+                    <span
+                      className={`flex h-12 w-12 items-center justify-center rounded-full text-lg font-bold ${
+                        ACCENT_CLASSES[accentFor(user.email)].tile
+                      }`}
+                    >
                       {(user.nickname || user.email).slice(0, 1).toUpperCase()}
                     </span>
                   )}
@@ -714,9 +725,12 @@ export function DashboardPage() {
 
             <FadeIn delay={0.04}>
               <section className="card p-6">
-                <h2 className="mb-4 inline-flex items-center gap-2 text-base font-semibold text-foreground">
-                  <LineIcon name="mail" className="h-4 w-4 text-primary" />
-                  更换登录邮箱
+                <h2 className="mb-4 text-base font-semibold text-foreground">
+                  <span className="inline-flex items-center gap-2">
+                    <LineIcon name="mail" className="h-4 w-4 text-accent-indigo" />
+                    更换登录邮箱
+                  </span>
+                  <span aria-hidden="true" className="flow-rule mt-2 w-14" />
                 </h2>
                 <p className="mb-4 text-sm text-muted">
                   邮箱仅用于登录与接收通知，账号身份（OpenID 标识）不会改变；
@@ -817,9 +831,12 @@ export function DashboardPage() {
 
         <FadeIn delay={0.08}>
           <section className="card p-6">
-            <h2 className="mb-4 inline-flex items-center gap-2 text-base font-semibold text-foreground">
-              <LineIcon name="lock" className="h-4 w-4 text-primary" />
-              修改密码
+            <h2 className="mb-4 text-base font-semibold text-foreground">
+              <span className="inline-flex items-center gap-2">
+                <LineIcon name="lock" className="h-4 w-4 text-accent-amber" />
+                修改密码
+              </span>
+              <span aria-hidden="true" className="flow-rule mt-2 w-14" />
             </h2>
             <form onSubmit={changePassword} className="space-y-3">
               <div>
@@ -880,9 +897,12 @@ export function DashboardPage() {
         {PHONE_BINDING_ENABLED && (
           <FadeIn delay={0.16}>
             <section className="card p-6">
-              <h2 className="mb-4 inline-flex items-center gap-2 text-base font-semibold text-foreground">
-                <LineIcon name="phone" className="h-4 w-4 text-primary" />
-                绑定手机
+              <h2 className="mb-4 text-base font-semibold text-foreground">
+                <span className="inline-flex items-center gap-2">
+                  <LineIcon name="phone" className="h-4 w-4 text-accent-teal" />
+                  绑定手机
+                </span>
+                <span aria-hidden="true" className="flow-rule mt-2 w-14" />
               </h2>
               {phoneStep === "phone" ? (
                 <form
@@ -951,9 +971,12 @@ export function DashboardPage() {
 
         <FadeIn delay={0.24}>
           <section className="card p-6">
-            <h2 className="mb-4 inline-flex items-center gap-2 text-base font-semibold text-foreground">
-              <LineIcon name="shield" className="h-4 w-4 text-primary" />
-              安全设置
+            <h2 className="mb-4 text-base font-semibold text-foreground">
+              <span className="inline-flex items-center gap-2">
+                <LineIcon name="shield" className="h-4 w-4 text-accent-violet" />
+                安全设置
+              </span>
+              <span aria-hidden="true" className="flow-rule mt-2 w-14" />
             </h2>
             <div className="space-y-5">
             <div className="flex items-center justify-between gap-4">
@@ -1103,12 +1126,15 @@ export function DashboardPage() {
         <FadeIn delay={0.32}>
           <section className="card p-6">
             <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-              <h2 className="inline-flex items-center gap-2 text-base font-semibold text-foreground">
-                <LineIcon name="monitor" className="h-4 w-4 text-primary" />
-                登录设备
-                <span className="ml-2 text-sm font-normal text-muted">
-                  共 <AnimatedNumber value={sessions.length} /> 个会话
+              <h2 className="text-base font-semibold text-foreground">
+                <span className="inline-flex items-center gap-2">
+                  <LineIcon name="monitor" className="h-4 w-4 text-accent-cyan" />
+                  登录设备
+                  <span className="text-sm font-normal text-muted">
+                    共 <AnimatedNumber value={sessions.length} /> 个会话
+                  </span>
                 </span>
+                <span aria-hidden="true" className="flow-rule mt-2 w-14" />
               </h2>
               <button
                 type="button"
@@ -1165,12 +1191,15 @@ export function DashboardPage() {
         <FadeIn delay={0.36}>
           <section className="card p-6">
             <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-              <h2 className="inline-flex items-center gap-2 text-base font-semibold text-foreground">
-                <LineIcon name="shield" className="h-4 w-4 text-primary" />
-                可信设备
-                <span className="ml-2 text-sm font-normal text-muted">
-                  7 天内登录免二次验证（仅登录环节）
+              <h2 className="text-base font-semibold text-foreground">
+                <span className="inline-flex items-center gap-2">
+                  <LineIcon name="shield" className="h-4 w-4 text-accent-teal" />
+                  可信设备
+                  <span className="text-sm font-normal text-muted">
+                    7 天内登录免二次验证（仅登录环节）
+                  </span>
                 </span>
+                <span aria-hidden="true" className="flow-rule mt-2 w-14" />
               </h2>
             </div>
             {trustedDevices.length === 0 ? (
@@ -1218,12 +1247,15 @@ export function DashboardPage() {
 
         <FadeIn delay={0.4}>
           <section className="card p-6">
-            <h2 className="mb-4 inline-flex items-center gap-2 text-base font-semibold text-foreground">
-              <LineIcon name="grid" className="h-4 w-4 text-primary" />
-              应用广场
-              <span className="ml-2 text-sm font-normal text-muted">
-                共 <AnimatedNumber value={apps.length} /> 个网站
+            <h2 className="mb-4 text-base font-semibold text-foreground">
+              <span className="inline-flex flex-wrap items-center gap-2">
+                <LineIcon name="grid" className="h-4 w-4 text-accent-rose" />
+                应用广场
+                <span className="text-sm font-normal text-muted">
+                  共 <AnimatedNumber value={apps.length} /> 个网站
+                </span>
               </span>
+              <span aria-hidden="true" className="flow-rule mt-2 w-14" />
             </h2>
             {apps.length === 0 && (
               <p className="text-sm text-muted">
@@ -1244,7 +1276,11 @@ export function DashboardPage() {
                         className="h-8 w-8 shrink-0 rounded object-contain"
                       />
                     ) : (
-                      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded bg-primary-soft text-sm font-bold text-primary">
+                      <span
+                        className={`flex h-8 w-8 shrink-0 items-center justify-center rounded text-sm font-bold ${
+                          ACCENT_CLASSES[accentFor(app.client_id)].tile
+                        }`}
+                      >
                         {app.name.slice(0, 1).toUpperCase()}
                       </span>
                     )}

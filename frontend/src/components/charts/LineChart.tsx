@@ -22,8 +22,11 @@ interface LineChartProps {
 
 const DEFAULT_COLORS = [
   "var(--portal-primary)",
-  "var(--portal-success)",
-  "var(--portal-warning)",
+  "var(--portal-accent-teal)",
+  "var(--portal-accent-violet)",
+  "var(--portal-accent-amber)",
+  "var(--portal-accent-rose)",
+  "var(--portal-accent-cyan)",
 ];
 
 const PADDING = { top: 16, right: 12, bottom: 28, left: 42 };

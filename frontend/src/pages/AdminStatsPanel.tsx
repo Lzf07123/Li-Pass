@@ -23,6 +23,24 @@ const AUTH_METHOD_LABEL: Record<string, string> = {
   recovery: "恢复码",
 };
 
+/** 认证方式分布条：每种方式一个固定色相，与图表/占位瓦片同族 */
+const AUTH_METHOD_COLORS: Record<string, string> = {
+  password: "var(--portal-accent-cyan)",
+  email_otp: "var(--portal-accent-teal)",
+  totp: "var(--portal-accent-violet)",
+  recovery: "var(--portal-accent-amber)",
+};
+
+/** 概览 Bento 卡：六张卡各一个色相（卡面恒为深色，两套主题共用亮色标签） */
+const CARD_ACCENTS: Array<{ rgb: string; hex: string }> = [
+  { rgb: "var(--portal-bento-sky-rgb)", hex: "var(--portal-bento-sky)" },
+  { rgb: "var(--portal-bento-indigo-rgb)", hex: "var(--portal-bento-indigo)" },
+  { rgb: "var(--portal-bento-teal-rgb)", hex: "var(--portal-bento-teal)" },
+  { rgb: "var(--portal-bento-violet-rgb)", hex: "var(--portal-bento-violet)" },
+  { rgb: "var(--portal-bento-amber-rgb)", hex: "var(--portal-bento-amber)" },
+  { rgb: "var(--portal-bento-rose-rgb)", hex: "var(--portal-bento-rose)" },
+];
+
 const numberFormat = new Intl.NumberFormat("zh-CN");
 
 function formatTime(iso: string): string {
@@ -82,7 +100,7 @@ function StatSparkline({ values }: { values: number[] }) {
       preserveAspectRatio="none"
       aria-hidden="true"
     >
-      <path d={area} fill="rgba(56, 189, 248, 0.14)" />
+      <path d={area} fill="var(--bento-label, #38bdf8)" fillOpacity={0.14} />
       <path
         d={line}
         fill="none"
@@ -133,12 +151,12 @@ export function AdminStatsPanel() {
         {
           name: "登录人数",
           values: stats.daily.map((point) => point.login_users),
-          color: "var(--portal-success)",
+          color: "var(--portal-accent-teal)",
         },
         {
           name: "新增注册",
           values: stats.daily.map((point) => point.registrations),
-          color: "var(--portal-warning)",
+          color: "var(--portal-accent-violet)",
           dashed: true,
         },
       ]
@@ -219,7 +237,10 @@ export function AdminStatsPanel() {
             />
           ),
         },
-        ];
+        ].map((card, index) => ({
+          ...card,
+          accent: CARD_ACCENTS[index],
+        }));
       })()
     : [];
 
@@ -281,6 +302,7 @@ export function AdminStatsPanel() {
               icon: card.icon,
               footer: card.footer,
               href: card.href,
+              accent: card.accent,
             }))}
             textAutoHide={false}
             enableTilt
@@ -324,9 +346,12 @@ export function AdminStatsPanel() {
                       </span>
                       <div className="h-2 flex-1 overflow-hidden rounded-full bg-surface-2">
                         <div
-                          className="h-full rounded-full bg-primary"
+                          className="h-full rounded-full"
                           style={{
                             width: `${(item.count / maxMethodCount) * 100}%`,
+                            backgroundColor:
+                              AUTH_METHOD_COLORS[item.method] ??
+                              "var(--portal-primary)",
                           }}
                         />
                       </div>
