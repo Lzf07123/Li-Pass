@@ -56,6 +56,9 @@ redis-data/
 # 数据库备份
 backups/
 
+# 热更新快照与审计日志（scripts/hot_update.sh 生成）
+deploy-backups/
+
 # 本地上传
 uploads/
 

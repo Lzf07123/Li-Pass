@@ -155,6 +155,27 @@ docker compose -f docker-compose.yaml --profile bundle --env-file .env up -d --b
 
 > 使用远程 PostgreSQL/Redis 时去掉 `--profile bundle`，并在 `.env` 中设置 `DATABASE_URL` / `REDIS_URL`。
 
+### 生产级热更新（零停机更新）
+
+默认生产形态不可变（代码烧进镜像，改动需 `up -d --build`）。需要零停机更新时，以热更新
+覆盖文件启动（一次性切换形态，会重建 backend/frontend 容器）：
+
+```bash
+docker compose -f docker-compose.yaml -f docker-compose.hot.yaml \
+  --profile bundle up -d --build
+```
+
+- backend：代码放入 `backend-code` 卷、`HOT_UVICORN_WORKERS` 默认 2；更新 = 写卷 + SIGHUP，
+  uvicorn 逐个 worker 优雅回收，在途请求不中断；要求 `PENDING_REQUEST_STORE` /
+  `TWOFA_STORE` / `RATE_LIMITER` 均为 `redis`。
+- frontend：产物放入 `frontend-web` 卷；更新 = 原地换装 + `nginx -s reload`。
+- gateway：模板重新 envsubst + `nginx -s reload`。
+
+更新、快照、SHA256 校验与回滚统一走 `scripts/hot_update.sh`（用法见
+[部署文档 §生产级热更新](docs/deployment.md)）。依赖、Dockerfile、入口命令、环境变量、
+compose 拓扑以及 `alembic`/`scripts`/`ip2region` 目录的变更不属于热更新范围，仍按
+`up -d --build` 重建。
+
 详细部署、密钥备份与 HTTPS 说明见 [docs/deployment.md](docs/deployment.md)。
 
 示例授权网站（OIDC 演示，端口 3001）：
