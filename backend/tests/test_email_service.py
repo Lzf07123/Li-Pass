@@ -186,7 +186,7 @@ def test_verification_templates_distinguish_operation(
     assert expected_operation in copy["plain"]
     assert expected_operation in copy["intro"]
     html_text = render_verification("123456", kind)
-    assert expected_operation in html_text
+    assert expected_operation.replace("&", "&amp;") in html_text
     assert copy["title"] in html_text
     assert "123456" in html_text
 
@@ -197,7 +197,7 @@ def test_password_reset_template_states_operation() -> None:
     assert "你正在重置 Li&Pass 账号密码" in copy["plain"]
     assert "你的密码不会被修改" in copy["hint"]
     html_text = render_password_reset("123456")
-    assert "你正在重置 Li&Pass 账号密码" in html_text
+    assert "你正在重置 Li&amp;Pass 账号密码" in html_text
     assert "你的密码不会被修改" in html_text
 
 

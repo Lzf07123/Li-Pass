@@ -143,7 +143,7 @@ _VERIFICATION_COPY: dict[VerificationKind, dict[str, str]] = {
             "请立即修改密码并联系平台管理员。"
         ),
         "plain": (
-            "你正在进行 Li&Pass 账号敏感操作的二次验证。"
+            "你正在进行账号敏感操作的二次验证。"
             "你的验证码是 {code}，10 分钟内有效。"
             "如果不是你本人操作，请立即修改密码并联系平台管理员。"
         ),
