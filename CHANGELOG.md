@@ -106,7 +106,7 @@
 
 ### 运维工具
 
-- 编排文件与前端环境变量文件示例化：仓库改为提交 `docker-compose.example.yaml`（复制为 `docker-compose.yaml` 使用，本机版已 gitignore、可按环境就地修改）；`frontend/.env.example` 改为注释模板（同源网关留空 / 直连后端两种用法示例）；备份/恢复脚本在未复制编排文件时自动回退到 example；README/AGENTS/部署文档同步补充 `cp` 步骤。
+- 编排文件与前端环境变量文件示例化：仓库改为提交 `docker-compose.example.yaml`（复制为 `docker-compose.yaml` 使用，本机版已 gitignore、可按环境就地修改）；`frontend/.env.example` 改为注释模板（同源网关留空 / 直连后端两种用法示例）；备份/恢复脚本在未复制编排文件时自动回退到 example；README/AGENTS/部署文档同步补充 `cp` 步骤。品牌/站点信息（应用名、备案文案、页脚链接）同时环境变量化：`brand.ts` 优先读 `VITE_APP_NAME`/`VITE_APP_TAGLINE`/`VITE_ICP_FILING_*`/`VITE_POLICE_FILING_*`/`VITE_FOOTER_LINKS`，未设置回退内置默认值；前端 Dockerfile 与 compose 增加同名 build args，示例文件补充全部可选项。
 - 补齐网关 `nginx:1.27-alpine` 的 `IMAGE_REGISTRY` 前缀：现在编排内全部镜像（PostgreSQL/Redis/nginx 与三个自建服务，以及三个 Dockerfile 的基础镜像）都可用同一个镜像站前缀统一替换加速。
 - 备份脚本输出文件名前缀由 `portal-` 统一为 `lipass-`（脚本依赖 Compose 服务名，随项目改名无需其它改动）。
 - 补齐身份降级脚本 `scripts/demote_admin.py`：`python -m scripts.demote_admin <邮箱>` 把管理员降级为普通用户（已是普通用户则幂等跳过；拒绝降级最后一名管理员，防止失去后台入口），与 `make_admin` 对称。
