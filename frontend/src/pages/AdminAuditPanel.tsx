@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 
 import type { AuditLogOut } from "../api/types";
 import { adminAuditApi } from "../api/client";
-import { AnimatedNumber } from "../components/AnimatedNumber";
+import { CountUp } from "../components/bits/CountUp";
 import { AsyncButton } from "../components/AsyncButton";
 import { useAsyncAction } from "../hooks/useAsyncAction";
 import { useBreathOnChange } from "../hooks/useBreathOnChange";
@@ -82,7 +82,7 @@ export function AdminAuditPanel() {
         <h2 className="text-lg font-semibold text-foreground">
           审计日志
           <span className="ml-2 text-sm font-normal text-muted">
-            共 <AnimatedNumber value={logs.length} /> 条记录
+            共 <CountUp from={0} to={logs.length} duration={0.8} className="tabular-nums" /> 条记录
           </span>
         </h2>
         <AsyncButton
