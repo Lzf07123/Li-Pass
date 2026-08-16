@@ -1272,6 +1272,8 @@ export function DashboardPage() {
                     {app.home_url && (
                       <a
                         href={app.home_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
                         className="btn btn-primary"
                       >
                         进入
