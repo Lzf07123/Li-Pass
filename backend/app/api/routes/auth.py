@@ -205,7 +205,7 @@ def register(
             get_rate_limiter().decrement("register", ip)
             logger.exception("注册验证邮件发送失败：%s", email)
             raise HTTPException(
-                status.HTTP_502_BAD_GATEWAY,
+                status.HTTP_503_SERVICE_UNAVAILABLE,
                 "邮件发送失败，请稍后重试或点击“重新发送验证码”",
             )
     # 无论邮箱是否已注册，统一响应，避免账号枚举；重复注册不重复发信。
@@ -310,7 +310,7 @@ def resend_verify_email(
             get_rate_limiter().decrement("email_resend", email)
             logger.exception("验证邮件重发失败：%s", email)
             raise HTTPException(
-                status.HTTP_502_BAD_GATEWAY,
+                status.HTTP_503_SERVICE_UNAVAILABLE,
                 "邮件发送失败，请稍后重试",
             )
     # 与注册接口一致：已注册且已验证/不存在的邮箱返回相同文案，避免账号枚举。
@@ -668,7 +668,7 @@ def send_twofa_code(
         get_rate_limiter().decrement("otp_resend_cooldown", user.email)
         logger.exception("2FA 邮件重发失败 email=%s", user.email)
         raise HTTPException(
-            status.HTTP_502_BAD_GATEWAY,
+            status.HTTP_503_SERVICE_UNAVAILABLE,
             "邮件发送失败，请检查服务端 SMTP 配置或稍后重试",
         )
     return {"message": "验证码已发送"}
@@ -916,7 +916,7 @@ def request_password_reset(
             get_rate_limiter().decrement("password_reset", email)
             logger.exception("重置密码邮件发送失败：%s", email)
             raise HTTPException(
-                status.HTTP_502_BAD_GATEWAY,
+                status.HTTP_503_SERVICE_UNAVAILABLE,
                 "邮件发送失败，请稍后重试",
             )
     return {"message": "请求已受理：如果该邮箱已注册，重置验证码将发送至该邮箱。"}

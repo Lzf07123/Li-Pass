@@ -5,6 +5,9 @@ from pydantic import BaseModel, Field, field_validator
 
 from app.core.config import get_settings
 
+# 本 IdP 实际支持的 scope 全集（与发现文档、userinfo/id_token 的 claims 裁剪一致）。
+SUPPORTED_SCOPES = frozenset({"openid", "profile", "email"})
+
 
 def _validate_web_url(value: str | None, field_name: str) -> str | None:
     """校验 OAuth 客户端 URL 字段：仅 http/https、无凭据、无 # 片段。
@@ -25,6 +28,17 @@ def _validate_web_url(value: str | None, field_name: str) -> str | None:
     if get_settings().environment == "production" and parsed.scheme != "https":
         raise ValueError(f"生产环境 {field_name} 必须使用 https")
     return value
+
+
+def _validate_scopes(value: list[str]) -> list[str]:
+    """scope 必须是支持集的非空子集，且必须包含 openid。"""
+    normalized = [scope.strip() for scope in value if scope.strip()]
+    if not normalized or "openid" not in normalized:
+        raise ValueError("scopes 必须包含 openid")
+    unknown = set(normalized) - SUPPORTED_SCOPES
+    if unknown:
+        raise ValueError("不支持的 scope：" + ", ".join(sorted(unknown)))
+    return normalized
 
 
 class ClientCreate(BaseModel):
@@ -64,6 +78,11 @@ class ClientCreate(BaseModel):
         if len(normalized) != len(set(normalized)):
             raise ValueError("回调地址不能重复")
         return normalized
+
+    @field_validator("scopes")
+    @classmethod
+    def _check_scopes(cls, value: list[str]) -> list[str]:
+        return _validate_scopes(value)
 
 
 class ClientUpdate(BaseModel):
@@ -106,9 +125,18 @@ class ClientUpdate(BaseModel):
         if value is None:
             return value
         normalized = [_validate_web_url(uri, "回调地址") for uri in value]
+        if not normalized:
+            raise ValueError("回调地址不能为空")
         if len(normalized) != len(set(normalized)):
             raise ValueError("回调地址不能重复")
         return normalized
+
+    @field_validator("scopes")
+    @classmethod
+    def _check_scopes(cls, value: list[str] | None) -> list[str] | None:
+        if value is None:
+            return value
+        return _validate_scopes(value)
 
 
 class ClientOut(BaseModel):

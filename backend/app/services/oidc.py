@@ -44,6 +44,9 @@ def build_authorize_redirect(redirect_uri: str, code: str, state: str | None = N
 def verify_pkce(code_verifier: str, code_challenge: str | None) -> bool:
     if not code_challenge:
         return False
+    # RFC 7636 §4.1：verifier 长度必须落在 43–128 字符窗口。
+    if not 43 <= len(code_verifier) <= 128:
+        return False
     digest = hashlib.sha256(code_verifier.encode()).digest()
     expected = base64.urlsafe_b64encode(digest).rstrip(b"=").decode()
     return secrets.compare_digest(expected, code_challenge)

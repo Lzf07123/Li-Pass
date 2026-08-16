@@ -1,6 +1,7 @@
 import asyncio
 import contextlib
 import logging
+from pathlib import Path
 from urllib.parse import urlparse
 
 from fastapi import Depends, FastAPI
@@ -229,7 +230,13 @@ def create_app() -> FastAPI:
         response = await call_next(request)
         # 认证/业务接口包含用户数据，禁止浏览器与共享代理缓存；
         # 头像等公开静态资源除外（文件名带随机 UUID，可由网关长缓存）。
-        if not request.url.path.startswith("/uploads/"):
+        if request.url.path.startswith("/uploads/"):
+            # 头像文件名含随机 UUID，可安全长缓存；失败响应不得被缓存。
+            if response.status_code == 200:
+                response.headers["Cache-Control"] = "public, max-age=604800"
+            else:
+                response.headers["Cache-Control"] = "no-store"
+        else:
             response.headers["Cache-Control"] = "no-store"
         response.headers["X-Content-Type-Options"] = "nosniff"
         response.headers["X-Frame-Options"] = "DENY"
@@ -248,6 +255,9 @@ def create_app() -> FastAPI:
             )
         return response
 
+    # 全新卷上头像目录可能尚不存在：启动时创建，避免首次访问静态挂载
+    # 因目录缺失抛 FileNotFoundError 而返回 500。
+    Path(settings.avatar_upload_dir).mkdir(parents=True, exist_ok=True)
     app.mount(
         "/uploads/avatars",
         StaticFiles(directory=settings.avatar_upload_dir, check_dir=False),
