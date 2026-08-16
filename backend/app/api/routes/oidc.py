@@ -16,7 +16,7 @@ from fastapi import (
     Response,
     status,
 )
-from fastapi.responses import RedirectResponse
+from fastapi.responses import JSONResponse, RedirectResponse
 from sqlalchemy import select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -36,6 +36,7 @@ from app.models.user import User, UserStatus
 from app.models.user_consent import UserConsent
 from app.security.jwt import (
     absolute_avatar_url,
+    compute_at_hash,
     create_access_token,
     create_id_token,
     decode_token,
@@ -65,16 +66,33 @@ from app.services.logout_requests import (
 router = APIRouter(tags=["oidc"])
 
 
+def _oauth_error(
+    status_code: int,
+    error: str,
+    error_description: str,
+    www_authenticate: str | None = None,
+) -> JSONResponse:
+    """RFC 6749 §5.2 错误响应：token 端点使用标准 error/error_description 字段。"""
+    headers = {"Cache-Control": "no-store"}
+    if www_authenticate:
+        headers["WWW-Authenticate"] = www_authenticate
+    return JSONResponse(
+        status_code=status_code,
+        content={"error": error, "error_description": error_description},
+        headers=headers,
+    )
+
+
 @router.get("/oauth2/authorize")
 def authorize(
     request: Request,
-    client_id: str = Query(...),
-    redirect_uri: str = Query(...),
+    client_id: str = Query(..., max_length=128),
+    redirect_uri: str = Query(..., max_length=1000),
     response_type: str = Query(...),
-    scope: str | None = Query(None),
-    state: str | None = Query(None),
-    nonce: str | None = Query(None),
-    code_challenge: str | None = Query(None),
+    scope: str | None = Query(None, max_length=500),
+    state: str | None = Query(None, max_length=512),
+    nonce: str | None = Query(None, max_length=255),
+    code_challenge: str | None = Query(None, max_length=255),
     code_challenge_method: str = Query("S256"),
     db: Session = Depends(get_db),
 ):
@@ -359,17 +377,28 @@ def token(
     client_secret: str | None = Form(None),
     code_verifier: str | None = Form(None),
     db: Session = Depends(get_db),
-) -> dict:
+):
     if grant_type != "authorization_code":
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, "unsupported_grant_type")
+        return _oauth_error(
+            status.HTTP_400_BAD_REQUEST,
+            "unsupported_grant_type",
+            "不支持的授权类型",
+        )
     client = db.scalar(select(OAuthClient).where(OAuthClient.client_id == client_id))
     if client is None or not client.is_active:
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, "invalid_client")
+        return _oauth_error(
+            status.HTTP_400_BAD_REQUEST, "invalid_client", "客户端不存在或已停用"
+        )
     if client.client_secret_hash is not None:
         if not client_secret or not secrets.compare_digest(
             hash_token(client_secret), client.client_secret_hash
         ):
-            raise HTTPException(status.HTTP_401_UNAUTHORIZED, "invalid_client")
+            return _oauth_error(
+                status.HTTP_401_UNAUTHORIZED,
+                "invalid_client",
+                "客户端凭据错误",
+                www_authenticate="Basic",
+            )
 
     record = db.scalar(
         select(AuthorizationCode).where(
@@ -384,12 +413,14 @@ def token(
         or record.consumed_at is not None
         or _as_utc(record.expires_at) < now
     ):
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, "invalid_grant")
-    if (
-        client.client_secret_hash is None
-        and not verify_pkce(code_verifier or "", record.code_challenge)
-    ):
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, "invalid_grant")
+        return _oauth_error(
+            status.HTTP_400_BAD_REQUEST, "invalid_grant", "授权码无效、过期或已被使用"
+        )
+    # OAuth 2.1：PKCE 对所有客户端（含机密客户端）强制。
+    if not verify_pkce(code_verifier or "", record.code_challenge):
+        return _oauth_error(
+            status.HTTP_400_BAD_REQUEST, "invalid_grant", "PKCE 校验失败"
+        )
 
     # 原子条件更新：并发请求只有一次能成功消费，消除 TOCTOU 竞态。
     consumed = db.execute(
@@ -402,12 +433,20 @@ def token(
     )
     db.commit()
     if consumed.rowcount != 1:
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, "invalid_grant")
+        return _oauth_error(
+            status.HTTP_400_BAD_REQUEST, "invalid_grant", "授权码已被使用"
+        )
     user = db.get(User, record.user_id)
     if user is None or user.status != UserStatus.active:
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, "invalid_grant")
+        return _oauth_error(
+            status.HTTP_400_BAD_REQUEST, "invalid_grant", "授权码无效"
+        )
     if find_block(db, client.id, user) is not None:
-        raise HTTPException(status.HTTP_403_FORBIDDEN, "该账号已被此网站限制访问")
+        return _oauth_error(
+            status.HTTP_403_FORBIDDEN,
+            "access_denied",
+            "该账号已被此网站限制访问",
+        )
 
     if record.session_id is not None:
         link = db.scalar(
@@ -436,8 +475,11 @@ def token(
             db.commit()
 
     settings = get_settings()
+    access_token = create_access_token(
+        user, client.client_id, record.scope
+    )
     return {
-        "access_token": create_access_token(user, client.client_id, record.scope),
+        "access_token": access_token,
         "token_type": "Bearer",
         "expires_in": settings.oauth_access_token_ttl_minutes * 60,
         "id_token": create_id_token(
@@ -449,6 +491,7 @@ def token(
             if record.auth_method in ("email_otp", "totp", "recovery")
             else "urn:lipass:acr:1fa",
             sid=str(record.session_id) if record.session_id else None,
+            at_hash=compute_at_hash(access_token),
         ),
     }
 

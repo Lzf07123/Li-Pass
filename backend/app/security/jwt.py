@@ -1,4 +1,5 @@
 import base64
+import hashlib
 import time
 import uuid
 from datetime import datetime, timedelta, timezone
@@ -96,6 +97,13 @@ def _b64(number: int) -> str:
     return base64.urlsafe_b64encode(number.to_bytes(size, "big")).rstrip(b"=").decode()
 
 
+def compute_at_hash(access_token: str) -> str:
+    """OIDC Core §3.3.2.11：token 端点同时返回 access_token 与 id_token 时，
+    id_token 必须携带 at_hash = base64url(SHA256(access_token) 左 16 字节)。"""
+    digest = hashlib.sha256(access_token.encode()).digest()[:16]
+    return base64.urlsafe_b64encode(digest).rstrip(b"=").decode()
+
+
 def _now() -> datetime:
     return datetime.now(timezone.utc)
 
@@ -143,6 +151,7 @@ def create_id_token(
     scope: str,
     acr: str = "urn:lipass:acr:1fa",
     sid: str | None = None,
+    at_hash: str | None = None,
 ) -> str:
     settings = get_settings()
     now = _now()
@@ -153,10 +162,13 @@ def create_id_token(
         "aud": client_id,
         "iat": now,
         "exp": now + timedelta(minutes=settings.oauth_id_token_ttl_minutes),
-        "nonce": nonce,
         "acr": acr,
         "scope": scope,
     }
+    if nonce:
+        payload["nonce"] = nonce
+    if at_hash:
+        payload["at_hash"] = at_hash
     if sid:
         payload["sid"] = sid
     # 按授权 scope 裁剪 claims（与 userinfo 保持一致）。
