@@ -129,4 +129,5 @@ bash scripts/hot_update.sh --dry-run status       # 只读预览（生产热更�
 - **ip2region**：数据与绑定是 vendored 的，升级先 `python scripts/download_ip2region.py --data-dir data/ip2region --binding-dir ip2region` 再提交；运行期更新走 `app/services/ip2region_pins.py` 的 SHA256 信任清单。
 - **镜像源**：Docker 构建默认国内 APT/PIP/npm 镜像（构建参数可切官方源），CI 用官方源；本地 npm 走 `.npmrc` 的 npmmirror。
 - **前端 CSP**：生产 `style-src 'self'`（无 `unsafe-inline`），动效必须尊重 `prefers-reduced-motion`。
+- **热更新覆盖文件二选一**：`docker-compose.dev.yaml`（本地 HMR）与 `docker-compose.hot.yaml`（生产零停机）都会重写 backend/frontend 的 command 与卷，同时叠加会因重复挂载点冲突；生产热更新的零停机前提是三类存储均为 redis 且 `HOT_UVICORN_WORKERS≥2`，`--reload` 只用于本地开发。
 - **SQLite 测试夹具 ≠ PostgreSQL**：conftest 用 SQLite 内存库；外键、JSON、时区语义差异要靠真实 PostgreSQL 验证。
