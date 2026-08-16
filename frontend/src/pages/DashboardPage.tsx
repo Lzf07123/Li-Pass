@@ -625,7 +625,7 @@ export function DashboardPage() {
                   <BlurText
                     as="span"
                     text={user.nickname.trim() ? `你好，${user.nickname.trim()}` : "你好"}
-                    className="block text-4xl font-bold leading-tight tracking-normal"
+                    className="justify-center text-4xl font-bold leading-tight tracking-normal"
                     animateBy="words"
                     direction="top"
                     delay={100}
@@ -1288,7 +1288,13 @@ export function DashboardPage() {
                         </p>
                         {app.active_sessions > 0 ? (
                           <span className="badge badge-primary">
-                            已登录 · {app.active_sessions} 台设备
+                            已登录 ·{" "}
+                            <CountUp
+                              from={0}
+                              to={app.active_sessions}
+                              className="tabular-nums"
+                            />{" "}
+                            台设备
                           </span>
                         ) : (
                           <span className="badge badge-muted">未登录</span>

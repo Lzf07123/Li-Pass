@@ -153,7 +153,8 @@ stable 哈希分配见 `frontend/src/lib/accent.ts` 的 `accentFor(id)`；Bento 
 - 位置：`frontend/src/components/bits/BlurText.tsx`，React Bits BlurText 的 TypeScript 移植版
   （JavaScript + CSS 变体，`motion/react` 驱动）。
 - 用法：认证页标题（`AuthShell`）与用户中心问候语（`DashboardPage`）以 `as="span"` 包在 `h1` 内，
-  `animateBy="words" direction="top"` 按词错峰模糊浮现；支持 `threshold/rootMargin` 视口触发、
+  `animateBy="words" direction="top" className="justify-center …"` 按词错峰模糊浮现且整体居中；
+  支持 `threshold/rootMargin` 视口触发、
   `animationFrom/animationTo/easing` 自定义与 `onAnimationComplete` 回调。
 - 无障碍：`prefers-reduced-motion: reduce` 时静态渲染整段文本，跳过模糊位移动画。
 
@@ -161,15 +162,17 @@ stable 哈希分配见 `frontend/src/lib/accent.ts` 的 `accentFor(id)`；Bento 
 
 - 位置：`frontend/src/components/bits/CountUp.tsx`，React Bits CountUp 的 TypeScript 移植版
   （`motion/react` 弹簧：`damping=20+40/duration`、`stiffness=100/duration`）。
-- 用法：用户中心/会话监控/用户管理/应用管理/审计日志的「共 N 个…」计数，
-  `from={0}`、`duration={0.8}`、`className="tabular-nums"`；支持 `separator` 千位分隔、
+- 用法：用户中心/会话监控/用户管理/应用管理/审计日志的「共 N 个…」计数，以及数据统计六张概览卡数值、
+  认证方式分布条数量、地域汇总徽章（海外/内网/其它）、会话下线确认弹窗、应用广场「已登录 · N 台设备」；
+  概览卡用 `separator=","`、其余 `from={0}`、`duration={0.8}`、`className="tabular-nums"`；支持
   `direction="up|down"`、`startWhen` 视口触发与 `onStart/onEnd` 回调。
 - 无障碍：`prefers-reduced-motion` 或无 `requestAnimationFrame` 的环境直接显示目标值，不做墙钟动画。
 
 ### Bento 展示网格（`MagicBento` / `.magic-bento-card`）
 
 - 位置：`frontend/src/components/bits/MagicBento.tsx` + `MagicBento.css`，后台「数据统计」概览卡片使用；基于 gsap，移植 React Bits MagicBento。
-- 结构：`.magic-bento` 内为 `.card-grid.bento-section`，卡片为深色表面（浅色 `#0F172A` / 深色 `#111A2C`）；默认首卡跨两列，`emphasize` 项数值加粗放大（tabular-nums）；项支持 `icon`（标签前图标）、`footer`（底部扩展内容，如迷你趋势线/进度条）与 `href`（整卡渲染为路由链接）；`compact` 模式为等宽 3 列、单卡高 144px，适合嵌入页面顶部概览区。
+- 结构：`.magic-bento` 内为 `.card-grid.bento-section`，卡片为深色表面（浅色 `#1A2B27` / 深色 `#363D44`）；默认首卡跨两列，`emphasize` 项数值加粗放大（tabular-nums）；项支持 `icon`（标签前图标）、`footer`（底部扩展内容，如迷你趋势线/进度条）与 `href`（整卡渲染为路由链接）；`compact` 模式为等宽 3 列、单卡高 144px，适合嵌入页面顶部概览区。
+- `title` 支持 ReactNode（如嵌入 `CountUp` 做滚动数字）；`accent` 为卡片级色相覆盖。
 - 交互：全局光标聚光（`.global-spotlight`）、悬停粒子星点、边框辉光（`--glow-*` 变量）、3D 倾斜与磁性吸附；光色默认取明暗主题的主色 RGB 值，`glowColor`（RGB 三元组字符串）可覆盖。
 - 多色支持：item 可选 `accent: { rgb, hex }`，卡片级覆盖 `--glow-color`/`--bento-label`，
   标签底色/图标/辉光/页脚迷你图与进度条联动跟随（`color-mix`/`rgba(var(--glow-color))` 派生）。

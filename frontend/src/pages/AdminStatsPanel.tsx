@@ -4,6 +4,7 @@ import { adminStatsApi } from "../api/client";
 import type { AdminStats } from "../api/types";
 import { AsyncButton } from "../components/AsyncButton";
 import { MagicBento } from "../components/bits/MagicBento";
+import { CountUp } from "../components/bits/CountUp";
 import { LineIcon } from "../components/bits/LineIcon";
 import { ChinaMap } from "../components/charts/ChinaMap";
 import { LineChart } from "../components/charts/LineChart";
@@ -177,7 +178,7 @@ export function AdminStatsPanel() {
         return [
         {
           title: "账号总数",
-          value: numberFormat.format(totalUsers),
+          value: <CountUp from={0} to={totalUsers} separator="," duration={1} />,
           hint: `启用 ${numberFormat.format(stats.overview.active_users)} · 禁用 ${numberFormat.format(stats.overview.disabled_users)}`,
           icon: <LineIcon name="users" className="h-3.5 w-3.5" />,
           href: "/admin/users",
@@ -189,14 +190,28 @@ export function AdminStatsPanel() {
         },
         {
           title: "管理员",
-          value: numberFormat.format(stats.overview.admins),
+          value: (
+            <CountUp
+              from={0}
+              to={stats.overview.admins}
+              separator=","
+              duration={1}
+            />
+          ),
           hint: `占账号总数 ${percentOf(stats.overview.admins, totalUsers)}`,
           icon: <LineIcon name="shield" className="h-3.5 w-3.5" />,
           href: "/admin/users",
         },
         {
           title: "已验证邮箱",
-          value: numberFormat.format(stats.overview.verified_users),
+          value: (
+            <CountUp
+              from={0}
+              to={stats.overview.verified_users}
+              separator=","
+              duration={1}
+            />
+          ),
           hint: `验证率 ${percentOf(stats.overview.verified_users, totalUsers)} · 未验证 ${numberFormat.format(Math.max(0, totalUsers - stats.overview.verified_users))}`,
           icon: <LineIcon name="mail" className="h-3.5 w-3.5" />,
           href: "/admin/users",
@@ -208,14 +223,28 @@ export function AdminStatsPanel() {
         },
         {
           title: "在线会话",
-          value: numberFormat.format(stats.overview.online_sessions),
+          value: (
+            <CountUp
+              from={0}
+              to={stats.overview.online_sessions}
+              separator=","
+              duration={1}
+            />
+          ),
           hint: "当前活跃的登录会话",
           icon: <LineIcon name="monitor" className="h-3.5 w-3.5" />,
           href: "/admin/sessions",
         },
         {
           title: "累计登录次数",
-          value: numberFormat.format(stats.overview.total_logins),
+          value: (
+            <CountUp
+              from={0}
+              to={stats.overview.total_logins}
+              separator=","
+              duration={1}
+            />
+          ),
           hint: `近 ${days} 天日均 ${numberFormat.format(Math.round(dailyLogins))} 次`,
           icon: <LineIcon name="trend" className="h-3.5 w-3.5" />,
           href: "/admin/audit",
@@ -227,7 +256,14 @@ export function AdminStatsPanel() {
         },
         {
           title: `新增注册（${days} 天）`,
-          value: numberFormat.format(registrations),
+          value: (
+            <CountUp
+              from={0}
+              to={registrations}
+              separator=","
+              duration={1}
+            />
+          ),
           hint: `近 ${days} 天日均 ${(registrations / days).toFixed(1)} 人`,
           icon: <LineIcon name="user" className="h-3.5 w-3.5" />,
           href: "/admin/users",
@@ -355,15 +391,17 @@ export function AdminStatsPanel() {
                           }}
                         />
                       </div>
-                      <span className="w-10 shrink-0 text-right text-foreground">
-                        {numberFormat.format(item.count)}
-                      </span>
+                      <CountUp
+                        from={0}
+                        to={item.count}
+                        className="w-10 shrink-0 text-right text-foreground"
+                      />
                     </div>
                   ))}
                 </div>
               )}
               <p className="mt-3 text-xs text-muted">
-                共 {numberFormat.format(totalSessions)} 个在线会话
+                共 <CountUp from={0} to={totalSessions} className="tabular-nums" /> 个在线会话
               </p>
             </div>
           </div>

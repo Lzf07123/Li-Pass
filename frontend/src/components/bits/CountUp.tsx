@@ -102,19 +102,23 @@ export function CountUp({
     if (isInView && startWhen) {
       if (typeof onStart === "function") onStart();
 
+      // 无 rAF（SSR/测试）或减弱动效：同步落定目标值，不依赖墙钟动画。
+      if (!hasRaf || prefersReducedMotion) {
+        motionValue.set(target);
+        if (ref.current) {
+          ref.current.textContent = formatValue(target);
+        }
+        if (typeof onEnd === "function") onEnd();
+        return;
+      }
+
       const timeoutId = setTimeout(() => {
         motionValue.set(target);
-        if (!hasRaf || prefersReducedMotion) {
-          if (ref.current) {
-            ref.current.textContent = formatValue(target);
-          }
-          if (typeof onEnd === "function") onEnd();
-        }
       }, delay * 1000);
 
       const durationTimeoutId = setTimeout(
         () => {
-          if (hasRaf && !prefersReducedMotion && typeof onEnd === "function") {
+          if (typeof onEnd === "function") {
             onEnd();
           }
         },

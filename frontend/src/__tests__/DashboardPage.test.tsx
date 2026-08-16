@@ -7,6 +7,17 @@ import { renderWithProviders } from "../test/renderWithProviders";
 describe("DashboardPage", () => {
   beforeEach(() => {
     vi.unstubAllGlobals();
+    // CountUp 在 prefers-reduced-motion 下直接落定目标值，避免弹簧墙钟动画的不稳定
+    vi.stubGlobal(
+      "matchMedia",
+      vi
+        .fn()
+        .mockReturnValue({
+          matches: true,
+          addEventListener: vi.fn(),
+          removeEventListener: vi.fn(),
+        }),
+    );
   });
 
   it("渲染用户信息与应用广场", async () => {
@@ -68,7 +79,11 @@ describe("DashboardPage", () => {
     renderWithProviders(<DashboardPage />);
     await waitFor(() => expect(screen.getByDisplayValue("Alice")).toBeInTheDocument());
     await waitFor(() => expect(screen.getByText("Demo")).toBeInTheDocument());
-    expect(screen.getByText("已登录 · 1 台设备")).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        (_, element) => element?.textContent === "已登录 · 1 台设备",
+      ),
+    ).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "上传头像" })).toBeInTheDocument();
     const enterLink = screen.getByRole("link", { name: "进入" });
     expect(enterLink).toHaveAttribute("href", "http://localhost:3001");

@@ -1,9 +1,24 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ChinaMap } from "../components/charts/ChinaMap";
 
 describe("ChinaMap", () => {
+  beforeEach(() => {
+    vi.unstubAllGlobals();
+    // CountUp 在 prefers-reduced-motion 下直接落定目标值
+    vi.stubGlobal(
+      "matchMedia",
+      vi
+        .fn()
+        .mockReturnValue({
+          matches: true,
+          addEventListener: vi.fn(),
+          removeEventListener: vi.fn(),
+        }),
+    );
+  });
+
   it("渲染省份着色、徽章与明细表", async () => {
     render(
       <ChinaMap
@@ -31,9 +46,15 @@ describe("ChinaMap", () => {
     const shanghai = document.querySelector('[data-name="上海市"]');
     expect(shanghai?.getAttribute("data-value")).toBe("0");
 
-    expect(screen.getByText("海外 4")).toBeInTheDocument();
-    expect(screen.getByText("内网 2")).toBeInTheDocument();
-    expect(screen.getByText("其它 1")).toBeInTheDocument();
+    expect(
+      screen.getByText((_, element) => element?.textContent === "海外 4"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText((_, element) => element?.textContent === "内网 2"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText((_, element) => element?.textContent === "其它 1"),
+    ).toBeInTheDocument();
 
     const table = screen.getByRole("table");
     expect(table).toHaveTextContent("广东省");
@@ -71,8 +92,12 @@ describe("ChinaMap", () => {
       />,
     );
 
-    expect(screen.getByText("海外 3")).toBeInTheDocument();
-    expect(screen.queryByText("0")).not.toBeInTheDocument();
+    expect(
+      screen.getByText((_, element) => element?.textContent === "海外 3"),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText("0", { selector: ".text-xs" }),
+    ).not.toBeInTheDocument();
     expect(screen.queryByText(/–/)).not.toBeInTheDocument();
     await waitFor(() =>
       expect(document.querySelector('[data-name="北京市"]')).not.toBeNull(),

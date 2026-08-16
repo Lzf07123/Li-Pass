@@ -52,7 +52,7 @@ export function AuthShell({
                 <BlurText
                   as="span"
                   text={title}
-                  className="block text-[34px] font-bold leading-tight tracking-normal"
+                  className="justify-center text-[34px] font-bold leading-tight tracking-normal"
                   animateBy="words"
                   direction="top"
                   delay={120}
