@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime
 from urllib.parse import urlparse
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, EmailStr, Field, field_validator
 
 from app.core.config import get_settings
 
@@ -164,7 +164,7 @@ class ClientSecretOut(BaseModel):
 
 
 class ClientBlockCreate(BaseModel):
-    email: str | None = Field(default=None, max_length=320)
+    email: EmailStr | None = Field(default=None, max_length=320)
     user_id: uuid.UUID | None = None
     reason: str = Field(default="", max_length=500)
 

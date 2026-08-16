@@ -44,13 +44,15 @@ StepUp2faForm/useStepUp/useAsyncAction/ToastProvider、vite/package 构建配置
 - ✅ 已修复：黑名单接口畸形 `user_id` 返回语义错位的 409（UUID 转换异常被
   `except ValueError` 误捕获）。现 `ClientBlockCreate.user_id` 用 UUID 类型校验，
   畸形输入返回 422；TDD 红绿验证 + 全量 474 测试通过。
-- [P4] 管理后台统计「在线会话」只按 `expires_at` 判断，未剔除空闲超时但尚未
-  过期的会话，统计口径偏大（仅展示层）。
-- [P4] 迁移 `a1b2c3d4e5f6` 将 timestamp→timestamptz 时按数据库会话时区
-  （容器 TZ=Asia/Shanghai）重解释存量 naive 时间；若历史写入的是 UTC naive 值，
-  会引入 8 小时偏移。已在线存量环境执行，建议人工抽检历史会话/审计时间。
-- [P4] `ClientBlockCreate.email` 无邮箱格式校验（任意字符串可落库；仅做等值
-  比较，无实际风险）。
+- ✅ 已修复：管理后台统计「在线会话」与「在线会话认证方式分布」补上空闲超时
+  过滤（`last_used_at` 需在 `SESSION_IDLE_MINUTES` 窗口内），与其它在线口径一致。
+- ✅ 已澄清（无偏移，无需改数据）：迁移 `a1b2c3d4e5f6` 的 timestamp→timestamptz
+  转换发生在项目早期，当时编排尚未引入 `TZ=Asia/Shanghai`（git 历史显示该配置
+  在后续重命名提交才加入），写入与改列均在同一 UTC 会话时区下完成，存量
+  “UTC naive” 值按 UTC 重解释，**不产生 8 小时偏移**。非标准部署（曾混用不同
+  会话时区）可用部署文档新增的核查 SQL 抽检。
+- ✅ 已修复：`ClientBlockCreate.email` 改为 `EmailStr` 格式校验，畸形邮箱返回
+  422，避免脏数据落库。
 - [观察] 「站点设置/公开注册开关」「禁用/启用用户」「修改客户端配置」不需要
   step-up 密码复核（与既有敏感操作清单一致，属设计取舍）。
 

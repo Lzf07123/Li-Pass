@@ -294,6 +294,34 @@ bash scripts/restore-db.sh backups/lipass-20260813-120000.sql.gz
 6. **迁移只执行一次**：单实例可依赖后端启动自动迁移；多副本部署应在发布流程中单独执行一次 `docker compose run --rm backend alembic upgrade head`，再扩容副本。
 7. **升级后验证**：检查 `/readyz`、查看 `alembic current` 是否等于代码 head，并抽样验证登录/注册/授权主流程。
 
+### 历史时间戳迁移核查（a1b2c3d4e5f6）
+
+早期迁移 `a1b2c3d4e5f6` 把若干 `timestamp` 列改为 `timestamptz`。经 git 历史核查，
+该迁移上线时编排尚未配置 `TZ=Asia/Shanghai`，写入与改列都在同一 UTC 会话时区下
+完成，官方部署路径的存量时间不产生偏移，无需修复。仅在曾混用不同数据库会话时区
+的非标准部署中需要抽检，可用以下口径核对（`expires_at` 与同行的 `created_at`
+之差应落在预期 TTL 附近，偏离约 8 小时说明当时发生了重解释偏移）：
+
+```sql
+-- 会话表：expires_at 应约等于 created_at + 会话 TTL（示例按 30 天）
+SELECT id, created_at, expires_at,
+       expires_at - created_at AS ttl
+FROM sessions
+WHERE expires_at - created_at NOT BETWEEN interval '29 days' AND interval '31 days'
+  AND created_at < '2026-08-12'  -- 迁移上线日期之前的历史行
+LIMIT 100;
+
+-- 验证码表：expires_at 应约等于 created_at + 10 分钟
+SELECT id, created_at, expires_at
+FROM otps
+WHERE expires_at - created_at NOT BETWEEN interval '9 minutes' AND interval '11 minutes'
+  AND created_at < '2026-08-12'
+LIMIT 100;
+```
+
+确认存在 8 小时偏移后，用备份回滚 + 显式 `SET TIME ZONE` 修正，或联系维护者评估，
+不要在 schema 迁移中直接改写历史业务数据。
+
 推荐升级流程：
 
 ```bash
