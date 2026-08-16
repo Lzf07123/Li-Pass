@@ -184,3 +184,48 @@ def test_apps_plaza_reports_active_sessions(
     )
     db_session.commit()
     assert client.get("/api/v1/apps").json()[0]["active_sessions"] == 1
+
+
+def test_idle_sessions_hidden_from_sessions_and_apps(
+    client, captured_email, db_session
+) -> None:
+    from datetime import datetime, timedelta, timezone
+
+    client_model = create_client(
+        db_session, logout_uri="http://localhost:3001/logout"
+    )
+    register_and_login(client, captured_email)
+    user = db_session.scalar(select(User))
+    current_session = db_session.scalar(select(SessionModel))
+    stale = SessionModel(
+        user_id=user.id,
+        token_hash="0" * 64,
+        auth_method="email_otp",
+        expires_at=datetime.now(timezone.utc) + timedelta(days=30),
+        last_used_at=datetime.now(timezone.utc) - timedelta(days=30),
+    )
+    db_session.add(stale)
+    db_session.flush()
+    db_session.add(
+        UserConsent(
+            user_id=user.id, client_id=client_model.id, scopes=["openid"]
+        )
+    )
+    db_session.add(
+        OIDCClientSession(
+            session_id=current_session.id,
+            client_id=client_model.id,
+            user_id=user.id,
+        )
+    )
+    db_session.add(
+        OIDCClientSession(
+            session_id=stale.id, client_id=client_model.id, user_id=user.id
+        )
+    )
+    db_session.commit()
+
+    sessions = client.get("/api/v1/sessions").json()
+    assert len(sessions) == 1
+    assert sessions[0]["current"] is True
+    assert client.get("/api/v1/apps").json()[0]["active_sessions"] == 1
