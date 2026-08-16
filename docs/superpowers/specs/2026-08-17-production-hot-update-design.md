@@ -50,9 +50,11 @@ server 托管生产流量（见风险章节）。本方案是零停机更新的�
 ### 3.2 前端热换装
 
 ```text
-本地 npm run build（产出 frontend/dist）
+hot_update.sh 自动构建（一次性 node:22-alpine 容器：
+  依赖缓存卷 lipass-frontend-deps + package-lock SHA256 增量校验 → npm ci（按需）
+  → 注入根 .env 的 VITE_* → npm run build 产出 frontend/dist；--skip-build 可复用已有产物）
   → 快照当前卷内容到宿主 deploy-backups/<ts>/frontend-html
-  → docker cp 新 dist 进入 frontend-web 卷（先 assets/，再根文件，最后 index.html）
+  → docker cp 新 dist 进入 frontend-web 卷
   → docker compose exec frontend nginx -s reload（刷新 open_file_cache）
 ```
 
@@ -96,7 +98,7 @@ docker compose exec gateway nginx -s reload
 `scripts/hot_update.sh`：
 
 - 子命令：`frontend | backend | gateway | all`；选项 `--dry-run`、`--rollback <ts>`、
-  `--skip-migrations`；
+  `--skip-migrations`、`--skip-build`；
 - 所有写操作前做宿主侧快照（含 SHA256 清单），`--rollback` 可整目录回滚并重新 HUP/reload；
 - 更新互斥：`mkdir` 锁（PID 文件 + 过期检测），防并发更新；
 - 前置校验：栈必须已用热更新覆盖文件启动（检查容器挂载点），否则拒绝执行；
@@ -120,9 +122,12 @@ docker compose exec gateway nginx -s reload
 ## 6. 验收标准
 
 - [x] `docker compose -f docker-compose.yaml -f docker-compose.hot.yaml config -q` 通过；
-  backend 挂载 `backend-code:/app/app` 且 `UVICORN_WORKERS` 默认 2，frontend 挂载
+  backend 挂载 `backend-code:/app/app` 且 `HOT_UVICORN_WORKERS` 默认 2（覆盖基础编排的
+  `UVICORN_WORKERS`），frontend 挂载
   `frontend-web:/usr/share/nginx/html`，基础卷（keys/uploads/data）不丢失。
 - [x] `bash -n scripts/hot_update.sh` 通过；`--dry-run` 不产生任何写操作。
+- [x] `hot_update.sh frontend` 在无需宿主 Node 的情况下自动构建 dist（依赖缓存卷 +
+  lock 哈希增量）并热换装；`--skip-build` 复用已有产物。
 - [x] 隔离 compose 项目（独立网关端口）端到端：frontend 换装后新文件经网关可访问且旧入口
   no-cache；backend HUP 期间并发 `GET /readyz` 无失败，日志出现 SIGHUP 重启记录；
   gateway envsubst+reload 后 healthz 正常；`--rollback` 可恢复上一版本。
