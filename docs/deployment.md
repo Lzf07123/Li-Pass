@@ -13,8 +13,9 @@ Li&Pass 使用 Docker Compose 部署。仓库内置 `gateway`（nginx）作为**
 后端 → PostgreSQL 16（数据）+ Redis 7（挑战/限流/待授权请求）
 后端密钥卷：/app/keys（JWT 私钥 + Fernet 加密密钥）
 后端上传卷：/app/uploads（用户头像）
+后端数据卷：/app/data（ip2region 离线库，运行期更新落盘）
 命名卷（compose 项目固定为 `lipass`，卷名前缀 `lipass_`）：
-`postgres-data-prod`、`redis-data-prod`、`backend-keys`、`backend-uploads`
+`postgres-data-prod`、`redis-data-prod`、`backend-keys`、`backend-uploads`、`backend-data`
 ```
 
 ## 一条命令启动（生产形态）
@@ -107,7 +108,7 @@ docker compose -f docker-compose.yaml --env-file .env exec backend \
 | `IP2REGION_DATA_DIR` | ip2region 数据目录（生产必须为绝对路径，默认 `/app/data/ip2region`，构建期已内置 v3.17.0） |
 | `IP2REGION_AUTO_UPDATE_ENABLED` | 自动更新默认开关（默认 `false`，可在站点设置运行时覆盖） |
 | `IP2REGION_UPDATE_INTERVAL_HOURS` | 自动检查间隔（默认 `24`，范围 1–8760） |
-| `IP2REGION_RELEASES_API_URL` / `IP2REGION_DOWNLOAD_BASE_URL` | 版本发现与下载源（默认 GitHub，被墙环境可切 Gitee 镜像） |
+| `IP2REGION_RELEASES_API_URL` / `IP2REGION_DOWNLOAD_BASE_URL` | 版本发现与下载源（默认 GitHub；Gitee 的 raw 端点对 xdb 数据文件返回 403，不能作为运行期更新源，详见下方「IP 归属地库」） |
 | `JWT_PRIVATE_KEY_PATH` / `ENCRYPTION_KEY_PATH` | 密钥文件路径（生产必须为绝对路径，指向 `/app/keys` 卷） |
 | `JWT_KEYS_DIR` / `JWT_ACTIVE_KID` | 可选密钥轮换：目录内每个 `*.pem` 文件名即 kid；`JWT_ACTIVE_KID` 指定签名 kid（缺省取字典序最大），详见「密钥管理」 |
 | `EMAIL_BACKEND` | `console`（开发）或 `smtp`（生产） |
@@ -288,7 +289,7 @@ bash scripts/restore-db.sh backups/lipass-20260813-120000.sql.gz
 
 ## 数据库迁移与升级策略
 
-迁移为单链增量结构（当前 head 为 `6e7f8a9b0c1d`，含登录可信设备表）。后续开发版本必须遵循以下规则，保证平滑升级且不丢数据：
+迁移为单链增量结构（当前 head 为 `b7e8f9a0c1d2`，恢复码密钥体系升级：清空 `recovery_codes` 表；链上此前迁移含登录可信设备表、更换邮箱 OTP 用途等）。后续开发版本必须遵循以下规则，保证平滑升级且不丢数据：
 
 1. **所有结构变更都走 Alembic 增量迁移**：禁止手工改生产库，也禁止用 `Base.metadata.create_all` 初始化已有库。后端启动命令已内置 `alembic upgrade head`，新版本上线时自动升级到最新结构。
 2. **迁移必须可降级**：每个迁移的 `downgrade()` 要完整可执行；无法安全回退的结构变更要写成“先加后删”的两阶段迁移（expand → migrate → contract），而不是一步重命名/删列。

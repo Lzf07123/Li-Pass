@@ -24,7 +24,7 @@
 | 层次 | 技术 |
 | --- | --- |
 | 后端 | FastAPI + Pydantic v2 + SQLAlchemy 2.0 + Alembic |
-| 前端 | React + Vite + TypeScript + Tailwind CSS |
+| 前端 | React + Vite + TypeScript + Tailwind CSS 4 |
 | 数据 | PostgreSQL 16 + Redis 7 |
 | 安全 | Argon2id、RS256 JWT、TOTP、PKCE、多层登录限流与审计、HSTS/CSP 安全头与 CSRF Origin 校验 |
 | 部署 | Docker Compose + 内置 nginx 单域名网关（唯一对外入口 :80）；HTTPS 与路由由部署环境负责 |
@@ -40,7 +40,7 @@ lipass/
 │   │   ├── schemas/         # Pydantic 校验模型
 │   │   ├── security/        # 密码哈希、JWT、TOTP、限流、审计
 │   │   ├── services/        # 邮件、会话、2FA、黑名单等业务服务
-│   │   └── core/            # 配置、数据库、日志
+│   │   └── core/            # 配置、数据库、Redis
 │   ├── scripts/             # 运维脚本（已内置进镜像）：make_admin、demote_admin、seed_demo_client、rotate_jwt_key、download_ip2region
 │   └── tests/               # 后端测试（已入库，仓库根可跑 pytest）
 ├── frontend/                # React SPA 门户
@@ -48,8 +48,9 @@ lipass/
 │   │   ├── pages/           # 登录、注册、授权确认、用户中心、应用广场、管理后台
 │   │   ├── api/             # API 客户端
 │   │   ├── components/      # 品牌、外壳、主题等公共组件
-│   │   └── hooks/           # 自定义 Hook
-│   └── __tests__/           # 前端测试（已入库，vitest）
+│   │   ├── hooks/           # 自定义 Hook
+│   │   ├── lib/             # 品牌配置与工具
+│   │   └── __tests__/       # 前端测试（已入库，vitest）
 ├── examples/demo-site/      # 示例授权网站（OIDC 演示，demo profile）
 ├── gateway/                 # 单域名 nginx 网关（/ 前端、/api 后端、/demo 演示站）
 ├── scripts/                 # 运维脚本：backup-db / restore-db / hot_update（生产零停机更新）
@@ -113,7 +114,7 @@ docker compose up -d --build
    docker compose --profile bundle up -d postgres redis
    ```
 
-2. 启动后端（Python 3.11+）：
+2. 启动后端（Python 3.12）：
 
    ```bash
    cd backend

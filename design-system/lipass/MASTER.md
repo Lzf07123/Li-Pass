@@ -127,7 +127,7 @@ stable 哈希分配见 `frontend/src/lib/accent.ts` 的 `accentFor(id)`；Bento 
 - `bg-surface` + `border-border` + `rounded-2xl` + 弥散阴影。
 - hover：`translateY(-1px)` 并切换 `--shadow-lg`；交互式卡片加 `.card-interactive`。
 - `.card-signature`：认证页专用，叠加于 `.card` 之上，以海玻璃粉彩渐变替代描边（padding-box 表面 + border-box 渐变边框双背景）。
-  描边层以 `background-position` 动画缓慢流动（14s）。
+  描边层以 `background-position` 动画缓慢流动（9s）。
 
 ### 科技氛围层（`TechAmbience`）
 

@@ -358,7 +358,7 @@ window.addEventListener("scroll", () => {
 
 - **品牌露出**：所有认证页必须包含 Logo + `Li&Pass` + slogan「一次注册，通行所有授权网站」；已登录页顶栏包含 Logo + 品牌名。
 - **页脚与备案**：版权、ICP、公安备案从 `lib/brand.ts` 读取，正式上线前替换真实备案号（当前为占位）。
-- **浏览器品牌位**：`index.html` 已配置 favicon（WebP）、`theme-color`（浅 `#F8FAFC` / 深 `#0B1220`）、`description` 与首帧主题脚本，作为品牌统一入口保持同步更新。
+- **浏览器品牌位**：`index.html` 已配置 favicon（WebP）、`theme-color`（浅 `#F6FBF9` / 深 `#3A3F45`）、`description` 与首帧主题脚本，作为品牌统一入口保持同步更新。
 
 ---
 
@@ -399,7 +399,7 @@ window.addEventListener("scroll", () => {
 
 | 维度 | 品牌目标 | 当前实现 | 状态 / 动作 |
 | --- | --- | --- | --- |
-| 主色 | 海玻璃浅水绿 `#2F7F74` / `#7FD4C6` | 已切换（V2.0） | ✅ 全淡色系，无粉色、无重色 |
+| 主色 | 海玻璃浅水绿 `#25786D` / `#7FD4C6` | 已切换（V2.0；对比度调校后浅色定稿为 `#25786D`） | ✅ 全淡色系，无粉色、无重色 |
 | 字体 | Inter 系统栈 + 中文字体回退 | 已一致 | ✅ 保持；可选自托管 Lexend 标题字体 |
 | Logo 与品牌位 | favicon / theme-color / slogan 统一 | 已具备 | ✅ 补充本报告使用规范 |
 | 图形符号 | Z 形 / 方块 / 锁钥 / 光斑 | Z 形 / 正方形 / 平行四边形已落地 | ✅ `FloatingBackground`；锁钥组合暂未引入 |
@@ -416,6 +416,6 @@ window.addEventListener("scroll", () => {
 
 ## 附录：参考资料
 
-- UI/UX 设计规则库（ui-ux-pro-max）：V2.0 海玻璃主色取自「Aurora UI / Web3 紫科技」类配色域推导的淡色化变体（浅水绿 `#2F7F74`），经 WCAG AA 对比校验后落地；不再沿用早期「Trust & Authority」安全蓝。
+- UI/UX 设计规则库（ui-ux-pro-max）：V2.0 海玻璃主色取自「Aurora UI / Web3 紫科技」类配色域推导的淡色化变体（浅水绿 `#2F7F74`），经 WCAG AA 对比校验后落地；后续经对比度复核把浅色主色调校为 `#25786D`（见第 8 章）；不再沿用早期「Trust & Authority」安全蓝。
 - 字体域首位「Corporate Trust」：Lexend + Source Sans 3（本报告 3.2 已给出自托管适配建议，避免 CDN 依赖）。
 - 循环飘动元素动效执行说明书（用户提供，V1.0）：本报告第 4 章按其核心哲学（无限循环、错峰、焦点减速、滚动风速、移动端降级）改写，并把「分栏登录页 / 侧栏后台」适配为现有「居中卡片 / 顶部标签页」布局。

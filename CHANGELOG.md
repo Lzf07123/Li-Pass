@@ -121,6 +121,7 @@
 
 ### 缺陷修复
 
+- **编排未透传部分已文档化的安全相关环境变量**：`docker-compose.example.yaml` 的 backend 环境此前未转发 `LOGIN_RATE_LIMIT`/`LOGIN_RATE_WINDOW_SECONDS`/`LOGIN_IP_RATE_LIMIT`/`LOGIN_IP_RATE_WINDOW_SECONDS` 与 `STEPUP_WINDOW_MINUTES`/`STEPUP_RATE_LIMIT`/`STEPUP_RATE_WINDOW_SECONDS`/`STEPUP_EMAIL_RATE_LIMIT`/`STEPUP_EMAIL_RATE_WINDOW_SECONDS`——部署文档与根 `.env.example` 已把这些值作为可调项列明，但在 compose 部署形态下调整不生效（容器始终用代码默认值）。现已全部透传（默认值与代码一致，默认行为不变），根 `.env.example` 同步补 step-up 项。
 - **对比度核算修正 + RGB 调校方法成文**：实测浅色主色/六强调色在 soft 底上仅 2.9–4.1，深色「半透明软底 + 浅色文字」上限约 3.9，均低于 WCAG AA 4.5——浅色侧主色/次级/六强调色加深一档（primary `#2F7F74→#25786D`、ice `#4A8FBF→#2F678F` 等）；深色徽章与瓦片文字改「实色粉彩底 + 深青文字」、提示条正文改高亮浅色（`#CFF0DE` 等）；全部组合复核 4.51–7.83。新增 `DESIGN-SOLUTION.md` §11「RGB 色值调校方法」（RGB↔HSL 换算、各角色亮度档、WCAG 公式与可粘贴脚本、无粉/无重判据、浅↔深映射、六步工作流、现成调档示例），并同步至 Li&Design 模板附录 E 与令牌骨架。
 - **全量按钮状态审计修复**：批量操作与列表行操作不再共用一个异步状态——用户管理「批量启用/批量禁用」按点击目标显示 pending（另一按钮仅禁用）；应用管理「停用/启用」按行隔离状态（只亮被点击行）、黑名单「封禁/解封」拆分为独立 action 且「解封」按具体条目隔离；会话监控「全部下线」头部按钮改为普通触发按钮（pending 只显示在确认弹窗的确认按钮上）。补回归测试覆盖批量启用与列表行停用场景。
 - **按钮处理中状态只在被点击的按钮上显示**：授权确认页「同意授权/拒绝」与登出确认页「登出 SSO/仅登出本网站」此前共用一个异步 action 状态，点任意一个会让两个按钮同时进入「处理中」（spinner + 禁用），误导用户；现按按钮拆分独立 action——只有被点击的按钮显示 pending 状态，另一个仅做禁用防并发、不显示状态；补回归测试覆盖两页。
@@ -151,6 +152,7 @@
 
 ### 运维工具
 
+- **文档复核同步（与代码事实对齐）**：README 后端运行版本由「Python 3.11+」修正为 Python 3.12（Dockerfile `python:3.12-slim` 与 CI 一致）、技术栈补「Tailwind CSS 4」、前端测试目录由 `frontend/__tests__` 修正为 `frontend/src/__tests__` 并补 `src/lib`；部署文档迁移 head 更新为 `b7e8f9a0c1d2`、架构图补齐 `backend-data` 命名卷，并消除「Gitee 镜像可作 ip2region 更新源」与实测结论的矛盾；设计文档对齐 `index.css`（BRAND.md 的 theme-color 与浅色主色 `#25786D`，MASTER.md 签名描边周期 9s）。
 - 部署文档补齐 SMTP 发信排查：阿里云企业邮箱 `smtp.qiye.aliyun.com:465` 返回 `526 Authentication failure` 时按「登录密码或三方客户端安全密码 + 完整邮箱用户名 + 后台开启 SMTP 服务」排查（此前注册/找回密码返回 503 即该认证失败）；`backend/.env.example` 同步补齐 SMTP 关键字段与注释。
 - `scripts/hot_update.sh frontend` 自动处理编译产物：默认在一次性 `node:22-alpine` 容器内构建前端——依赖缓存于 `lipass-frontend-deps` 卷并按 `package-lock.json` SHA256 做增量校验（仅 lock 变化时重新 `npm ci`），根 `.env` 的 `VITE_*` 自动注入，构建完 `npm run build` 产出 `dist` 后原地热换装；新增 `--skip-build` 复用已有产物，构建镜像与缓存卷可分别用 `FRONTEND_BUILD_IMAGE` / `FRONTEND_DEPS_VOLUME` 覆盖。宿主机不再需要预装 Node/npm。
 - 生产级热更新（零停机更新）：新增 `docker-compose.hot.yaml` 覆盖文件与 `scripts/hot_update.sh`——热更新形态下 backend 代码由 `backend-code` 卷承载（`HOT_UVICORN_WORKERS` 默认 2），更新即「写卷 + SIGHUP」，uvicorn 逐个 worker 优雅回收（≥2 workers 时在途请求不中断，要求三类存储均为 redis）；frontend 产物由 `frontend-web` 卷承载，更新即原地换装 + `nginx -s reload`；gateway 支持 envsubst 重渲染 + `nginx -s reload`。脚本提供宿主侧快照 + SHA256 清单、互斥锁、`--dry-run`、`status` 与镜像式 `--rollback`，并做健康检查与 SIGHUP 日志确认；默认生产形态仍为不可变镜像。后端镜像入口改为 `alembic upgrade head && exec uvicorn ...`（PID 1 为 uvicorn），SIGHUP 直达 supervisor、SIGTERM 优雅排空。设计见 [生产级热更新设计](docs/superpowers/specs/2026-08-17-production-hot-update-design.md)，用法见 [部署文档 §生产级热更新](docs/deployment.md)。
