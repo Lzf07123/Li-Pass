@@ -11,6 +11,7 @@ from app.services.email_templates import (
     LOGO_BYTES,
     render_account_deleted,
     render_custom_notification,
+    render_email_changed,
     render_invite,
     render_password_reset,
     render_verification,
@@ -40,6 +41,9 @@ class EmailService(ABC):
 
     @abstractmethod
     def send_account_deleted(self, to: str, nickname: str | None) -> None: ...
+
+    @abstractmethod
+    def send_email_changed(self, to: str, nickname: str | None) -> None: ...
 
     @abstractmethod
     def send_custom_notification(
@@ -88,6 +92,9 @@ class ConsoleEmailService(EmailService):
 
     def send_account_deleted(self, to: str, nickname: str | None) -> None:
         print(f"[email:{get_settings().email_backend}] account deleted -> {to}")
+
+    def send_email_changed(self, to: str, nickname: str | None) -> None:
+        print(f"[email:{get_settings().email_backend}] email changed -> {to}")
 
     def send_custom_notification(self, to: str, subject: str, body: str) -> None:
         print(
@@ -308,6 +315,15 @@ class SMTPEmailService(EmailService):
             f"您的 {get_settings().app_name} 账号已删除",
             body,
             render_account_deleted(to, nickname),
+        )
+
+    def send_email_changed(self, to: str, nickname: str | None) -> None:
+        self._send_with_retry(
+            to,
+            f"您的 {get_settings().app_name} 账号登录邮箱已更换",
+            "您的账号登录邮箱已被更换，今后请使用新邮箱登录。"
+            "如非本人操作，请立即找回密码或联系平台管理员。",
+            render_email_changed(nickname),
         )
 
     def send_custom_notification(self, to: str, subject: str, body: str) -> None:

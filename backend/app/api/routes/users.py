@@ -31,6 +31,8 @@ from app.models.user import User, UserRole
 from app.models.user_consent import UserConsent
 from app.schemas.auth import (
     AppOut,
+    EmailChangeConfirm,
+    EmailChangeRequest,
     PasswordConfirm,
     PasswordChange,
     PhoneBind,
@@ -40,12 +42,12 @@ from app.schemas.auth import (
     UserOut,
     serialize_user,
 )
-from app.security.passwords import hash_password
+from app.security.passwords import hash_password, verify_password
 from app.security.tokens import hash_token
 from app.services.account_deletion import delete_user_account
 from app.services.device_info import describe_session_device
 from app.services.avatar_cleanup import delete_avatar_file
-from app.services.audit import log_audit, mask_phone
+from app.services.audit import log_audit, log_rate_limit_rejected_once, mask_phone
 from app.services.email import get_email_service
 from app.services.federated_logout import (
     collect_logout_targets,
@@ -53,7 +55,7 @@ from app.services.federated_logout import (
     dispatch_backchannel_logout,
     revoke_session_links,
 )
-from app.services.otps import create_otp, verify_otp
+from app.services.otps import create_otp, otp_attempts_exhausted, verify_otp
 from app.services.rate_limit import get_rate_limiter
 from app.services.stepup import (
     authorize_critical_operation,
@@ -249,6 +251,166 @@ def update_profile(
         except OSError:
             logger.warning("清理旧头像失败：%s", old_avatar, exc_info=True)
     return serialize_user(user)
+
+
+@router.post("/me/email/change/request")
+def request_email_change(
+    payload: EmailChangeRequest,
+    request: Request,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> dict:
+    """发起更换邮箱：显式当前密码复核后，向新邮箱发送验证码。
+
+    邮箱是登录凭据与找回入口，改绑属于高敏感操作：step-up 窗口不豁免，
+    必须每次显式提供当前密码，防止会话被窃取后改绑邮箱再重置密码接管。
+    """
+    settings = get_settings()
+    ip = request.client.host if request.client else ""
+    new_email = payload.new_email.lower()
+    if new_email == user.email:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "新邮箱不能与当前邮箱相同")
+    if not payload.current_password:
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST, "更换邮箱必须输入当前密码"
+        )
+    if db.scalar(select(User).where(User.email == new_email)) is not None:
+        raise HTTPException(status.HTTP_409_CONFLICT, "该邮箱已被注册")
+
+    # 复用 step-up 的密码复核限流口径（每邮箱+IP 与全局邮箱双层）。
+    email_count = get_rate_limiter().hit(
+        "stepup_email",
+        user.email,
+        settings.stepup_email_rate_window_seconds,
+    )
+    if email_count > settings.stepup_email_rate_limit:
+        raise HTTPException(
+            status.HTTP_429_TOO_MANY_REQUESTS, "尝试次数过多，请稍后再试"
+        )
+    if not verify_password(payload.current_password, user.password_hash):
+        pair_key = f"{user.email}:{ip}"
+        count = get_rate_limiter().hit(
+            "stepup", pair_key, settings.stepup_rate_window_seconds
+        )
+        log_audit(
+            db,
+            "user",
+            str(user.id),
+            "email_change_failed",
+            category="security",
+            ip=ip,
+            user_agent=request.headers.get("user-agent"),
+            detail={"reason": "wrong_password"},
+        )
+        if count > settings.stepup_rate_limit:
+            raise HTTPException(
+                status.HTTP_429_TOO_MANY_REQUESTS, "尝试次数过多，请稍后再试"
+            )
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "当前密码错误")
+    get_rate_limiter().reset("stepup", f"{user.email}:{ip}")
+    get_rate_limiter().reset("stepup_email", user.email)
+
+    cooldown_left = get_rate_limiter().remaining("email_change_cooldown", new_email)
+    if cooldown_left > 0:
+        raise HTTPException(
+            status.HTTP_429_TOO_MANY_REQUESTS,
+            f"验证码发送过于频繁，请在 {cooldown_left} 秒后重试",
+        )
+    send_count = get_rate_limiter().hit(
+        "email_change_send", new_email, settings.otp_send_window_seconds
+    )
+    if send_count > settings.otp_send_limit:
+        log_rate_limit_rejected_once(
+            db,
+            "email_change_send",
+            send_count,
+            settings.otp_send_limit,
+            actor_type="user",
+            actor_id=str(user.id),
+            detail={"action": "email_change_send", "reason": "rate_limit"},
+        )
+        raise HTTPException(
+            status.HTTP_429_TOO_MANY_REQUESTS,
+            f"验证码发送过于频繁，请在 "
+            f"{settings.otp_send_window_seconds // 60} 分钟后重试",
+        )
+    get_rate_limiter().hit(
+        "email_change_cooldown",
+        new_email,
+        settings.otp_resend_cooldown_seconds,
+    )
+    code = create_otp(db, OtpPurpose.change_email, new_email)
+    try:
+        get_email_service().send_verification(new_email, code)
+        db.commit()
+    except Exception:
+        db.rollback()
+        get_rate_limiter().decrement("email_change_send", new_email)
+        get_rate_limiter().decrement("email_change_cooldown", new_email)
+        logger.exception("更换邮箱验证码发送失败：%s", new_email)
+        raise HTTPException(
+            status.HTTP_503_SERVICE_UNAVAILABLE,
+            "邮件发送失败，请稍后重试",
+        )
+    log_audit(
+        db,
+        "user",
+        str(user.id),
+        "email_change_request",
+        category="user",
+        target_type="user",
+        target_id=str(user.id),
+        ip=ip,
+        user_agent=request.headers.get("user-agent"),
+        detail={"new_email": new_email},
+    )
+    return {"message": "验证码已发送至新邮箱"}
+
+
+@router.post("/me/email/change/confirm")
+def confirm_email_change(
+    payload: EmailChangeConfirm,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> dict:
+    """凭新邮箱验证码完成更换：sub 与会话、授权全部保持不变。"""
+    new_email = payload.new_email.lower()
+    if new_email == user.email:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "新邮箱不能与当前邮箱相同")
+    if otp_attempts_exhausted(db, OtpPurpose.change_email, new_email):
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST,
+            "验证码错误次数过多，请重新发送验证码",
+        )
+    if not verify_otp(db, OtpPurpose.change_email, new_email, payload.code):
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "验证码无效或已过期")
+    if db.scalar(select(User).where(User.email == new_email)) is not None:
+        raise HTTPException(status.HTTP_409_CONFLICT, "该邮箱已被注册")
+
+    old_email = user.email
+    old_nickname = user.nickname
+    user.email = new_email
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(status.HTTP_409_CONFLICT, "该邮箱已被注册")
+
+    log_audit(
+        db,
+        "user",
+        str(user.id),
+        "email_change",
+        category="user",
+        target_type="user",
+        target_id=str(user.id),
+        detail={"old_email": old_email, "new_email": new_email},
+    )
+    try:
+        get_email_service().send_email_changed(old_email, old_nickname)
+    except Exception:
+        logger.exception("邮箱变更提醒发送失败：%s", old_email)
+    return {"message": "登录邮箱已更换"}
 
 
 @router.post("/me/password")

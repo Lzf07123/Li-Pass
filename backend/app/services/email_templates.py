@@ -176,6 +176,21 @@ def render_account_deleted(email: str, nickname: str | None) -> str:
     )
 
 
+def render_email_changed(nickname: str | None) -> str:
+    """账号登录邮箱已更换的通知（发送到旧邮箱，不暴露新地址）。"""
+    greeting = html.escape(f"您好，{nickname}：" if nickname else "您好：")
+    return _shell(
+        "你的登录邮箱已更换",
+        '<p class="body" style="margin:0 0 12px;font-size:14px;'
+        "line-height:1.7;color:#334155;\">" + greeting + "</p>"
+        '<p class="body" style="margin:0 0 12px;font-size:14px;'
+        "line-height:1.7;color:#334155;\">你的 Li&amp;Pass 账号登录邮箱"
+        "已被更换，今后请使用新邮箱登录。如非本人操作，请立即通过"
+        "「找回密码」或联系平台管理员处理。</p>",
+        _FOOTER_SYSTEM,
+    )
+
+
 def render_custom_notification(title: str, body_text: str, base_url: str) -> str:
     footer = (
         '不想再收到邮件通知？<a class="primary" href="'
