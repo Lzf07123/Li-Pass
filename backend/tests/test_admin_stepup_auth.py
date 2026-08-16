@@ -155,3 +155,47 @@ def test_admin_role_promotion_requires_current_password(
         json={"role": "admin", "current_password": "password123"},
     )
     assert response.status_code == 200
+
+
+def test_admin_create_admin_requires_current_password(
+    client, db_session
+) -> None:
+    """代建管理员等于即时提权：与角色变更一致，必须密码复核。"""
+    _login_admin(client, db_session)
+
+    response = client.post(
+        "/api/v1/admin/users",
+        json={
+            "email": "newadmin@example.com",
+            "nickname": "NewAdmin",
+            "password": "newpass123",
+            "role": "admin",
+        },
+    )
+    assert response.status_code == 403
+    assert response.json()["detail"] == "需要重新验证密码"
+
+    response = client.post(
+        "/api/v1/admin/users",
+        json={
+            "email": "newadmin@example.com",
+            "nickname": "NewAdmin",
+            "password": "newpass123",
+            "role": "admin",
+            "current_password": "wrong",
+        },
+    )
+    assert response.status_code == 400
+
+    response = client.post(
+        "/api/v1/admin/users",
+        json={
+            "email": "newadmin@example.com",
+            "nickname": "NewAdmin",
+            "password": "newpass123",
+            "role": "admin",
+            "current_password": "password123",
+        },
+    )
+    assert response.status_code == 201
+    assert response.json()["role"] == "admin"
