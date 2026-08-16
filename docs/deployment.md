@@ -103,6 +103,7 @@ docker compose -f docker-compose.yaml --env-file .env exec backend \
 | `EPHEMERAL_RETENTION_HOURS` | 过期 OTP/授权码/邀请的保留期（小时），超期由后台维护任务删除（默认 168） |
 | `DB_POOL_SIZE` / `DB_MAX_OVERFLOW` | SQLAlchemy 连接池大小（默认 `5` + `10`；提高 worker 数时应同步放大） |
 | `UVICORN_WORKERS` | 后端 uvicorn worker 数（默认 `1`；使用 memory 存储的本地模式必须保持 1）。开发镜像默认 `--limit-max-requests 10000`：worker 重启会清空 memory 限流计数与进行中的 2FA 挑战/待授权请求，仅影响本地开发体验 |
+| `HOT_UVICORN_WORKERS` | 热更新形态（`docker-compose.hot.yaml`）下的 worker 数，默认 `2`；SIGHUP 逐个 worker 回收，≥2 才能零停机。与 `UVICORN_WORKERS` 解耦，避免基础编排的 `UVICORN_WORKERS=1` 覆盖热更新要求 |
 | `IP2REGION_DATA_DIR` | ip2region 数据目录（生产必须为绝对路径，默认 `/app/data/ip2region`，构建期已内置 v3.17.0） |
 | `IP2REGION_AUTO_UPDATE_ENABLED` | 自动更新默认开关（默认 `false`，可在站点设置运行时覆盖） |
 | `IP2REGION_UPDATE_INTERVAL_HOURS` | 自动检查间隔（默认 `24`，范围 1–8760） |
@@ -344,6 +345,53 @@ docker compose --profile bundle exec backend alembic current
 docker compose --profile bundle exec backend alembic downgrade -1
 ```
 
+## 生产级热更新（零停机更新）
+
+默认生产形态是**不可变镜像**：后端代码与前端产物烧进镜像，发布走 `up -d --build`。对于
+需要“改代码不重启、不中断在途请求”的单机部署，可用热更新覆盖文件切换到热更新形态
+（首次切换会重建 backend/frontend 容器，之后进入热更新）：
+
+```bash
+docker compose -f docker-compose.yaml -f docker-compose.hot.yaml \
+  --profile bundle up -d --build
+```
+
+热更新形态的差异与机制：
+
+| 组件 | 机制 | 前置条件 |
+| --- | --- | --- |
+| frontend | 产物由 `frontend-web` 卷承载；`docker cp` 原地换装 + `nginx -s reload`（index.html 本就 no-cache，带 hash 资产天然多版本并存） | 本地已执行 `cd frontend && npm ci && npm run build` |
+| backend | 代码由 `backend-code` 卷承载；`docker cp` 换码后向容器发 SIGHUP，uvicorn supervisor 逐个 worker 优雅回收（一个 worker 停、其余继续接流量） | `HOT_UVICORN_WORKERS≥2`（覆盖文件默认 2）；`PENDING_REQUEST_STORE/TWOFA_STORE/RATE_LIMITER=redis`；后端健康 |
+| gateway | `/docker-entrypoint.d/20-envsubst-on-templates.sh` 重新渲染模板 + `nginx -s reload` | 无 |
+
+统一操作入口：
+
+```bash
+bash scripts/hot_update.sh frontend               # 前端热换装
+bash scripts/hot_update.sh backend                # 后端零停机更新（自动 alembic upgrade head）
+bash scripts/hot_update.sh backend --skip-migrations
+bash scripts/hot_update.sh gateway                # 网关配置热更新
+bash scripts/hot_update.sh all
+bash scripts/hot_update.sh --rollback <ts>        # 用 deploy-backups/<ts> 快照回滚
+bash scripts/hot_update.sh status                 # 只读状态检查
+```
+
+脚本会做宿主侧快照 + SHA256 清单（`deploy-backups/`，已 gitignore）、互斥锁防并发更新、
+更新后健康检查与 SIGHUP 日志确认；所有子命令支持 `--dry-run` 预览。
+
+边界与注意：
+
+- **不热更新**：依赖、Dockerfile、入口命令、环境变量、compose 拓扑、`alembic`/`scripts`/
+  `ip2region` 目录变更——这些仍需 `up -d --build`（stop_grace_period 与健康检查负责排空）。
+- **迁移先行且向前兼容**：脚本先 `alembic upgrade head` 再换代码；迁移期间旧代码可能与
+  新 schema 短暂并存，破坏性变更必须按 expand/contract 两阶段执行。
+- **回滚不自动 downgrade**：`--rollback` 只恢复代码/产物，数据库迁移需人工评估
+  `alembic downgrade -1`；不要热更新不可逆迁移。
+- **代码卷是可写面**：能操作 Docker API 的人即可改写运行代码，请限制 Docker 操作权限，
+  并靠 `deploy-backups` 的 SHA256 清单与日志留痕。
+- 后端镜像入口已改为 `alembic upgrade head && exec uvicorn ...`（PID 1 为 uvicorn），
+  使 SIGHUP 到达 supervisor、SIGTERM 也能优雅排空；升级到包含该变更的镜像即可获得。
+
 ## 容器数据持久化说明
 
 | 服务 | 数据内容 | 存储位置 | 重建容器后 |
@@ -353,7 +401,7 @@ docker compose --profile bundle exec backend alembic downgrade -1
 | 后端 | JWT 私钥、Fernet 加密密钥 | `lipass_backend-keys`（`/app/keys`） | 密钥保留 |
 | 后端 | 用户头像 | `lipass_backend-uploads`（`/app/uploads`） | 头像保留 |
 | 后端 | ip2region 离线库（含运行期更新结果） | `lipass_backend-data`（`/app/data`） | 保留（首次挂载自动带入镜像内置数据） |
-| 前端 nginx | 无（仅静态构建产物） | 容器层 | 重建后由镜像重新提供 |
+| 前端 nginx | 静态构建产物 | 容器层（热更新形态：`lipass_frontend-web` 卷 `/usr/share/nginx/html`） | 重建后由镜像重新提供（热更新形态：卷保留热换装后的产物） |
 | 示例授权网站 | 无 | 容器层 | 重建后恢复默认 |
 
 Redis 已通过 `--appendonly yes` 显式开启 AOF（可用 `REDIS_APPENDONLY=no` 关闭）。验证码/挑战/限流本身是短生命周期数据，即使丢失也只是要求用户重试，**唯一不可再生的数据是 PostgreSQL 与后端密钥卷**。

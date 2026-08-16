@@ -119,15 +119,15 @@ docker compose exec gateway nginx -s reload
 
 ## 6. 验收标准
 
-- [ ] `docker compose -f docker-compose.yaml -f docker-compose.hot.yaml config -q` 通过；
+- [x] `docker compose -f docker-compose.yaml -f docker-compose.hot.yaml config -q` 通过；
   backend 挂载 `backend-code:/app/app` 且 `UVICORN_WORKERS` 默认 2，frontend 挂载
   `frontend-web:/usr/share/nginx/html`，基础卷（keys/uploads/data）不丢失。
-- [ ] `bash -n scripts/hot_update.sh` 通过；`--dry-run` 不产生任何写操作。
-- [ ] 隔离 compose 项目（独立网关端口）端到端：frontend 换装后新文件经网关可访问且旧入口
+- [x] `bash -n scripts/hot_update.sh` 通过；`--dry-run` 不产生任何写操作。
+- [x] 隔离 compose 项目（独立网关端口）端到端：frontend 换装后新文件经网关可访问且旧入口
   no-cache；backend HUP 期间并发 `GET /readyz` 无失败，日志出现 SIGHUP 重启记录；
   gateway envsubst+reload 后 healthz 正常；`--rollback` 可恢复上一版本。
-- [ ] 生产校验不回归：`ENVIRONMENT=production` 相关测试全绿；后端全量 pytest 全绿。
-- [ ] 文档：README/部署文档/CHANGELOG 同步。
+- [x] 生产校验不回归：`ENVIRONMENT=production` 相关测试全绿；后端全量 pytest 全绿。
+- [x] 文档：README/部署文档/CHANGELOG 同步。
 
 ## 7. 风险
 

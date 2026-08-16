@@ -26,9 +26,9 @@ Produces：热更新形态的编排入口
 
 Checklist：
 
-- [ ] `docker compose -f docker-compose.yaml -f docker-compose.hot.yaml config -q` 通过
-- [ ] 确认合并后 backend/frontend 卷与 workers 符合设计
-- [ ] 提交 `chore: 生产热更新编排覆盖文件与备份目录忽略`
+- [x] `docker compose -f docker-compose.yaml -f docker-compose.hot.yaml config -q` 通过
+- [x] 确认合并后 backend/frontend 卷与 workers 符合设计
+- [x] 提交 `chore: 生产热更新编排覆盖文件与备份目录忽略`
 
 ## Task 2 — hot_update.sh 骨架（锁/快照/校验/健康等待）
 
@@ -40,9 +40,9 @@ Produces：可复用的更新原语
 
 Checklist：
 
-- [ ] `bash -n` 通过；`--dry-run` 输出命令但零写操作
-- [ ] 快照目录生成 SHA256 清单；锁防并发
-- [ ] 提交 `feat: 热更新脚本骨架（锁/快照/校验）`
+- [x] `bash -n` 通过；`--dry-run` 输出命令但零写操作
+- [x] 快照目录生成 SHA256 清单；锁防并发
+- [x] 提交 `feat: 热更新脚本骨架（锁/快照/校验）`
 
 ## Task 3 — frontend 换装与 gateway reload
 
@@ -51,8 +51,8 @@ Checklist：
 
 Checklist：
 
-- [ ] 隔离栈端到端：换装后新文件经网关可访问；rollback 恢复旧文件
-- [ ] 提交 `feat: 前端静态产物热换装与网关配置热更新`
+- [x] 隔离栈端到端：换装后新文件经网关可访问；rollback 恢复旧文件
+- [x] 提交 `feat: 前端静态产物热换装与网关配置热更新`
 
 ## Task 4 — backend 优雅回收
 
@@ -61,9 +61,9 @@ Checklist：
 
 Checklist：
 
-- [ ] 隔离栈端到端：`UVICORN_WORKERS=2` 下 HUP 期间并发 /readyz 无失败、日志出现 SIGHUP
-- [ ] 前置校验拒绝：未挂载 backend-code、workers<2
-- [ ] 提交 `feat: 后端代码零停机热更新（uvicorn 优雅回收）`
+- [x] 隔离栈端到端：`UVICORN_WORKERS=2` 下 HUP 期间并发 /readyz 无失败、日志出现 SIGHUP
+- [x] 前置校验拒绝：未挂载 backend-code、workers<2
+- [x] 提交 `feat: 后端代码零停机热更新（uvicorn 优雅回收）`
 
 ## Task 5 — 文档与全量验证
 
@@ -72,6 +72,6 @@ Checklist：
 
 Checklist：
 
-- [ ] 后端全量 pytest、前端 tsc/lint/test/build 全绿
-- [ ] 隔离 compose 端到端复跑（frontend/backend/gateway/rollback）
-- [ ] 提交 `docs: 生产热更新使用说明与变更日志`
+- [x] 后端全量 pytest、前端 tsc/lint/test/build 全绿
+- [x] 隔离 compose 端到端复跑（frontend/backend/gateway/rollback）
+- [x] 提交 `docs: 生产热更新使用说明与变更日志`
