@@ -28,6 +28,10 @@
 
 ### 安全加固
 
+- SMTP TLS 证书校验默认开启（新增 `SMTP_TLS_VERIFY`，默认 `true`）：此前 `SMTP_SSL`/`STARTTLS` 使用 Python 默认的未认证上下文（不校验证书与主机名），中间人可在 SMTP 链路上窃取邮箱账号密码；现默认走系统受信 CA 并校验主机名，仅内网自签证书等场景可显式关闭（关闭时记日志，生产环境为 error 级告警）。
+- 注册接口邮箱枚举时序抹平：此前「已注册邮箱」直接返回、跳过 Argon2 哈希（毫秒级），「未注册邮箱」执行哈希（百毫秒级），响应文案一致但耗时可区分账号是否存在；现已注册邮箱同样执行一次同参数哈希，消除该时序侧信道。
+- 可信设备 Cookie 清除属性对齐：`lipass_trusted_device` 删除时此前不携带 Secure/SameSite/HttpOnly（与设置时不一致，部分浏览器在 HTTPS 下可能不认可删除），现与设置属性保持一致。
+- 管理端代建管理员需密码复核：`POST /api/v1/admin/users` 此前可直接传 `role=admin` 铸造管理员账号，被窃取的管理员会话可借此留下持久后门（绕过「角色变更必须复核」的防护）；现创建管理员与角色变更一致，必须提供 `current_password` 完成 step-up 复核（代建普通用户不受影响）。
 - 黑名单接口邮箱格式校验：`ClientBlockCreate.email` 改为 `EmailStr`，畸形邮箱返回 422（此前任意字符串可落库，虽仅做等值比较无实际风险，但会沉淀脏数据）。
 - 黑名单接口参数类型收紧：`ClientBlockCreate.user_id` 改为 UUID 类型校验，畸形 `user_id` 返回 422（此前被 `except ValueError` 误捕获为语义错位的 409，错误文案为 UUID 解析异常）。客户端自助接口与管理端接口同步生效。
 - OIDC 客户端 scope 收口：`ClientCreate/ClientUpdate` 只接受 `openid/profile/email` 且必须包含 `openid`，与发现文档的 `scopes_supported` 一致，杜绝注册 `phone` 等本 IdP 不会输出的 scope 造成 RP 误解；`ClientUpdate` 同时拒绝把 `redirect_uris`/`scopes` 清成空列表（此前会立刻使客户端不可用）。
@@ -64,6 +68,7 @@
 
 ### 行为变更
 
+- 管理端代建管理员（`POST /api/v1/admin/users` 且 `role=admin`）必须携带 `current_password`：旧调用方（脚本/自动化）创建管理员时未携带该字段将收到 403「需要重新验证密码」，需同步更新；代建普通用户与邀请注册不受影响。
 - 邮件发送失败统一返回 `503 Service Unavailable`（此前为语义错误的 `502 Bad Gateway`，会污染网关/监控的 502 指标）；覆盖注册、重发验证码、2FA 发码、step-up 发码、手机绑定发码、找回密码与管理端邀请。
 - 授权确认页新增「正在以 xxx 登录」身份展示与「使用其他账号登录」（本地登出后带 `next` 回到原授权流程）。
 - 站内信铃铛在窗口重新可见/聚焦时刷新未读数；登录页邮箱输入 `autoComplete="username"`；弹窗新增 Tab 焦点陷阱。
