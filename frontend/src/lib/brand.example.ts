@@ -63,6 +63,13 @@ export const GITHUB_ISSUES_URL = envString(
   `${GITHUB_URL}/issues`
 );
 
+// 开源协议：置空任一变量时，页脚与法律页面自动隐藏对应入口。
+export const LICENSE_NAME = envString("VITE_LICENSE_NAME", "Apache-2.0");
+export const LICENSE_URL = envString(
+  "VITE_LICENSE_URL",
+  `${GITHUB_URL}/blob/main/LICENSE`
+);
+
 // 公开联系邮箱：置空时页脚与法律页面隐藏「联系我们」入口。
 export const CONTACT_EMAIL = envString(
   "VITE_CONTACT_EMAIL",

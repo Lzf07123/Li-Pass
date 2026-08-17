@@ -10,6 +10,8 @@ vi.mock("../lib/brand", () => ({
   GITHUB_URL: "",
   GITHUB_ISSUES_URL: "",
   CONTACT_EMAIL: "",
+  LICENSE_NAME: "",
+  LICENSE_URL: "",
   ICP_FILING_ICON: "/badges/icp.webp",
   ICP_FILING_TEXT: "",
   ICP_FILING_URL: "https://beian.miit.gov.cn/",
@@ -40,6 +42,9 @@ describe("LegalPage（联系变量置空）", () => {
     ).not.toBeInTheDocument();
     expect(
       screen.queryByRole("link", { name: "GitHub Issues" })
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("link", { name: /开源协议/ })
     ).not.toBeInTheDocument();
     expect(
       screen.queryByRole("link", { name: "隐私政策" })

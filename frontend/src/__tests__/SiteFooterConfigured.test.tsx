@@ -8,6 +8,8 @@ vi.mock("../lib/brand", () => ({
   GITHUB_URL: "",
   GITHUB_ISSUES_URL: "",
   CONTACT_EMAIL: "",
+  LICENSE_NAME: "",
+  LICENSE_URL: "",
   ICP_FILING_ICON: "/badges/icp.webp",
   ICP_FILING_TEXT: "京ICP备12345678号-1",
   ICP_FILING_URL: "https://beian.miit.gov.cn/",

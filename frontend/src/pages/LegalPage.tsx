@@ -4,7 +4,12 @@ import { Link } from "react-router-dom";
 import { AppHeader } from "../components/AppHeader";
 import { FloatingBackground } from "../components/FloatingBackground";
 import { SiteFooter } from "../components/SiteFooter";
-import { CONTACT_EMAIL, GITHUB_ISSUES_URL } from "../lib/brand";
+import {
+  CONTACT_EMAIL,
+  GITHUB_ISSUES_URL,
+  LICENSE_NAME,
+  LICENSE_URL,
+} from "../lib/brand";
 
 interface LegalSection {
   heading: string;
@@ -197,9 +202,24 @@ const TERMS_SECTIONS: LegalSection[] = [
   {
     heading: "知识产权",
     children: (
-      <p>
-        Li&Pass 品牌、界面与文档归相应权利人所有；代码按开源许可证（Apache-2.0）提供。未经许可，不得以误导性方式使用本服务名称与标识。
-      </p>
+      <>
+        <p>
+          Li&Pass 品牌、界面与文档归相应权利人所有；代码按开源许可证提供。未经许可，不得以误导性方式使用本服务名称与标识。
+        </p>
+        {LICENSE_NAME && LICENSE_URL && (
+          <p>
+            开源协议：{" "}
+            <a
+              href={LICENSE_URL}
+              target="_blank"
+              rel="noreferrer"
+              className="font-medium text-primary transition-colors hover:text-primary-hover"
+            >
+              {LICENSE_NAME}
+            </a>
+          </p>
+        )}
+      </>
     ),
   },
   {
