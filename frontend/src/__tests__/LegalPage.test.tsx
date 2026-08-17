@@ -55,5 +55,11 @@ describe("LegalPage", () => {
     expect(
       screen.getByRole("link", { name: "18312052639@163.com" })
     ).toHaveAttribute("href", "mailto:18312052639@163.com");
+    expect(
+      screen.getByRole("link", { name: "Apache-2.0" })
+    ).toHaveAttribute(
+      "href",
+      "https://github.com/Lzf07123/Li-Pass/blob/main/LICENSE"
+    );
   });
 });

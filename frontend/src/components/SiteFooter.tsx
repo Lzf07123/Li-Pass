@@ -9,6 +9,8 @@ import {
   ICP_FILING_ICON,
   ICP_FILING_TEXT,
   ICP_FILING_URL,
+  LICENSE_NAME,
+  LICENSE_URL,
   POLICE_FILING_ICON,
   POLICE_FILING_TEXT,
   POLICE_FILING_URL,
@@ -99,6 +101,17 @@ export function SiteFooter({ compact = false }: { compact?: boolean }) {
             <GitHubIcon />
           </a>
         )}
+        {LICENSE_NAME && LICENSE_URL && (
+          <a
+            href={LICENSE_URL}
+            target="_blank"
+            rel="noreferrer"
+            aria-label={`开源协议 ${LICENSE_NAME}`}
+            className="transition-colors duration-200 hover:text-foreground"
+          >
+            {LICENSE_NAME}
+          </a>
+        )}
       </p>
     );
   }
@@ -122,6 +135,16 @@ export function SiteFooter({ compact = false }: { compact?: boolean }) {
             >
               <GitHubIcon />
               GitHub
+            </a>
+          )}
+          {LICENSE_NAME && LICENSE_URL && (
+            <a
+              href={LICENSE_URL}
+              target="_blank"
+              rel="noreferrer"
+              className="transition-colors duration-200 hover:text-foreground"
+            >
+              开源协议（{LICENSE_NAME}）
             </a>
           )}
           {GITHUB_ISSUES_URL && (

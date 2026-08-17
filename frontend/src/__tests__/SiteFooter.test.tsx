@@ -56,10 +56,26 @@ describe("SiteFooter（未配置备案信息）", () => {
     );
   });
 
+  it("展示开源协议链接", () => {
+    renderFooter();
+    const license = screen.getByRole("link", {
+      name: "开源协议（Apache-2.0）",
+    });
+    expect(license).toHaveAttribute(
+      "href",
+      "https://github.com/Lzf07123/Li-Pass/blob/main/LICENSE"
+    );
+    expect(license).toHaveAttribute("target", "_blank");
+    expect(license).toHaveAttribute("rel", "noreferrer");
+  });
+
   it("紧凑页脚保留附加链接与 GitHub 入口", () => {
     renderFooter({ compact: true });
     expect(screen.getByRole("link", { name: "隐私政策" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "GitHub 仓库" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: "开源协议 Apache-2.0" })
+    ).toBeInTheDocument();
     expect(
       screen.queryByRole("link", { name: "联系我们" })
     ).not.toBeInTheDocument();

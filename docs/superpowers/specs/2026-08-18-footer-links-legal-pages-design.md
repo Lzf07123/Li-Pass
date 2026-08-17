@@ -25,6 +25,7 @@
 | --- | --- | --- |
 | `VITE_GITHUB_URL` | `https://github.com/Lzf07123/Li-Pass` | 隐藏 GitHub 链接 |
 | `VITE_GITHUB_ISSUES_URL` | `${GITHUB_URL}/issues` | 隐藏「反馈问题」链接 |
+| `VITE_LICENSE_NAME` / `VITE_LICENSE_URL` | `Apache-2.0` / `${GITHUB_URL}/blob/main/LICENSE` | 任一置空隐藏开源协议入口 |
 | `VITE_CONTACT_EMAIL` | `18312052639@163.com` | 隐藏「联系我们」链接 |
 | `VITE_FOOTER_LINKS` | `[{"label":"隐私政策","href":"/privacy"},{"label":"服务条款","href":"/terms"}]` | 隐藏整组附加链接 |
 
