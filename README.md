@@ -2,6 +2,44 @@
 
 一次注册，通行所有授权网站。Li&Pass 是一个基于 Python（FastAPI）和 React 的统一身份提供商（SSO），授权网站通过标准 OIDC/OAuth2 协议接入，用户使用一个账号即可登录所有被授权的网站。
 
+![Status](https://img.shields.io/badge/status-active-brightgreen)
+![Role](https://img.shields.io/badge/role-SSO%20IdP-blue)
+![Focus](https://img.shields.io/badge/focus-OIDC-orange)
+
+[![Python](https://img.shields.io/badge/Python-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-009688?style=for-the-badge&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
+[![React](https://img.shields.io/badge/React-61DAFB?style=for-the-badge&logo=react&logoColor=black)](https://react.dev/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+[![Tailwind CSS](https://img.shields.io/badge/Tailwind%20CSS-06B6D4?style=for-the-badge&logo=tailwindcss&logoColor=white)](https://tailwindcss.com/)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-4169E1?style=for-the-badge&logo=postgresql&logoColor=white)](https://www.postgresql.org/)
+[![Redis](https://img.shields.io/badge/Redis-DC382D?style=for-the-badge&logo=redis&logoColor=white)](https://redis.io/)
+[![Docker](https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white)](https://www.docker.com/)
+
+## 目录
+
+- [关于](#关于)
+- [功能特性](#功能特性)
+- [技能栈](#技能栈)
+- [项目](#项目)
+- [路线图](#路线图)
+- [仓库结构](#仓库结构)
+- [参与开发（Agent 协作）](#参与开发agent-协作)
+- [快速开始（开发环境）](#快速开始开发环境)
+- [演示数据](#演示数据)
+- [文档](#文档)
+- [许可](#许可)
+
+## 关于
+
+Li&Pass 是 Li& 系列的自研统一身份提供商（SSO / OIDC IdP）：一次注册，通行所有接入网站。后端 FastAPI + PostgreSQL 16 + Redis 7，前端 React + Vite + TypeScript + Tailwind CSS 4，经内置 nginx 单域名网关部署；授权网站通过标准 OIDC/OAuth2 协议接入。
+
+| 项目 | 内容 |
+| --- | --- |
+| 身份 | Li&Pass（统一身份提供商，SSO / OIDC IdP） |
+| 方向 | 一次注册，通行所有授权网站 |
+| 方式 | 标准 OIDC/OAuth2（授权码 + PKCE）+ 联邦登出 |
+| 目标 | 可信、可审计、易接入的通行身份门户 |
+
 ## 功能特性
 
 - 统一注册与登录：邮箱 + 密码，邮箱激活验证；注册完成自动跳转登录页，支持记住账号
@@ -19,9 +57,9 @@
 - 网站自助黑名单 API：授权网站可用自己的 client_id/secret 封禁/解封账号
 - 示例授权网站：本地一键演示完整登录闭环
 
-## 技术栈
+## 技能栈
 
-| 层次 | 技术 |
+| 领域 | 内容 |
 | --- | --- |
 | 后端 | FastAPI + Pydantic v2 + SQLAlchemy 2.0 + Alembic |
 | 前端 | React + Vite + TypeScript + Tailwind CSS 4 |
@@ -29,9 +67,24 @@
 | 安全 | Argon2id、RS256 JWT、TOTP、PKCE、多层登录限流与审计、HSTS/CSP 安全头与 CSRF Origin 校验 |
 | 部署 | Docker Compose + 内置 nginx 单域名网关（唯一对外入口 :80）；HTTPS 与路由由部署环境负责 |
 
-## 项目结构
+## 项目
 
-```
+| 项目 | 简介 | 技术栈 | 状态 |
+| --- | --- | --- | --- |
+| [Li&Pass](https://github.com/Lzf07123/Li-Pass) | 统一身份提供商：一次注册，通行所有授权网站 | FastAPI + React + PostgreSQL + Redis | active |
+| [Li&Design](https://github.com/Lzf07123/Li-Design) | Li& 系列可复用品牌/视觉设计模板仓库 | Markdown + Tailwind CSS 令牌模板 | active |
+
+## 路线图
+
+- ✅ 里程碑 1：项目骨架 + 基础账号体系
+- ✅ 里程碑 2：OIDC 核心流程
+- ✅ 里程碑 3：用户中心 + 网站级访问控制
+- ✅ 里程碑 4：2FA + 安全加固
+- ✅ 里程碑 5：生产部署 + 对接文档
+
+## 仓库结构
+
+```text
 lipass/
 ├── backend/                 # FastAPI 认证服务
 │   ├── app/
@@ -207,19 +260,7 @@ docker compose exec backend python -m scripts.seed_demo_client
 - OIDC 对接指南（含对接方必选/可选接口契约与接入验收清单）：[docs/oidc-integration.md](docs/oidc-integration.md)
 - 更新日志：[CHANGELOG.md](CHANGELOG.md)
 
-## 设计文档
-
-完整设计见 [docs/superpowers/specs/2026-08-12-unified-login-portal-design.md](docs/superpowers/specs/2026-08-12-unified-login-portal-design.md)。
-
-## 实施路线
-
-- ✅ 里程碑 1：项目骨架 + 基础账号体系
-- ✅ 里程碑 2：OIDC 核心流程
-- ✅ 里程碑 3：用户中心 + 网站级访问控制
-- ✅ 里程碑 4：2FA + 安全加固
-- ✅ 里程碑 5：生产部署 + 对接文档
-
-## 开源协议
+## 许可
 
 本项目采用 [Apache License 2.0](LICENSE) 发布。你可以自由使用、修改、分发与商用，同时保留版权与许可声明。
 
