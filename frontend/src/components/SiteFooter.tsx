@@ -80,14 +80,14 @@ export function SiteFooter() {
 
   return (
     <footer className="relative mt-auto border-t border-border/60 bg-surface/60 backdrop-blur">
-      <div className="mx-auto flex max-w-7xl flex-col items-center gap-2 px-4 py-6 text-xs text-muted sm:flex-row sm:items-center sm:justify-between lg:px-8">
-        <div className="flex flex-wrap items-center justify-center gap-x-2 gap-y-1 sm:justify-start">
+      <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-center gap-x-2 gap-y-1 px-4 py-5 text-xs text-muted sm:flex-col sm:gap-2 sm:py-6 lg:px-8">
+        <div className="flex flex-wrap items-center justify-center gap-x-2 gap-y-1 sm:order-2">
           <span>© {year} {COPYRIGHT_HOLDER}</span>
           {filingLinks}
         </div>
         <nav
           aria-label="页脚导航"
-          className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 sm:justify-end"
+          className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 sm:order-1"
         >
           {FOOTER_LINKS.map((link) => (
             <FooterLink key={link.label} label={link.label} href={link.href} />
