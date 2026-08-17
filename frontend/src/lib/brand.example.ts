@@ -53,17 +53,38 @@ export const POLICE_FILING_ICON = envString(
   "/badges/police.webp"
 );
 
+// 开源仓库与反馈入口：置空对应变量时，页脚自动隐藏对应链接。
+export const GITHUB_URL = envString(
+  "VITE_GITHUB_URL",
+  "https://github.com/Lzf07123/Li-Pass"
+);
+export const GITHUB_ISSUES_URL = envString(
+  "VITE_GITHUB_ISSUES_URL",
+  `${GITHUB_URL}/issues`
+);
+
+// 公开联系邮箱：置空时页脚与法律页面隐藏「联系我们」入口。
+export const CONTACT_EMAIL = envString(
+  "VITE_CONTACT_EMAIL",
+  "18312052639@163.com"
+);
+
 /**
- * 页脚附加链接（帮助中心/隐私政策/服务条款等），可用 VITE_FOOTER_LINKS
- * 以 JSON 数组覆盖，例如：[{"label":"帮助中心","href":"/help"}]。
- * 当前为空数组表示不展示。
+ * 页脚附加链接（隐私政策/服务条款等），可用 VITE_FOOTER_LINKS 以 JSON 数组覆盖，
+ * 例如：[{"label":"帮助中心","href":"/help"}]。
+ * 未设置时默认展示隐私政策与服务条款；显式设置为 [] 表示不展示。
  */
+const DEFAULT_FOOTER_LINKS: { label: string; href: string }[] = [
+  { label: "隐私政策", href: "/privacy" },
+  { label: "服务条款", href: "/terms" },
+];
+
 function footerLinksFromEnv(): { label: string; href: string }[] {
   const raw = envString("VITE_FOOTER_LINKS", "");
-  if (!raw) return [];
+  if (!raw) return DEFAULT_FOOTER_LINKS;
   try {
     const parsed: unknown = JSON.parse(raw);
-    if (!Array.isArray(parsed)) return [];
+    if (!Array.isArray(parsed)) return DEFAULT_FOOTER_LINKS;
     return parsed.filter(
       (item): item is { label: string; href: string } =>
         typeof item === "object" &&
@@ -72,7 +93,7 @@ function footerLinksFromEnv(): { label: string; href: string }[] {
         typeof (item as { href?: unknown }).href === "string"
     );
   } catch {
-    return [];
+    return DEFAULT_FOOTER_LINKS;
   }
 }
 
