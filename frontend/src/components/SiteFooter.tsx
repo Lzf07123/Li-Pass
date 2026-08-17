@@ -75,53 +75,19 @@ function FooterLink({ label, href }: { label: string; href: string }) {
   );
 }
 
-export function SiteFooter({ compact = false }: { compact?: boolean }) {
+export function SiteFooter() {
   const year = new Date().getFullYear();
-
-  if (compact) {
-    return (
-      <p className="flex flex-wrap items-center justify-center gap-x-2 gap-y-1 text-xs text-muted">
-        <span>© {year} {COPYRIGHT_HOLDER}</span>
-        {filingLinks}
-        {FOOTER_LINKS.length > 0 && (
-          <span className="flex items-center gap-2">
-            {FOOTER_LINKS.map((link) => (
-              <FooterLink key={link.label} label={link.label} href={link.href} />
-            ))}
-          </span>
-        )}
-        {GITHUB_URL && (
-          <a
-            href={GITHUB_URL}
-            target="_blank"
-            rel="noreferrer"
-            aria-label="GitHub 仓库"
-            className="inline-flex items-center text-muted transition-colors duration-200 hover:text-foreground"
-          >
-            <GitHubIcon />
-          </a>
-        )}
-        {LICENSE_NAME && LICENSE_URL && (
-          <a
-            href={LICENSE_URL}
-            target="_blank"
-            rel="noreferrer"
-            aria-label={`开源协议 ${LICENSE_NAME}`}
-            className="transition-colors duration-200 hover:text-foreground"
-          >
-            {LICENSE_NAME}
-          </a>
-        )}
-      </p>
-    );
-  }
 
   return (
     <footer className="relative mt-auto border-t border-border/60 bg-surface/60 backdrop-blur">
-      <div className="mx-auto flex max-w-7xl flex-col items-center gap-2 px-4 py-6 text-xs text-muted lg:px-8">
+      <div className="mx-auto flex max-w-7xl flex-col items-center gap-2 px-4 py-6 text-xs text-muted sm:flex-row sm:items-center sm:justify-between lg:px-8">
+        <div className="flex flex-wrap items-center justify-center gap-x-2 gap-y-1 sm:justify-start">
+          <span>© {year} {COPYRIGHT_HOLDER}</span>
+          {filingLinks}
+        </div>
         <nav
           aria-label="页脚导航"
-          className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1"
+          className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 sm:justify-end"
         >
           {FOOTER_LINKS.map((link) => (
             <FooterLink key={link.label} label={link.label} href={link.href} />
@@ -166,10 +132,6 @@ export function SiteFooter({ compact = false }: { compact?: boolean }) {
             </a>
           )}
         </nav>
-        <div className="flex flex-wrap items-center justify-center gap-x-2 gap-y-1">
-          <span>© {year} {COPYRIGHT_HOLDER}</span>
-          {filingLinks}
-        </div>
       </div>
     </footer>
   );

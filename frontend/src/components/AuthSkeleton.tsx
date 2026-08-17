@@ -7,14 +7,14 @@ import { AuroraBackground } from "./bits/AuroraBackground";
  */
 export function AuthSkeleton() {
   return (
-    <main
+    <div
       aria-busy="true"
       aria-label="正在加载页面"
-      className="relative flex min-h-screen flex-col overflow-hidden bg-background px-4 py-10"
+      className="relative flex min-h-screen flex-col overflow-hidden bg-background"
     >
       <AuroraBackground />
 
-      <div className="relative flex flex-1 items-center justify-center">
+      <div className="relative flex flex-1 flex-col items-center justify-center px-4 py-10">
         <div className="w-full max-w-md">
           <div
             className="animate-fade-up-slow mb-8 flex flex-col items-center gap-3 text-center"
@@ -51,17 +51,29 @@ export function AuthSkeleton() {
             </div>
           </div>
         </div>
+        <div className="mt-8">
+          <div className="shimmer mx-auto h-3.5 w-56 rounded" />
+        </div>
       </div>
 
       <div
-        className="animate-fade-up-slow relative text-center"
+        className="animate-fade-up-slow relative"
         style={{ animationDelay: "0.32s" }}
       >
-        <div className="shimmer mx-auto h-3.5 w-56 rounded" />
-        <div className="mt-2 flex items-center justify-center gap-2">
-          <div className="shimmer h-3.5 w-20 rounded" />
-          <div className="shimmer h-3.5 w-20 rounded" />
-        </div>
+        <footer className="border-t border-border/60 bg-surface/60">
+          <div className="mx-auto flex max-w-7xl flex-col items-center gap-2 px-4 py-6 sm:flex-row sm:items-center sm:justify-between lg:px-8">
+            <div className="flex flex-wrap items-center justify-center gap-x-2 gap-y-1 sm:justify-start">
+              <div className="shimmer h-3.5 w-40 rounded" />
+              <div className="shimmer h-3.5 w-28 rounded" />
+            </div>
+            <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 sm:justify-end">
+              <div className="shimmer h-3.5 w-16 rounded" />
+              <div className="shimmer h-3.5 w-16 rounded" />
+              <div className="shimmer h-3.5 w-14 rounded" />
+              <div className="shimmer h-3.5 w-14 rounded" />
+            </div>
+          </div>
+        </footer>
       </div>
 
       <div
@@ -70,6 +82,6 @@ export function AuthSkeleton() {
       >
         <div className="shimmer h-9 w-9 rounded-full" />
       </div>
-    </main>
+    </div>
   );
 }
