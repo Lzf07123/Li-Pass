@@ -61,17 +61,13 @@ export function AuthSkeleton() {
         style={{ animationDelay: "0.32s" }}
       >
         <footer className="border-t border-border/60 bg-surface/60">
-          <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-center gap-x-2 gap-y-1 px-4 py-5 sm:flex-col sm:gap-2 sm:py-6 lg:px-8">
-            <div className="flex flex-wrap items-center justify-center gap-x-2 gap-y-1 sm:order-2">
-              <div className="shimmer h-3.5 w-40 rounded" />
-              <div className="shimmer h-3.5 w-28 rounded" />
-            </div>
-            <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 sm:order-1">
-              <div className="shimmer h-3.5 w-16 rounded" />
-              <div className="shimmer h-3.5 w-16 rounded" />
-              <div className="shimmer h-3.5 w-14 rounded" />
-              <div className="shimmer h-3.5 w-14 rounded" />
-            </div>
+          <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-center gap-x-2 gap-y-1 px-4 py-5 lg:px-8">
+            <div className="shimmer h-3.5 w-40 rounded" />
+            <div className="shimmer h-3.5 w-28 rounded" />
+            <div className="shimmer h-3.5 w-16 rounded" />
+            <div className="shimmer h-3.5 w-16 rounded" />
+            <div className="shimmer h-3.5 w-14 rounded" />
+            <div className="shimmer h-3.5 w-14 rounded" />
           </div>
         </footer>
       </div>
