@@ -27,7 +27,7 @@ export function AuthShell({
   const [focusing, setFocusing] = useState(false);
 
   return (
-    <main className="relative flex min-h-screen flex-col overflow-hidden bg-background px-4 py-10">
+    <div className="relative flex min-h-screen flex-col overflow-hidden bg-background">
       {/* 环境呼吸层：几何形状无限循环飘动（透明画布，自动跟随明暗主题） */}
       <FloatingBackground
         theme="auto"
@@ -40,7 +40,7 @@ export function AuthShell({
       {/* 科技氛围层：缓移网格 + 扫掠光束 + 呼吸光点（主界面光效） */}
       <TechAmbience />
 
-      <div className="relative flex flex-1 items-center justify-center">
+      <div className="relative flex flex-1 flex-col items-center justify-center px-4 py-10">
         <div className="w-full max-w-md">
           <div
             className="animate-fade-up-slow mb-8 flex w-full flex-col items-center gap-3 text-center"
@@ -80,18 +80,16 @@ export function AuthShell({
             </div>
           </div>
         </div>
+        <p className="mt-8 text-center text-xs text-muted">
+          <ShinyText text={`${APP_NAME} · ${APP_TAGLINE}`} duration={7} />
+        </p>
       </div>
 
       <div
-        className="animate-fade-up-slow relative text-center"
+        className="animate-fade-up-slow relative"
         style={{ animationDelay: "0.32s" }}
       >
-        <p className="text-xs text-muted">
-          <ShinyText text={`${APP_NAME} · ${APP_TAGLINE}`} duration={7} />
-        </p>
-        <div className="mt-2">
-          <SiteFooter compact />
-        </div>
+        <SiteFooter />
       </div>
 
       <div
@@ -100,6 +98,6 @@ export function AuthShell({
       >
         <ThemeToggle />
       </div>
-    </main>
+    </div>
   );
 }

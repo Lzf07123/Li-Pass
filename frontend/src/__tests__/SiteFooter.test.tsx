@@ -4,10 +4,10 @@ import { describe, expect, it } from "vitest";
 
 import { SiteFooter } from "../components/SiteFooter";
 
-function renderFooter(props: { compact?: boolean } = {}) {
+function renderFooter() {
   return render(
     <MemoryRouter>
-      <SiteFooter {...props} />
+      <SiteFooter />
     </MemoryRouter>
   );
 }
@@ -69,18 +69,4 @@ describe("SiteFooter（未配置备案信息）", () => {
     expect(license).toHaveAttribute("rel", "noreferrer");
   });
 
-  it("紧凑页脚保留附加链接与 GitHub 入口", () => {
-    renderFooter({ compact: true });
-    expect(screen.getByRole("link", { name: "隐私政策" })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "GitHub 仓库" })).toBeInTheDocument();
-    expect(
-      screen.getByRole("link", { name: "开源协议 Apache-2.0" })
-    ).toBeInTheDocument();
-    expect(
-      screen.queryByRole("link", { name: "联系我们" })
-    ).not.toBeInTheDocument();
-    expect(
-      screen.queryByRole("link", { name: "反馈问题" })
-    ).not.toBeInTheDocument();
-  });
 });
