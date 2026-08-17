@@ -1,6 +1,11 @@
+import { Link } from "react-router-dom";
+
 import {
+  CONTACT_EMAIL,
   COPYRIGHT_HOLDER,
   FOOTER_LINKS,
+  GITHUB_ISSUES_URL,
+  GITHUB_URL,
   ICP_FILING_ICON,
   ICP_FILING_TEXT,
   ICP_FILING_URL,
@@ -36,6 +41,38 @@ const filingLinks = (
   </>
 );
 
+function GitHubIcon() {
+  return (
+    <svg
+      viewBox="0 0 16 16"
+      fill="currentColor"
+      aria-hidden="true"
+      className="h-3.5 w-3.5"
+    >
+      <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z" />
+    </svg>
+  );
+}
+
+function FooterLink({ label, href }: { label: string; href: string }) {
+  const className =
+    "transition-colors duration-200 hover:text-foreground";
+
+  if (href.startsWith("/")) {
+    return (
+      <Link to={href} className={className}>
+        {label}
+      </Link>
+    );
+  }
+
+  return (
+    <a href={href} target="_blank" rel="noreferrer" className={className}>
+      {label}
+    </a>
+  );
+}
+
 export function SiteFooter({ compact = false }: { compact?: boolean }) {
   const year = new Date().getFullYear();
 
@@ -44,33 +81,72 @@ export function SiteFooter({ compact = false }: { compact?: boolean }) {
       <p className="flex flex-wrap items-center justify-center gap-x-2 gap-y-1 text-xs text-muted">
         <span>© {year} {COPYRIGHT_HOLDER}</span>
         {filingLinks}
+        {FOOTER_LINKS.length > 0 && (
+          <span className="flex items-center gap-2">
+            {FOOTER_LINKS.map((link) => (
+              <FooterLink key={link.label} label={link.label} href={link.href} />
+            ))}
+          </span>
+        )}
+        {GITHUB_URL && (
+          <a
+            href={GITHUB_URL}
+            target="_blank"
+            rel="noreferrer"
+            aria-label="GitHub 仓库"
+            className="inline-flex items-center text-muted transition-colors duration-200 hover:text-foreground"
+          >
+            <GitHubIcon />
+          </a>
+        )}
       </p>
     );
   }
 
   return (
     <footer className="relative mt-auto border-t border-border/60 bg-surface/60 backdrop-blur">
-      <div className="mx-auto flex max-w-7xl flex-col items-center gap-2 px-4 py-6 text-xs text-muted sm:flex-row sm:justify-center sm:gap-4 lg:px-8">
-        <span>© {year} {COPYRIGHT_HOLDER}</span>
-        {filingLinks}
-        {FOOTER_LINKS.length > 0 && (
-          <>
-            <span className="hidden text-border sm:inline" aria-hidden="true">
-              |
-            </span>
-            <span className="flex items-center gap-3">
-              {FOOTER_LINKS.map((link) => (
-                <a
-                  key={link.label}
-                  href={link.href}
-                  className="transition-colors duration-200 hover:text-foreground"
-                >
-                  {link.label}
-                </a>
-              ))}
-            </span>
-          </>
-        )}
+      <div className="mx-auto flex max-w-7xl flex-col items-center gap-2 px-4 py-6 text-xs text-muted lg:px-8">
+        <nav
+          aria-label="页脚导航"
+          className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1"
+        >
+          {FOOTER_LINKS.map((link) => (
+            <FooterLink key={link.label} label={link.label} href={link.href} />
+          ))}
+          {GITHUB_URL && (
+            <a
+              href={GITHUB_URL}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-1 transition-colors duration-200 hover:text-foreground"
+            >
+              <GitHubIcon />
+              GitHub
+            </a>
+          )}
+          {GITHUB_ISSUES_URL && (
+            <a
+              href={GITHUB_ISSUES_URL}
+              target="_blank"
+              rel="noreferrer"
+              className="transition-colors duration-200 hover:text-foreground"
+            >
+              反馈问题
+            </a>
+          )}
+          {CONTACT_EMAIL && (
+            <a
+              href={`mailto:${CONTACT_EMAIL}`}
+              className="transition-colors duration-200 hover:text-foreground"
+            >
+              联系我们
+            </a>
+          )}
+        </nav>
+        <div className="flex flex-wrap items-center justify-center gap-x-2 gap-y-1">
+          <span>© {year} {COPYRIGHT_HOLDER}</span>
+          {filingLinks}
+        </div>
       </div>
     </footer>
   );
