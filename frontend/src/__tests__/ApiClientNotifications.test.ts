@@ -1,8 +1,32 @@
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { adminNotificationsApi, userMessagesApi } from "../api/client";
 
 describe("通知相关 API", () => {
+  beforeEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("未读计数接口的 401 不派发 unauthorized 事件", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        new Response(JSON.stringify({ detail: "Session expired" }), {
+          status: 401,
+          headers: { "Content-Type": "application/json" },
+        })
+      )
+    );
+    const events: string[] = [];
+    const listener = () => events.push("unauthorized");
+    window.addEventListener("lipass:unauthorized", listener);
+    await expect(userMessagesApi.unreadCount()).rejects.toThrow(
+      "Session expired"
+    );
+    expect(events).toEqual([]);
+    window.removeEventListener("lipass:unauthorized", listener);
+  });
+
   it("发送通知请求体正确", async () => {
     const fetchMock = vi.fn().mockResolvedValue(
       new Response(
