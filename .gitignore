@@ -10,6 +10,9 @@
 # Git worktrees（SDD 隔离工作区）
 .worktrees/
 
+# 设计稿页面预览（本地对照用，不纳入版本控制）
+/design-system/lipass/preview/
+
 # Python
 __pycache__/
 *.py[cod]
