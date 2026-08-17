@@ -15,6 +15,7 @@
 
 ### 功能
 
+- 页脚丰富化：新增 GitHub 仓库、反馈问题（GitHub Issues）与公开联系邮箱入口，默认展示「隐私政策（`/privacy`）」与「服务条款（`/terms`）」并新增对应静态法律页面。所有入口由构建期环境变量驱动（`VITE_GITHUB_URL` / `VITE_GITHUB_ISSUES_URL` / `VITE_CONTACT_EMAIL` / `VITE_FOOTER_LINKS`），变量置空自动隐藏对应链接，显式 `VITE_FOOTER_LINKS=[]` 可隐藏整组附加链接；认证页紧凑页脚同步展示附加链接与 GitHub 入口。
 - README 按 Li&Design 可复用 README 模板重构：新增状态/角色/方向与技术栈徽章（shields.io 默认 flat 样式、平铺排列）、目录、关于信息表与项目清单，文档与设计文档入口合并；同步 Li-Design 子模块至 `745a7ef`（模板仓库新增 `reusable-readme.template.md`，徽章统一默认 flat 样式并平铺；技能徽章只列实际掌握的技术，借助 AI 构建项目时用到的技术不列入技能徽章）。
 - 邮件模板按「将要进行的操作」区分类型：验证码邮件从共用的「验证你的邮箱」拆为注册、登录二次验证、敏感操作复核、更换登录邮箱、绑定手机号五类独立模板，主题与正文写明该验证码将用于哪种操作；重置密码邮件正文明确「你正在重置 Li&Pass 账号密码」，并提示非本人操作时密码不会被修改。接口层显式传入模板类型（注册/重发 → register，登录 2FA → login_2fa，step-up 复核 → step_up，更换邮箱 → change_email，绑定手机号 → bind_phone），降低验证码被误用或钓鱼诱导转发的风险。
 - 视觉设计全量方案定稿：新增 `design-system/lipass/DESIGN-SOLUTION.md`（决策时间线、双主题全量令牌、组件/光效/文字计数动效、按钮状态规范与验收清单），BRAND.md/MASTER.md 增补指引；并同步提炼进上层 Li&Design 模板仓库（`REUSABLE-BRAND-SCHEME.md` V1.2 + `reusable-tokens.template.css` V1.2：槽位 20→22 项、新增六强调色/次级色/按钮半透明着色/流光线/科技光效令牌，占位符基准 60→128 处，新增「关键帧必须定义」与「按钮 pending 单一」验收项）。

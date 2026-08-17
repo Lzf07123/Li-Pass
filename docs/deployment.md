@@ -124,6 +124,10 @@ docker compose -f docker-compose.yaml --env-file .env exec backend \
 | `REDIS_MAXMEMORY` | 编排内 Redis 内存上限（默认 `192mb`，只淘汰带 TTL 的键） |
 | `REDIS_APPENDONLY` | 编排内 Redis AOF 持久化开关（默认 `yes`） |
 | `FORWARDED_ALLOW_IPS` | 反向代理 IP/CIDR 白名单；编排内默认只信任网关固定 IP `172.30.0.10`（compose 固定子网），使用外部反代时改为其网关 IP 或网段 |
+| `VITE_GITHUB_URL` | 页脚 GitHub 仓库链接（构建期注入；置空自动隐藏 GitHub 入口，默认 `https://github.com/Lzf07123/Li-Pass`） |
+| `VITE_GITHUB_ISSUES_URL` | 页脚「反馈问题」与法律页面问题反馈链接（构建期注入；置空自动隐藏，默认仓库 Issues 地址） |
+| `VITE_CONTACT_EMAIL` | 页脚「联系我们」与法律页面公开联系邮箱（构建期注入；置空自动隐藏，默认 `18312052639@163.com`） |
+| `VITE_FOOTER_LINKS` | 页脚附加链接 JSON 数组（构建期注入）；不设置时默认展示「隐私政策 `/privacy`、服务条款 `/terms`」，显式 `[]` 则隐藏整组链接 |
 
 ## IP 归属地库（ip2region）
 
