@@ -582,7 +582,11 @@ export const userMessagesApi = {
       `/api/v1/me/messages?offset=${offset}&limit=${limit}`
     ),
   unreadCount: () =>
-    api<{ unread: number }>("/api/v1/me/messages/unread-count"),
+    api<{ unread: number }>(
+      "/api/v1/me/messages/unread-count",
+      {},
+      { silent401: true }
+    ),
   markRead: (id: string) =>
     api<void>(`/api/v1/me/messages/${id}/read`, { method: "POST" }),
   markAllRead: () =>
