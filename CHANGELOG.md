@@ -124,6 +124,7 @@
 
 ### 缺陷修复
 
+- **管理后台「用户管理」表格移动端异常换行修复**：窄屏下表格自动布局会把「昵称/邮箱」列压缩至最小宽度，长昵称在约 38px 的列内逐字折行，行高可暴涨到 600px 以上。新增 `.table-cell-clip` 工具类：窄屏（<1024px）邮箱/昵称单行截断并保留 `title` 悬停查看完整值，表头统一 `whitespace-nowrap`，表格整体在移动端横向滚动；≥1024px 恢复原有自然自动布局，桌面端视觉不变。
 - **访客打开隐私政策/服务条款被弹回登录页**：法律页面顶栏站内信铃铛的未读数探测在未登录时返回 401，此前会派发全局 `lipass:unauthorized` 事件并跳转登录，导致从认证页点击页脚链接后立即被弹回。未读数接口现按静默会话探针处理（401 仅隐藏铃铛，不触发跳转）；补回归测试覆盖「未读数 401 不派发跳转事件」。
 - **编排未透传部分已文档化的安全相关环境变量**：`docker-compose.example.yaml` 的 backend 环境此前未转发 `LOGIN_RATE_LIMIT`/`LOGIN_RATE_WINDOW_SECONDS`/`LOGIN_IP_RATE_LIMIT`/`LOGIN_IP_RATE_WINDOW_SECONDS` 与 `STEPUP_WINDOW_MINUTES`/`STEPUP_RATE_LIMIT`/`STEPUP_RATE_WINDOW_SECONDS`/`STEPUP_EMAIL_RATE_LIMIT`/`STEPUP_EMAIL_RATE_WINDOW_SECONDS`——部署文档与根 `.env.example` 已把这些值作为可调项列明，但在 compose 部署形态下调整不生效（容器始终用代码默认值）。现已全部透传（默认值与代码一致，默认行为不变），根 `.env.example` 同步补 step-up 项。
 - **对比度核算修正 + RGB 调校方法成文**：实测浅色主色/六强调色在 soft 底上仅 2.9–4.1，深色「半透明软底 + 浅色文字」上限约 3.9，均低于 WCAG AA 4.5——浅色侧主色/次级/六强调色加深一档（primary `#2F7F74→#25786D`、ice `#4A8FBF→#2F678F` 等）；深色徽章与瓦片文字改「实色粉彩底 + 深青文字」、提示条正文改高亮浅色（`#CFF0DE` 等）；全部组合复核 4.51–7.83。新增 `DESIGN-SOLUTION.md` §11「RGB 色值调校方法」（RGB↔HSL 换算、各角色亮度档、WCAG 公式与可粘贴脚本、无粉/无重判据、浅↔深映射、六步工作流、现成调档示例），并同步至 Li&Design 模板附录 E 与令牌骨架。
