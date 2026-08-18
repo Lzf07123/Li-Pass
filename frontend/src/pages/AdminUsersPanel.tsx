@@ -620,11 +620,11 @@ export function AdminUsersPanel({ currentAdminId }: { currentAdminId: string }) 
                   aria-label="全选用户"
                 />
               </th>
-              <th>邮箱</th>
-              <th>昵称</th>
-              <th>角色</th>
-              <th>状态</th>
-              <th className="text-right">操作</th>
+              <th className="whitespace-nowrap">邮箱</th>
+              <th className="whitespace-nowrap">昵称</th>
+              <th className="whitespace-nowrap">角色</th>
+              <th className="whitespace-nowrap">状态</th>
+              <th className="whitespace-nowrap text-right">操作</th>
             </tr>
           </thead>
           <tbody>
@@ -641,8 +641,15 @@ export function AdminUsersPanel({ currentAdminId }: { currentAdminId: string }) 
                     aria-label={`选择 ${user.email}`}
                   />
                 </td>
-                <td>{user.email}</td>
-                <td>{user.nickname || "—"}</td>
+                <td className="table-cell-clip" title={user.email}>
+                  {user.email}
+                </td>
+                <td
+                  className="table-cell-clip"
+                  title={user.nickname ?? undefined}
+                >
+                  {user.nickname || "—"}
+                </td>
                 <td>
                   {user.role === null ? (
                     "—"

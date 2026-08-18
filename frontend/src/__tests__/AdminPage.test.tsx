@@ -70,6 +70,12 @@ describe("AdminPage", () => {
     vi.stubGlobal("fetch", fetchMock);
     renderWithProviders(<AdminPage />, ["/admin/users"]);
     await waitFor(() => expect(screen.getByText("bob@example.com")).toBeInTheDocument());
+    const bobEmail = screen.getByText("bob@example.com");
+    expect(bobEmail).toHaveClass("table-cell-clip");
+    expect(bobEmail).toHaveAttribute("title", "bob@example.com");
+    expect(screen.getByText("邮箱").closest("th")).toHaveClass(
+      "whitespace-nowrap"
+    );
     fireEvent.click(screen.getByRole("link", { name: "审计日志" }));
     await waitFor(() => expect(screen.getByText("login")).toBeInTheDocument());
   });

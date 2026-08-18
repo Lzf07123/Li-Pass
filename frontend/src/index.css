@@ -821,6 +821,23 @@
     @apply transition-colors duration-150 hover:bg-surface-2/60;
   }
 
+  /* 表格长文本列（邮箱/昵称等）：窄屏单行截断、悬停显示完整值；
+     桌面端（≥1024px）恢复自然换行，避免移动端列宽被压缩后逐字折行。 */
+  .table-cell-clip {
+    max-width: 11rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  @media (min-width: 1024px) {
+    .table-cell-clip {
+      max-width: none;
+      overflow: visible;
+      text-overflow: clip;
+      white-space: normal;
+    }
+  }
+
   /* 横向滑动标签栏：单行不换行、隐藏滚动条、轻量 snap 吸附与边缘吸附间距；
      边缘渐隐提示由 ScrollTabs 组件叠加，活动标签由组件自动滚入视口中央。 */
   .scroll-tabs {
