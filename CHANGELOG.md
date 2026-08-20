@@ -15,6 +15,11 @@
 
 ### 功能
 
+- 视觉对齐 Li&Design V1.4：浅色语义色采用 AA 调校值（muted `#64736C` / success `#2A7C52` /
+  warning `#9A5C05` / destructive `#C43737`），弱化/成功文字对比全部 ≥ 4.5:1；深色带文字软底组件
+  改用 `--portal-*-soft-solid` + `--portal-*-soft-fg` 实色粉彩底 + 深字令牌（对比 ≥ 8:1）；原生下拉
+  `.select-sm`（双三角渐变 chevron）、复选/单选 18px 主色 accent、文件按钮与表格空状态按模板类统一
+  落地，组件不再各自拼尺寸/颜色工具类。设计见 [Li&Design V1.4 对齐设计](docs/superpowers/specs/2026-08-20-lidesign-v1-4-alignment-design.md)。
 - 页脚丰富化：新增 GitHub 仓库、反馈问题（GitHub Issues）、公开联系邮箱与开源协议（Apache-2.0）入口，默认展示「隐私政策（`/privacy`）」与「服务条款（`/terms`）」并新增对应静态法律页面。所有入口由构建期环境变量驱动（`VITE_GITHUB_URL` / `VITE_GITHUB_ISSUES_URL` / `VITE_LICENSE_NAME` / `VITE_LICENSE_URL` / `VITE_CONTACT_EMAIL` / `VITE_FOOTER_LINKS`），变量置空自动隐藏对应链接，显式 `VITE_FOOTER_LINKS=[]` 可隐藏整组附加链接；认证页紧凑页脚同步展示附加链接与 GitHub、开源协议入口。
 - README 按 Li&Design 可复用 README 模板重构：新增状态/角色/方向与技术栈徽章（shields.io 默认 flat 样式、平铺排列）、目录、关于信息表与项目清单，文档与设计文档入口合并；同步 Li-Design 子模块至 `745a7ef`（模板仓库新增 `reusable-readme.template.md`，徽章统一默认 flat 样式并平铺；技能徽章只列实际掌握的技术，借助 AI 构建项目时用到的技术不列入技能徽章）。
 - 邮件模板按「将要进行的操作」区分类型：验证码邮件从共用的「验证你的邮箱」拆为注册、登录二次验证、敏感操作复核、更换登录邮箱、绑定手机号五类独立模板，主题与正文写明该验证码将用于哪种操作；重置密码邮件正文明确「你正在重置 Li&Pass 账号密码」，并提示非本人操作时密码不会被修改。接口层显式传入模板类型（注册/重发 → register，登录 2FA → login_2fa，step-up 复核 → step_up，更换邮箱 → change_email，绑定手机号 → bind_phone），降低验证码被误用或钓鱼诱导转发的风险。
