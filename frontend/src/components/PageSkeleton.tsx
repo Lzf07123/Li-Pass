@@ -38,7 +38,7 @@ export function PageSkeleton({ title = "" }: { title?: string }) {
       </main>
 
       <footer className="border-t border-border/60 bg-surface/60">
-        <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-center gap-x-2 gap-y-1 px-4 py-5 lg:px-8">
+        <div className="mx-auto flex min-h-14 max-w-7xl flex-wrap items-center justify-center gap-x-2 gap-y-1 px-4 py-5 text-xs lg:px-8">
           <div className="shimmer h-3.5 w-40 rounded" />
           <div className="shimmer h-3.5 w-28 rounded" />
           <div className="shimmer h-3.5 w-16 rounded" />
