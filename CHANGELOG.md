@@ -15,6 +15,7 @@
 
 ### 功能
 
+- 页脚尺寸对齐 Li&Design V1.5：`SiteFooter` 内容行加 `min-h-14`（单行高 56px 兜底），与模板页脚组件（`.site-footer-inner`）大小/高度一致。
 - 视觉对齐 Li&Design V1.4：浅色语义色采用 AA 调校值（muted `#64736C` / success `#2A7C52` /
   warning `#9A5C05` / destructive `#C43737`），弱化/成功文字对比全部 ≥ 4.5:1；深色带文字软底组件
   改用 `--portal-*-soft-solid` + `--portal-*-soft-fg` 实色粉彩底 + 深字令牌（对比 ≥ 8:1）；原生下拉
