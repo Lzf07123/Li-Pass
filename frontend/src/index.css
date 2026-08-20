@@ -57,7 +57,7 @@
   --portal-surface: #ffffff;
   --portal-surface-2: #eef6f3;
   --portal-fg: #35423f;
-  --portal-muted: #71807a;
+  --portal-muted: #64736c;
   --portal-border: #e1ece8;
 
   --portal-primary: #25786d;
@@ -68,11 +68,11 @@
   --portal-secondary: #2f678f;
   --portal-secondary-soft: #dff1fa;
 
-  --portal-success: #2f8f5f;
+  --portal-success: #2a7c52;
   --portal-success-soft: #e3f6e9;
-  --portal-warning: #a16207;
+  --portal-warning: #9a5c05;
   --portal-warning-soft: #fdf3d8;
-  --portal-destructive: #cf3d3d;
+  --portal-destructive: #c43737;
   --portal-destructive-soft: #fdeeee;
   --portal-destructive-fg: #ffffff;
 
@@ -176,6 +176,16 @@
   --portal-destructive: #e8a49a;
   --portal-destructive-soft: rgba(232, 164, 154, 0.14);
   --portal-destructive-fg: #43211d;
+
+  /* 深色软底带文字组件：实色粉彩底 + 深字（rgba 软底对比上限 ≈3.9，不达标） */
+  --portal-primary-soft-solid: #d9f4ee;
+  --portal-primary-soft-fg: #17332e;
+  --portal-success-soft-solid: #e3f6e9;
+  --portal-success-soft-fg: #14532d;
+  --portal-warning-soft-solid: #fdf3d8;
+  --portal-warning-soft-fg: #78350f;
+  --portal-destructive-soft-solid: #fdeeee;
+  --portal-destructive-soft-fg: #7f1d1d;
 
   --portal-accent-ice: #a8cbe8;
   --portal-accent-ice-soft: rgba(168, 203, 232, 0.16);
@@ -402,6 +412,78 @@
       background-color var(--motion-fast) var(--ease-out);
   }
 
+  /* 原生 select：与 .input 完全同视觉；令牌色 chevron 用双三角渐变绘制，
+     不引入硬编码图标与颜色 */
+  .select {
+    @apply w-full appearance-none rounded-lg border border-border bg-surface px-3 py-2.5 text-sm text-foreground shadow-sm disabled:cursor-not-allowed disabled:opacity-50 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20;
+    padding-right: 2.5rem;
+    background-image:
+      linear-gradient(45deg, transparent 50%, var(--portal-muted) 50%),
+      linear-gradient(135deg, var(--portal-muted) 50%, transparent 50%);
+    background-position:
+      calc(100% - 17px) calc(50% - 1px),
+      calc(100% - 12px) calc(50% - 1px);
+    background-size:
+      5px 5px,
+      5px 5px;
+    background-repeat: no-repeat;
+    transition:
+      border-color var(--motion-fast) var(--ease-out),
+      box-shadow var(--motion-fast) var(--ease-out),
+      background-color var(--motion-fast) var(--ease-out);
+  }
+  .select-sm {
+    @apply w-full appearance-none rounded-md border border-border bg-surface px-2.5 py-1.5 text-sm text-foreground shadow-sm disabled:cursor-not-allowed disabled:opacity-50 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20;
+    padding-right: 2rem;
+    background-image:
+      linear-gradient(45deg, transparent 50%, var(--portal-muted) 50%),
+      linear-gradient(135deg, var(--portal-muted) 50%, transparent 50%);
+    background-position:
+      calc(100% - 15px) calc(50% - 1px),
+      calc(100% - 10px) calc(50% - 1px);
+    background-size:
+      5px 5px,
+      5px 5px;
+    background-repeat: no-repeat;
+    transition:
+      border-color var(--motion-fast) var(--ease-out),
+      box-shadow var(--motion-fast) var(--ease-out),
+      background-color var(--motion-fast) var(--ease-out);
+  }
+  .select option {
+    color: var(--portal-fg);
+    background-color: var(--portal-surface);
+  }
+
+  /* 复选框 / 单选 / 文件按钮：全局尺寸与主色 accent，不再由组件各自拼尺寸类 */
+  input[type="checkbox"],
+  input[type="radio"] {
+    width: 18px;
+    height: 18px;
+    flex: none;
+    accent-color: var(--portal-primary);
+    cursor: pointer;
+  }
+  input[type="file"]::file-selector-button {
+    margin-right: 10px;
+    padding: 8px 14px;
+    border: 1px solid var(--portal-border);
+    border-radius: 8px;
+    background: var(--portal-surface-2);
+    color: var(--portal-fg);
+    font: inherit;
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition:
+      background-color var(--motion-fast) var(--ease-out),
+      color var(--motion-fast) var(--ease-out),
+      border-color var(--motion-fast) var(--ease-out);
+  }
+  input[type="file"]::file-selector-button:hover {
+    background: var(--portal-primary-soft);
+    color: var(--portal-primary);
+  }
+
   /* 徽章 */
   .badge {
     @apply inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium whitespace-nowrap;
@@ -419,21 +501,25 @@
     @apply bg-surface-2 text-muted;
   }
   .badge-primary {
-    @apply bg-primary-soft text-primary dark:text-sky-200;
+    @apply bg-primary-soft text-primary;
   }
   /* 深色下「半透明软底 + 浅色文字」对比上限约 3.9，无法满足 4.5；
      徽章改为「实色粉彩底 + 深青文字」模式。 */
   .dark .badge-primary {
-    @apply bg-primary text-primary-foreground;
+    background-color: var(--portal-primary-soft-solid);
+    color: var(--portal-primary-soft-fg);
   }
   .dark .badge-success {
-    @apply bg-success text-primary-foreground;
+    background-color: var(--portal-success-soft-solid);
+    color: var(--portal-success-soft-fg);
   }
   .dark .badge-warning {
-    @apply bg-warning text-primary-foreground;
+    background-color: var(--portal-warning-soft-solid);
+    color: var(--portal-warning-soft-fg);
   }
   .dark .badge-danger {
-    @apply bg-destructive text-primary-foreground;
+    background-color: var(--portal-destructive-soft-solid);
+    color: var(--portal-destructive-soft-fg);
   }
 
   /* 页面内持久提示条（与弹窗通知同一视觉语言） */
@@ -819,6 +905,17 @@
   }
   .table-shell tbody tr {
     @apply transition-colors duration-150 hover:bg-surface-2/60;
+  }
+
+  /* 表格空状态：居中弱化；容器虚线提示 */
+  .table-empty-row td {
+    padding: 20px 16px;
+    text-align: center;
+    color: var(--portal-muted);
+    font-size: 0.9rem;
+  }
+  .table-shell:has(.table-empty-row) {
+    border-style: dashed;
   }
 
   /* 表格长文本列（邮箱/昵称等）：窄屏单行截断、悬停显示完整值；

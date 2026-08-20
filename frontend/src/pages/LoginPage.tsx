@@ -228,7 +228,7 @@ export function LoginPage() {
               type="checkbox"
               checked={trustDevice}
               onChange={(e) => setTrustDevice(e.target.checked)}
-              className="h-4 w-4 accent-primary"
+              className="accent-primary"
             />
             信任此设备：7 天内登录免二次验证（仅登录环节）
           </label>
@@ -290,7 +290,7 @@ export function LoginPage() {
               type="checkbox"
               checked={rememberMe}
               onChange={(e) => setRememberMe(e.target.checked)}
-              className="h-4 w-4 accent-primary"
+              className="accent-primary"
             />
             记住我（30 天内免登录）
           </label>
@@ -299,7 +299,7 @@ export function LoginPage() {
               type="checkbox"
               checked={rememberAccount}
               onChange={(e) => setRememberAccount(e.target.checked)}
-              className="h-4 w-4 accent-primary"
+              className="accent-primary"
             />
             记住账号
           </label>

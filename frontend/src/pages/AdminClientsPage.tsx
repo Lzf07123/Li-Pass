@@ -401,7 +401,7 @@ export function AdminClientsPage() {
             type="checkbox"
             checked={isPublic}
             onChange={(e) => setIsPublic(e.target.checked)}
-            className="h-4 w-4 accent-primary"
+            className="accent-primary"
           />
           公开客户端（无 secret，仅 PKCE）
         </label>
@@ -615,7 +615,7 @@ export function AdminClientsPage() {
                     onChange={(e) =>
                       updateDraft({ require_consent_every_time: e.target.checked })
                     }
-                    className="h-4 w-4 accent-primary"
+                    className="accent-primary"
                   />
                   每次授权都需用户确认
                 </label>
@@ -624,7 +624,7 @@ export function AdminClientsPage() {
                     type="checkbox"
                     checked={editDraft.is_active}
                     onChange={(e) => updateDraft({ is_active: e.target.checked })}
-                    className="h-4 w-4 accent-primary"
+                    className="accent-primary"
                   />
                   启用该网站（停用后无法发起授权）
                 </label>
@@ -681,7 +681,7 @@ export function AdminClientsPage() {
                     setBlockEmail({ ...blockEmail, [client.id]: e.target.value })
                   }
                   placeholder="封禁邮箱"
-                  className="input-sm min-w-40 flex-1"
+                  className="select-sm min-w-40 flex-1"
                 />
                 <input
                   value={blockReason[client.id] ?? ""}
@@ -689,7 +689,7 @@ export function AdminClientsPage() {
                     setBlockReason({ ...blockReason, [client.id]: e.target.value })
                   }
                   placeholder="原因"
-                  className="input-sm min-w-32 flex-1"
+                  className="select-sm min-w-32 flex-1"
                 />
                 <AsyncButton
                   type="button"

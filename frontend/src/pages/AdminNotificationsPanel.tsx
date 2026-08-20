@@ -183,7 +183,7 @@ export function AdminNotificationsPanel() {
       <form onSubmit={submit} className="card space-y-4 p-6">
         <div className="space-y-2">
           <span className="text-sm font-medium text-foreground">发送渠道</span>
-          <label className="flex items-center gap-2 text-sm text-foreground">
+          <label className="flex cursor-pointer items-center gap-2 text-sm text-foreground">
             <input
               type="checkbox"
               checked={inSite}
@@ -191,7 +191,7 @@ export function AdminNotificationsPanel() {
             />
             站内信
           </label>
-          <label className="flex items-center gap-2 text-sm text-foreground">
+          <label className="flex cursor-pointer items-center gap-2 text-sm text-foreground">
             <input
               type="checkbox"
               checked={email}
@@ -202,7 +202,7 @@ export function AdminNotificationsPanel() {
         </div>
         <div className="space-y-2">
           <span className="text-sm font-medium text-foreground">收件人</span>
-          <label className="flex items-center gap-2 text-sm text-foreground">
+          <label className="flex cursor-pointer items-center gap-2 text-sm text-foreground">
             <input
               type="radio"
               name="scope"
@@ -211,7 +211,7 @@ export function AdminNotificationsPanel() {
             />
             全部用户
           </label>
-          <label className="flex items-center gap-2 text-sm text-foreground">
+          <label className="flex cursor-pointer items-center gap-2 text-sm text-foreground">
             <input
               type="radio"
               name="scope"
@@ -227,7 +227,7 @@ export function AdminNotificationsPanel() {
                 value={userQuery}
                 onChange={(event) => setUserQuery(event.target.value)}
                 placeholder="按邮箱或昵称搜索"
-                className="input-sm w-full"
+                className="select-sm w-full"
               />
               <div className="max-h-48 overflow-y-auto rounded-lg border border-border">
                 {usersLoading ? (
@@ -240,7 +240,7 @@ export function AdminNotificationsPanel() {
                   filteredUsers.map((user) => (
                     <label
                       key={user.id}
-                      className="flex items-center gap-2 border-b border-border/50 px-3 py-2 text-sm text-foreground last:border-b-0"
+                      className="flex cursor-pointer items-center gap-2 border-b border-border/50 px-3 py-2 text-sm text-foreground last:border-b-0"
                     >
                       <input
                         type="checkbox"
