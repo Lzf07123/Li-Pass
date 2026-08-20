@@ -240,6 +240,7 @@ stable 哈希分配见 `frontend/src/lib/accent.ts` 的 `accentFor(id)`；Bento 
 - **认证/引导页（登录、注册、邀请注册、找回/重置密码、邮箱验证、授权确认）：** `AuthShell`
   —— 居中单卡片（`max-w-md`）、极光背景（`AuroraBackground`）、顶部品牌 + 标语、底部备案信息。
 - **已登录页（用户中心、管理后台）：** `AppHeader`（品牌 + 主题切换 + 操作按钮）+ 内容区 + `SiteFooter`。
+- **页脚尺寸：** `SiteFooter` 与 Li&Design V1.5 页脚组件一致——内容行单行高 56px（`min-h-14` 兜底）、字号 12px、图标/备案占位 14×14px；版权/备案/链接全部来自 `brand.ts`。
 - **管理后台：** 顶部胶囊标签页切换（`PillTabs`），8 个标签面板懒加载；「数据统计」概览为深色 Bento 网格（`MagicBento`）。
 - **深色模式：** `useTheme` 读取 `localStorage("portal-theme")`，首帧渲染前在 `index.html` 内联脚本应用 `html.dark`。
 

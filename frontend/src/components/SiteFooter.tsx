@@ -80,7 +80,7 @@ export function SiteFooter() {
 
   return (
     <footer className="relative mt-auto border-t border-border/60 bg-surface/60 backdrop-blur">
-      <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-center gap-x-2 gap-y-1 px-4 py-5 text-xs text-muted lg:px-8">
+      <div className="mx-auto flex min-h-14 max-w-7xl flex-wrap items-center justify-center gap-x-2 gap-y-1 px-4 py-5 text-xs text-muted lg:px-8">
         <span>© {year} {COPYRIGHT_HOLDER}</span>
         {filingLinks}
         {FOOTER_LINKS.map((link) => (
