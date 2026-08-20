@@ -15,6 +15,13 @@ map $http_upgrade $connection_upgrade {
     ''      close;
 }
 
+# 外层 HTTPS 反代已设置 X-Forwarded-Proto 时原样保留，避免 TLS 信息在
+# 网关转发时被降级为 http；直接访问编排网关（无该头）时回退到自身 $scheme。
+map $http_x_forwarded_proto $forwarded_proto {
+    default $scheme;
+    "~^https?$" $http_x_forwarded_proto;
+}
+
 # API JSON 与 HTML 响应压缩（前端构建产物已由前端容器自行压缩）
 gzip on;
 gzip_vary on;
@@ -45,7 +52,7 @@ server {
     proxy_set_header Host $host;
     proxy_set_header X-Real-IP $remote_addr;
     proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_set_header X-Forwarded-Proto $forwarded_proto;
     proxy_set_header X-Forwarded-Host $host;
     proxy_http_version 1.1;
     proxy_set_header Connection "";
@@ -112,7 +119,7 @@ server {
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-Proto $forwarded_proto;
         proxy_set_header X-Forwarded-Host $host;
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;

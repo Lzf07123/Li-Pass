@@ -454,6 +454,7 @@ docker run --rm \
 
 1. 在部署环境配置 TLS 与路由（例如 K8s Ingress、云负载均衡或外部网关），把域名指向前端与后端服务。
 2. **HSTS 由外层网关统一配置**（`Strict-Transport-Security: max-age=63072000; includeSubDomains`，见下方 nginx 参考配置）。编排内网关不签发 HSTS；后端在生产（`SESSION_COOKIE_SECURE=true`）会以相同值兜底签发，覆盖 API 响应。若外层网关需要不同策略（如去掉 `includeSubDomains`），需同步调整后端签发值。
+   > 协议透传：编排内网关会**原样保留**外层代理传入的 `X-Forwarded-Proto`（缺失时回退到自身 `$scheme`），因此外层反代必须正确设置该头（下方参考配置已包含），后端即可获知真实 HTTPS 协议，不会被降级为 http。
 3. 更新 `.env`（参考 `.env.example` 底部的生产配置示例）：
    - `ENVIRONMENT=production`
    - `JWT_ISSUER=https://auth.example.com`

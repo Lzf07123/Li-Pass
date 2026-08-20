@@ -129,6 +129,7 @@
 
 ### 缺陷修复
 
+- **网关保留外层代理的 `X-Forwarded-Proto`**：此前编排内网关一律用自身 `$scheme` 覆盖转发头，外层 TLS 反代传入的 `https` 会被降级为 `http`（当前后端显式配置 `PUBLIC_BASE_URL`/`JWT_ISSUER`，无功能影响，但部署链路协议信息错误，且是后续 `request.url` 链路的隐患）。现改为优先保留传入的 `X-Forwarded-Proto`，缺失时回退到自身 `$scheme`。
 - **管理后台「用户管理」表格移动端异常换行修复**：窄屏下表格自动布局会把「昵称/邮箱」列压缩至最小宽度，长昵称在约 38px 的列内逐字折行，行高可暴涨到 600px 以上。新增 `.table-cell-clip` 工具类：窄屏（<1024px）邮箱/昵称单行截断并保留 `title` 悬停查看完整值，表头统一 `whitespace-nowrap`，表格整体在移动端横向滚动；≥1024px 恢复原有自然自动布局，桌面端视觉不变。
 - **访客打开隐私政策/服务条款被弹回登录页**：法律页面顶栏站内信铃铛的未读数探测在未登录时返回 401，此前会派发全局 `lipass:unauthorized` 事件并跳转登录，导致从认证页点击页脚链接后立即被弹回。未读数接口现按静默会话探针处理（401 仅隐藏铃铛，不触发跳转）；补回归测试覆盖「未读数 401 不派发跳转事件」。
 - **编排未透传部分已文档化的安全相关环境变量**：`docker-compose.example.yaml` 的 backend 环境此前未转发 `LOGIN_RATE_LIMIT`/`LOGIN_RATE_WINDOW_SECONDS`/`LOGIN_IP_RATE_LIMIT`/`LOGIN_IP_RATE_WINDOW_SECONDS` 与 `STEPUP_WINDOW_MINUTES`/`STEPUP_RATE_LIMIT`/`STEPUP_RATE_WINDOW_SECONDS`/`STEPUP_EMAIL_RATE_LIMIT`/`STEPUP_EMAIL_RATE_WINDOW_SECONDS`——部署文档与根 `.env.example` 已把这些值作为可调项列明，但在 compose 部署形态下调整不生效（容器始终用代码默认值）。现已全部透传（默认值与代码一致，默认行为不变），根 `.env.example` 同步补 step-up 项。
