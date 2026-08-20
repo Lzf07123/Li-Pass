@@ -675,7 +675,7 @@ export function DashboardPage() {
                       type="file"
                       accept="image/jpeg,image/png,image/gif,image/webp"
                       onChange={(e) => setAvatarFile(e.target.files?.[0] ?? null)}
-                      className="input file:cursor-pointer file:mr-3 file:rounded-md file:border-0 file:bg-surface-2 file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-foreground"
+                      className="input"
                     />
                   </label>
                   <AsyncButton
@@ -705,7 +705,7 @@ export function DashboardPage() {
                       保存
                     </AsyncButton>
                   </div>
-                  <label className="flex items-center gap-2 text-sm text-foreground">
+                  <label className="flex cursor-pointer items-center gap-2 text-sm text-foreground">
                     <input
                       type="checkbox"
                       checked={emailNotifications}

@@ -105,7 +105,7 @@ export function AdminAuditPanel() {
               setOffset(0);
               setHasMore(true);
             }}
-            className="input-sm sm:w-40"
+            className="select-sm sm:w-40"
             aria-label="审计分类"
           >
             <option value="">全部</option>
@@ -125,7 +125,7 @@ export function AdminAuditPanel() {
           }}
           placeholder="输入完整动作名"
           aria-label="审计动作"
-          className="input-sm sm:w-64"
+          className="select-sm sm:w-64"
         />
       </div>
 

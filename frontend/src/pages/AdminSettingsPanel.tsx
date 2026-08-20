@@ -309,7 +309,7 @@ export function AdminSettingsPanel() {
               value={currentInterval}
               disabled={settings === null || intervalAction.pending}
               onChange={(event) => void intervalAction.run(Number(event.target.value))}
-              className="input-sm"
+              className="select-sm"
               aria-label="IP 库检查间隔"
             >
               {intervalOptions.map((option) => (

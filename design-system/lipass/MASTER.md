@@ -13,9 +13,9 @@
 
 **Project:** Li&Pass
 **Generated:** 2026-08-12 10:23:37
-**Updated:** 2026-08-17（与 `frontend/src/index.css`、`frontend/src/components/` 对齐；
-全站切换为「海玻璃 Sea Glass」淡色系并新增科技氛围层，详见
-`docs/superpowers/specs/2026-08-17-ui-color-light-design.md`）
+**Updated:** 2026-08-20（对齐 Li&Design V1.4：浅色语义色 AA 调校值、深色软底
+`*-soft-solid`/`*-soft-fg` 令牌，原生下拉/复选/单选/文件/表格空状态按模板落地；
+详见 `docs/superpowers/specs/2026-08-20-lidesign-v1-4-alignment-design.md`）
 **Category:** SSO 统一登录门户（Li&Pass）
 
 > **来源声明：** 本文件描述当前前端实现使用的视觉系统；最终以 `frontend/src/index.css` 的
@@ -36,15 +36,15 @@
 | 表面 | `#FFFFFF` | `#434950` | `bg-surface` |
 | 表面 2 | `#EEF6F3` | `#4B5259` | `bg-surface-2` |
 | 前景 | `#35423F` | `#F0F2F4` | `text-foreground` |
-| 弱化文本 | `#71807A` | `#B8C0C7` | `text-muted` |
+| 弱化文本 | `#64736C` | `#B8C0C7` | `text-muted` |
 | 边框 | `#E1ECE8` | `#545C64` | `border-border` |
 | 主色 | `#25786D` | `#7FD4C6` | `bg-primary / text-primary` |
 | 主色悬停 | `#1F6359` | `#A5E4D9` | `hover:bg-primary-hover` |
 | 主色前景 | `#FFFFFF` | `#17332E` | `text-primary-foreground` |
 | 次级色 | `#2F678F` | `#A8D4F0` | `text-secondary / bg-secondary-soft` |
-| 成功 | `#2F8F5F` | `#86D6AC` | `text-success / bg-success-soft` |
-| 警告 | `#A16207` | `#EAD48E` | `text-warning / bg-warning-soft` |
-| 危险 | `#CF3D3D` | `#E8A49A` | `text-destructive / bg-destructive-soft` |
+| 成功 | `#2A7C52` | `#86D6AC` | `text-success / bg-success-soft` |
+| 警告 | `#9A5C05` | `#EAD48E` | `text-warning / bg-warning-soft` |
+| 危险 | `#C43737` | `#E8A49A` | `text-destructive / bg-destructive-soft` |
 | 焦点环 | `#25786D` | `#7FD4C6` | `focus:ring-primary/20` |
 
 **强调色板（信息分层，装饰性小面积使用）：**
@@ -66,8 +66,9 @@ stable 哈希分配见 `frontend/src/lib/accent.ts` 的 `accentFor(id)`；Bento 
 配 soft 底时文本对比 ≥ 4.5:1；强调色只做装饰（瓦片/图例/规则线），状态语义色不被替代。
 签名描边与流光线使用粉彩渐变（`--flow-gradient`）；主按钮改为半透明单色着色
 （`--btn-primary-bg`，浅色 10% / 深色 13% 透明度）+ 细描边，文字用 `--brand-fg` 保证对比。
-深色模式为「D1 雾灰」柔和中间调（不压黑），而非简单反色；深色下徽章/瓦片文字用「实色粉彩底 +
-深青文字」、提示条正文用高亮浅色文字（软底浅字对比上限 ≈3.9，达不到 4.5）。
+深色模式为「D1 雾灰」柔和中间调（不压黑），而非简单反色；深色下带文字软底组件回退到
+`--portal-{primary,success,warning,destructive}-soft-solid` + `-soft-fg`（实色粉彩底 + 深字），
+提示条正文用高亮浅色文字（软底浅字对比上限 ≈3.9，达不到 4.5）。
 
 ### 字体
 
@@ -139,10 +140,14 @@ stable 哈希分配见 `frontend/src/lib/accent.ts` 的 `accentFor(id)`；Bento 
 - 约束：`aria-hidden`、`pointer-events: none`、移动端（<768px）隐藏光束与光点并停用网格动画；
   `prefers-reduced-motion` 下由全局规则降为单帧。
 
-### 表单（`.label` / `.input` / `.input-sm`）
+### 表单与选择控件（`.label` / `.input` / `.input-sm` / `.select-sm`）
 
 - 输入框：`bg-surface`、`rounded-lg`、`px-3 py-2.5`、`text-sm`。
 - focus：主色边框 + `ring-2 ring-primary/20`；placeholder 用 `text-muted`。
+- 原生下拉 `.select` / `.select-sm`：与 `.input`/`.input-sm` 同视觉，双三角渐变 chevron 走
+  `--portal-muted`，`option` 走 surface/fg 令牌；项目内全部 `<select>` 用 `select-sm`。
+- 复选/单选：全局 18px + `accent-color: var(--portal-primary)` + `cursor: pointer`，组件不另设尺寸类。
+- 文件按钮：`input[type="file"]::file-selector-button` 全局样式（surface-2 → hover primary-soft）。
 
 ### 胶囊标签（`PillTabs` / `.pill-tab`）
 
@@ -184,9 +189,15 @@ stable 哈希分配见 `frontend/src/lib/accent.ts` 的 `accentFor(id)`；Bento 
 ### 徽章 / 提示条 / 弹窗 / Toast
 
 - `.badge-*`：`rounded-full` 的语义状态徽章（success/warning/danger/muted/primary）。
+- 深色徽章：回退 `--portal-*-soft-solid`（实色粉彩底）+ `--portal-*-soft-fg`（深字），不直接用语义色作底。
 - `.notice-*`：页面内持久提示条，与 Toast 同一视觉语言，带状态图标。
 - `.modal-*`：`modal-backdrop`（遮罩 + `backdrop-blur-sm`）+ `modal-panel`（`rounded-2xl`、状态色顶部条）。
 - `.toast-*`：`toast-viewport` 顶部居中（`z-[80]`，高于 Modal 遮罩 `z-[70]`），带进度条与进入/离开动画。
+
+### 表格（`.table-shell` / `.table-empty-row`）
+
+- `.table-shell`：表头 surface-2 + muted 小字；行 hover surface-2/60；移动端横向滚动。
+- `.table-empty-row`：空状态居中 muted；容器 `:has()` 时边框变虚线（用户管理空行已接入）。
 
 ### 环境呼吸层（`.FloatingBackground`）
 

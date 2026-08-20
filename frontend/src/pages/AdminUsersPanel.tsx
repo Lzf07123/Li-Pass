@@ -507,7 +507,7 @@ export function AdminUsersPanel({ currentAdminId }: { currentAdminId: string }) 
               setSelected(new Set());
               load(query, e.target.value, roleFilter);
             }}
-            className="input-sm sm:w-36"
+            className="select-sm sm:w-36"
             aria-label="按状态筛选"
           >
             <option value="">全部状态</option>
@@ -524,7 +524,7 @@ export function AdminUsersPanel({ currentAdminId }: { currentAdminId: string }) 
               setSelected(new Set());
               load(query, statusFilter, e.target.value);
             }}
-            className="input-sm sm:w-32"
+            className="select-sm sm:w-32"
             aria-label="按角色筛选"
           >
             <option value="">全部角色</option>
@@ -761,10 +761,9 @@ export function AdminUsersPanel({ currentAdminId }: { currentAdminId: string }) 
               </tr>
             ))}
             {users.length === 0 && (
-              <tr>
+              <tr className="table-empty-row">
                 <td
                   colSpan={6}
-                  className="py-10 text-center text-sm text-muted"
                 >
                   没有符合筛选条件的用户或邀请
                 </td>

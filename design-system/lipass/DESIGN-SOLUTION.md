@@ -1,6 +1,8 @@
 # Li&Pass 视觉设计全量方案 · Sea Glass（海玻璃）
 
-> **版本**：V1.0 ｜ **日期**：2026-08-17 ｜ **状态**：已定稿并落地（2026-08-17 全量视觉刷新）
+> **版本**：V1.1 ｜ **日期**：2026-08-20 ｜ **状态**：已定稿并落地（2026-08-17 全量视觉刷新；
+> 2026-08-20 对齐 Li&Design V1.4：浅色语义色 AA 调校值 + 深色 soft-solid/soft-fg 令牌 +
+> 原生下拉/复选/单选/文件/表格空状态控件）
 > **性质**：本文件是 Li&Pass 视觉设计的**完整设计方案汇总**，覆盖「色彩 + 组件 + 氛围光效 +
 > 文字/计数动效 + 按钮状态 + 无障碍」全部决策；与 [BRAND.md](./BRAND.md)（品牌意图）、
 > [MASTER.md](./MASTER.md)（实现速览）三份互补，代码事实始终以 `frontend/src/index.css` 为准。
@@ -45,10 +47,10 @@
 | --- | --- | --- |
 | 背景 | `#F6FBF9` | `--portal-bg` |
 | 表面 / 表面 2 | `#FFFFFF` / `#EEF6F3` | `--portal-surface(-2)` |
-| 前景 / 弱化 / 边框 | `#35423F` / `#71807A` / `#E1ECE8` | `--portal-fg/muted/border` |
+| 前景 / 弱化 / 边框 | `#35423F` / `#64736C` / `#E1ECE8` | `--portal-fg/muted/border` |
 | 主色 / hover / soft / fg | `#25786D` / `#1F6359` / `#D9F4EE` / `#FFFFFF` | `--portal-primary*` |
 | 次级 | `#2F678F`（soft `#DFF1FA`） | `--portal-secondary(-soft)` |
-| 成功 / 警告 / 危险 | `#2F8F5F` / `#A16207` / `#CF3D3D` | `--portal-success/warning/destructive` |
+| 成功 / 警告 / 危险 | `#2A7C52` / `#9A5C05` / `#C43737` | `--portal-success/warning/destructive` |
 | 焦点环 | `#25786D` | `--portal-ring` |
 | 按钮着色 | bg `rgba(47,127,116,.10)`、hover `.17`、描边 `.26` | `--btn-primary-*` |
 | 按钮文字 | `#24433E` | `--brand-fg` |
@@ -67,6 +69,16 @@
 
 深色原则：**雾灰中间调，不压黑**（平均亮度约为旧深色的 3 倍）。
 
+**深色软底令牌（V1.3 AA 调校，Li&Design V1.4 对齐）**：带文字的软底组件回退到实色粉彩底 + 深字，
+`rgba` 软底只留给图标/图形：
+
+| 角色 | soft-solid | soft-fg | 对比度 |
+| --- | --- | --- | --- |
+| primary | `#D9F4EE` | `#17332E` | >10 |
+| success | `#E3F6E9` | `#14532D` | 8.08 ✅ |
+| warning | `#FDF3D8` | `#78350F` | 8.20 ✅ |
+| destructive | `#FDEEEE` | `#7F1D1D` | 8.89 ✅ |
+
 ### 3.3 六强调色板（装饰专用）
 
 | 色相 | 浅 strong / soft | 深 strong / soft | 典型用途 |
@@ -82,9 +94,10 @@
 共用一组亮色令牌 `--portal-bento-{ice,aqua,lilac,sage,mint,sand}[-rgb]`。
 
 **深色对比度规则（2026-08-17 核算修正）**：`rgba(浅色, 0.14–0.18)` 软底上的同色浅字对比
-上限约 3.9，无法达到 4.5——深色下的**徽章与瓦片文字**改用「实色粉彩底 + 深青文字」
-（`bg-accent-*` / `bg-*` + `text-primary-foreground`）；**提示条正文**改用高亮浅色文字
-（`#CFF0DE`/`#F7EBC4`/`#F6D0C8`/`#CDEFE9`）。浅色侧 strong 值已加深一档以满足 4.5。
+上限约 3.9，无法达到 4.5——深色下的**徽章/瓦片等带文字软底组件**回退到
+`--portal-{primary,success,warning,destructive}-soft-solid` + `-soft-fg`（实色粉彩底 + 深字）；
+**提示条正文**改用高亮浅色文字（`#CFF0DE`/`#F7EBC4`/`#F6D0C8`/`#CDEFE9`）。
+浅色语义色（muted/success/warning/destructive）已按 V1.3 AA 调校值加深一档以满足 4.5。
 
 ### 3.4 渐变与装饰令牌
 
@@ -100,6 +113,11 @@
 - **`.card` / `.card-signature` / `.card-halo`**：认证卡 = 表面双背景 + 粉彩流动描边（9s）+
   卡后浅水绿呼吸辉光（4.5s，含轻微缩放）；`.brand-halo` 给认证页 Logo 辉光。
 - **`.badge-*` / `.notice-*` / `.modal-*` / `.toast-*`**：语义色 + soft 底；Toast `z-80` 高于 Modal `z-70`。
+- **`.select` / `.select-sm`**：原生下拉与输入框同视觉，双三角渐变 chevron 走 `--portal-muted`；
+  项目内全部 `<select>` 使用 `select-sm`。
+- **复选/单选 / 文件按钮**：全局 18px + 主色 `accent-color` + `cursor: pointer`；文件按钮 surface-2，
+  hover 换 primary-soft + primary 文字。
+- **`.table-empty-row`**：空状态居中 muted；容器 `:has()` 时边框变虚线（用户管理空行已接入）。
 - **`PillTabs`**：活动标签实色主色 + 扫光（4s）；轨道 surface-2 胶囊。
 - **`MagicBento`**：深色卡（浅 `#1A2B27` / 深 `#363D44`）；`title` 支持 ReactNode（嵌入 CountUp）；
   卡片级 `accent:{rgb,hex}` 驱动标签/图标/辉光/迷你图同色。
